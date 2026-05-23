@@ -1,0 +1,4 @@
+{
+  "target_branch": "main",
+  "merge_strategy": "squash"
+}
