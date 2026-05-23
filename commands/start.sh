@@ -212,7 +212,7 @@ Path(f".specwork/_state/{slug}-rules.json").write_text(
     json.dumps(rules, indent=2) + "\n", encoding="utf-8"
 )
 PY
-else:
+else
   cat > ".specwork/_state/${SLUG}-rules.json" <<ENDJSON
 {
   "schema_version": 1,

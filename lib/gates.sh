@@ -5,9 +5,27 @@
 # Fixed: mtime comparison uses state.json stored timestamp, not filesystem mtime.
 
 resolve_slug() {
-  local branch
+  local branch state_file matched_slug
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
   [ -n "$branch" ] || return 1
+
+  # Prefer the slug stored in state.json that matches our branch.
+  # Write a small python script to a temp file to avoid heredoc nesting issues.
+  state_file=$(find .specwork/_state -maxdepth 1 -type f -name "*-state.json" 2>/dev/null | head -1)
+  if [ -n "$state_file" ] && [ -f "$state_file" ]; then
+    matched_slug=$(python3 -c "
+import json,sys
+s=json.load(open(sys.argv[1]))
+if s.get('branch')==sys.argv[2]:
+  print(s.get('id',''))
+" "$state_file" "$branch" 2>/dev/null || true)
+    if [ -n "$matched_slug" ]; then
+      printf '%s' "$matched_slug"
+      return 0
+    fi
+  fi
+
+  # Fallback: derive slug from branch name
   branch="${branch#*/}"
   printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
 }
