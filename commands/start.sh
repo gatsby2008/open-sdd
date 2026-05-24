@@ -30,22 +30,6 @@ tree_is_clean() {
   git status --porcelain 2>/dev/null | grep -q . && return 1 || return 0
 }
 
-# ---- bootstrap project setup ------------------------------------------------
-
-BOOTSTRAPPED=0
-if [ ! -f "AGENTS.md" ]; then
-  cp "$TEMPLATES_DIR/AGENTS.md" "AGENTS.md" 2>/dev/null && BOOTSTRAPPED=1
-fi
-if [ ! -d ".opensdd" ]; then
-  mkdir -p ".opensdd"
-  cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md" 2>/dev/null && BOOTSTRAPPED=1
-fi
-if [ "$BOOTSTRAPPED" = "1" ]; then
-  echo "Project setup complete (AGENTS.md + .opensdd/)"
-  git add AGENTS.md .opensdd/ 2>/dev/null || true
-  git commit -m "Add open-sdd project setup" 2>/dev/null || true
-fi
-
 # ---- main -------------------------------------------------------------------
 
 BRANCH_FLAG=""
@@ -155,6 +139,16 @@ else
 fi
 
 echo "Working branch: $BRANCH"
+
+# ---- bootstrap project setup (on feature branch, no commit) -----------------
+
+if [ ! -f "AGENTS.md" ]; then
+  cp "$TEMPLATES_DIR/AGENTS.md" "AGENTS.md" 2>/dev/null && echo "Created AGENTS.md"
+fi
+if [ ! -d ".opensdd" ]; then
+  mkdir -p ".opensdd"
+  cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md" 2>/dev/null && echo "Created .opensdd/service-rules.md"
+fi
 
 # ---- scaffold .specwork/ ----------------------------------------------------
 
