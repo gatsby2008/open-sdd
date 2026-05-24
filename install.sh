@@ -30,7 +30,9 @@ Ask the user about branch choice using the suggested name (prefixed with 'featur
 
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --branch <name>   # for a custom branch
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --keep            # to stay on current
-${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch"
+${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch
+
+After the script finishes, STOP. Do NOT continue to /f-implement or /f-commit. Tell the user the spec is ready, they need to edit it and resolve Open Questions before proceeding."
 install_cmd "plan"          "Discover target files and write implementation plan"
 install_cmd "implement"     "Implement next focused change from the spec"
 install_cmd "commit"        "Stage changes and generate semantic commit"

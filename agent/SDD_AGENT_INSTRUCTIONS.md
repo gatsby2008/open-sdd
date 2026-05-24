@@ -51,6 +51,9 @@ Initialize the pipeline and create/select a working branch.
    - Custom branch: `bash commands/start.sh <input> --branch <name>`
    - Stay on current: `bash commands/start.sh <input> --keep`
    - Default (suggested): `bash commands/start.sh <input>`
+6. **STOP.** Do NOT continue to `/f-implement` or any next step.
+   Inform the user the spec is ready for editing and they should resolve
+   Open Questions before proceeding.
 
 **Script behavior** (`start.sh`):
 1. Fetches Jira via `source lib/jira.sh && jira_write_issue_markdown` when
