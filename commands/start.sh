@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+TEMPLATES_DIR="$SCRIPT_DIR/../templates"
 
 source "$LIB_DIR/jira.sh"
 
@@ -187,19 +188,20 @@ ENDJSON
 
 # ---- write rules.json -------------------------------------------------------
 
-if [ -f ".claude/service-rules.md" ]; then
-  echo "Loading service rules from .claude/service-rules.md..."
-  python3 - "$SLUG" <<'PY'
+if [ -f ".opensdd/service-rules.md" ]; then
+  echo "Loading service rules from .opensdd/service-rules.md..."
+  python3 - "$SLUG" "$TEMPLATES_DIR/rules.md" <<'PY'
 import json, sys
 from pathlib import Path
 
 slug = sys.argv[1]
-rules_md = Path(".claude/service-rules.md").read_text(encoding="utf-8")
-agents_md_path = Path.home() / ".claude/skills/sdd/AGENTS.md"
+rules_md_path = Path(sys.argv[2])
+
+rules_md = Path(".opensdd/service-rules.md").read_text(encoding="utf-8")
 
 global_rules = []
-if agents_md_path.exists():
-    global_rules = [agents_md_path.read_text(encoding="utf-8")]
+if rules_md_path.exists():
+    global_rules = [rules_md_path.read_text(encoding="utf-8")]
 
 rules = {
     "schema_version": 1,
