@@ -30,6 +30,17 @@ tree_is_clean() {
   git status --porcelain 2>/dev/null | grep -q . && return 1 || return 0
 }
 
+# ---- bootstrap project setup ------------------------------------------------
+
+if [ ! -f "AGENTS.md" ]; then
+  cp "$TEMPLATES_DIR/AGENTS.md" "AGENTS.md" 2>/dev/null && echo "Created AGENTS.md (open-sdd command mappings)"
+fi
+
+if [ ! -d ".opensdd" ]; then
+  mkdir -p ".opensdd"
+  cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md" 2>/dev/null && echo "Created .opensdd/service-rules.md"
+fi
+
 # ---- main -------------------------------------------------------------------
 
 INPUT="${1:-}"

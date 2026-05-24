@@ -11,7 +11,7 @@ install_cmd() {
   local name="$1" description="$2"
   cat > "${CMD_DIR}/f-${name}.md" <<EOF
 ---description: ${description}---
-Run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS
+Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS
 EOF
 }
 
