@@ -16,6 +16,9 @@ strict, deterministic protocols.
    Never push to `main`/`develop` without confirmation.
 5. **GATES** — Open Questions block progression. Stale plan blocks
    `/implement`. Missing spec blocks everything.
+6. **ONE COMMAND AT A TIME** — After every command, STOP. Present the
+   result and available next steps. Let the user decide which command to
+   run next. Never chain commands automatically.
 
 ## File structure
 
