@@ -1,37 +1,37 @@
 # SDD Pipeline — open-sdd
 
-open-sdd está en `~/team/Yield/open-sdd/`.
+open-sdd is at `~/team/Yield/open-sdd/`.
 
-## Comandos disponibles
+## Available commands
 
-| Chat | Lo que hace |
+| Chat | Description |
 |------|-------------|
-| `/f-start <texto o JIRA-123>` | Crea branch + spec scaffold |
-| `/f-plan` | Descubre archivos, evalúa riesgos, escribe plan |
-| `/f-implement` | Muestra spec + plan + primer target |
-| `/f-implement --done N` | Marca target N como completado |
-| `/f-pause` | Pausa el pipeline actual y stash todo el trabajo |
-| `/f-resume` | Lista pipelines pausados y restaura el seleccionado |
-| `/f-status` | Muestra el estado actual del pipeline |
-| `/f-test-design` | Diseña casos de test para los cambios actuales |
-| `/f-test-impl` | Implementa los archivos de test |
-| `/f-commit` | Stage + commit semántico |
-| `/f-spec-refine <contexto>` | Agrega contexto a la spec (archivos, jira, texto) |
-| `/f-resync` | Resincroniza pipeline tras renombrar la branch |
-| `/f-resync <nueva-branch>` | Renombra branch y resincroniza (atómico) |
-| `/f-code-review` | Review de calidad/seguridad del diff actual |
-| `/f-code-review --recheck` | Re-review comparando contra reporte anterior |
-| `/f-help` | Muestra el estado del pipeline y el próximo paso |
-| `/f-help overview` | Referencia completa del pipeline |
-| `/f-review-address` | Revisa y responde comentarios del MR uno por uno |
-| `/f-handoff` | Genera un pack de ejecución para otro agente/modelo |
-| `/f-mr` | Push + crear MR en GitHub |
-| `/f-close` | Borrar `.specwork/`, opcionalmente borrar branch |
+| `/f-start <text or JIRA-123>` | Create branch + spec scaffold |
+| `/f-plan` | Discover files, assess risks, write plan |
+| `/f-implement` | Show spec + plan + first target |
+| `/f-implement --done N` | Mark target N as complete |
+| `/f-pause` | Pause current pipeline and stash all work |
+| `/f-resume` | List paused pipelines and restore selected one |
+| `/f-status` | Show current pipeline state |
+| `/f-test-design` | Design test cases for current changes |
+| `/f-test-impl` | Implement test files |
+| `/f-commit` | Stage + semantic commit |
+| `/f-spec-refine <context>` | Add context to spec (files, jira, text) |
+| `/f-resync` | Resync pipeline after branch rename |
+| `/f-resync <new-branch>` | Rename branch and resync (atomic) |
+| `/f-code-review` | Quality/security review of current diff |
+| `/f-code-review --recheck` | Re-review comparing against previous report |
+| `/f-help` | Show pipeline state and next step |
+| `/f-help overview` | Full pipeline reference |
+| `/f-review-address` | Address MR review comments one by one |
+| `/f-handoff` | Generate execution pack for another agent/model |
+| `/f-mr` | Push + create MR on GitHub |
+| `/f-close` | Delete `.specwork/`, optionally delete branch |
 
-## Modo de uso
+## Usage
 
-Cuando ejecuto `/f-start`, corro `~/team/Yield/open-sdd/commands/start.sh`.
-Cuando ejecuto `/f-plan`, corro `~/team/Yield/open-sdd/commands/plan.sh`.
-Y así con cada comando.
+When I run `/f-start`, execute `~/team/Yield/open-sdd/commands/start.sh`.
+When I run `/f-plan`, execute `~/team/Yield/open-sdd/commands/plan.sh`.
+And so on for each command.
 
-Todos los comandos se ejecutan desde la raíz del proyecto actual.
+All commands run from the root of the current project.

@@ -1,6 +1,6 @@
 # SDD Pipeline — open-sdd
 
-open-sdd está en `~/team/Yield/open-sdd/`.
+open-sdd is at `~/team/Yield/open-sdd/`.
 
 ## AGENT_INSTRUCTIONS
 
