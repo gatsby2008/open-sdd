@@ -23,12 +23,13 @@ STATE_FILE=".specwork/_state/${SLUG}-state.json"
 
 MR_URL=""
 if [ -f "$STATE_FILE" ]; then
-  MR_URL=$(python3 - "$STATE_FILE" <<'PY' 2>/dev/null || true)
+  MR_URL=$(python3 - "$STATE_FILE" 2>/dev/null <<'PY' || true
 import json, sys
 from pathlib import Path
 data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
 print(data.get("mr_url", ""))
 PY
+)
 fi
 
 if [ -n "$MR_URL" ]; then
