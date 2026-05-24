@@ -25,8 +25,8 @@ When you see these patterns in the user's message, run the corresponding command
 | `/f-spec-refine` or "refine the spec" | `~/team/Yield/open-sdd/commands/refine.sh <args>` |
 | `/f-resync` or "resync" | `~/team/Yield/open-sdd/commands/resync.sh` |
 | `/f-resync feature/IR-70-foo` | `~/team/Yield/open-sdd/commands/resync.sh feature/IR-70-foo` |
-| `/f-review` or "review the code" | `~/team/Yield/open-sdd/commands/review.sh` |
-| `/f-review --recheck` | `~/team/Yield/open-sdd/commands/review.sh --recheck` |
+| `/f-code-review` or "review the code" | `~/team/Yield/open-sdd/commands/code-review.sh` |
+| `/f-code-review --recheck` | `~/team/Yield/open-sdd/commands/code-review.sh --recheck` |
 | `/f-help` or "help" or "what's next" | `~/team/Yield/open-sdd/commands/help.sh` |
 | `/f-help overview` | `~/team/Yield/open-sdd/commands/help.sh overview` |
 | `/f-review-address` or "address review comments" | `~/team/Yield/open-sdd/commands/review-address.sh` |

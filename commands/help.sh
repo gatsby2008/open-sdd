@@ -224,7 +224,7 @@ pipeline_steps=(
   "/f-implement:implement and test inline"
   "/f-test-design (optional)"
   "/f-test-impl (optional)"
-  "/f-review (optional)"
+  "/f-code-review (optional)"
   "/f-mr"
   "/f-review-address"
   "/f-close"
@@ -272,7 +272,7 @@ for step in "${pipeline_steps[@]}"; do
     "/f-test-impl"*)
       echo "○  $name"
       ;;
-    "/f-review"*)
+    "/f-code-review"*)
       echo "○  $name"
       ;;
     "/f-mr")

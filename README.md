@@ -41,7 +41,7 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
        └──────┬──────┘
               │  implementation complete
       ┌────────────────┐
-      │ /f-review      │ (optional)
+      │ /f-code-review      │ (optional)
       └───────┬────────┘
               │
       ┌────────────────┐
@@ -49,7 +49,7 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
       └───────┬────────┘
               │
       ┌────────────────────┐
-      │ /f-review-address  │  (address review comments)
+      │ /f-code-review-address  │  (address review comments)
       └───────┬────────────┘
               │  merged
       ┌──────────────┐
@@ -59,7 +59,7 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
 INDEPENDENT (any branch, any time):
   /f-commit            — semantic commit messages
   /f-mr                — MR description & creation
-  /f-review            — stack-aware quality + security review
+  /f-code-review            — stack-aware quality + security review
   /f-handoff           — package artifacts for other agents
 
 UTILITIES:
@@ -194,7 +194,7 @@ into `.specwork/_state/<slug>-rules.json`.
 - Generates a semantic commit message from spec title + optional ticket ref
 - User approves before commit
 
-### /f-review (optional)
+### /f-code-review (optional)
 
 - Stack-aware quality and security review of current branch diff
 - Checks test coverage (modified classes should have updated tests)
@@ -218,7 +218,7 @@ into `.specwork/_state/<slug>-rules.json`.
 - Creates `.specwork/_handoff/<slug>-execution-pack.md` + `.json`
 - Gate: no unresolved Open Questions
 
-### /f-review-address
+### /f-code-review-address
 
 - Address unresolved MR comments thread by thread
 - Tracks progress in `.specwork/_review/<slug>-review-address.md`

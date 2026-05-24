@@ -258,7 +258,7 @@ Resync SDD artifacts under `.specwork/` when the branch was renamed. Two modes:
 7. Print change summary
 8. **Does not touch the remote** — prints instructions for `git push`
 
-### /review
+### /code-review
 
 Run a stack-aware quality and security review on the current branch diff.
 
