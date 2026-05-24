@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OPENSDD_PATH="$SCRIPT_DIR"
 CMD_DIR="${HOME}/.config/opencode/commands"
+OPENCODE_DIR="${HOME}/.config/opencode"
 
 mkdir -p "$CMD_DIR"
 
@@ -51,5 +52,9 @@ install_cmd "test-design"   "Design test cases for current changes"
 install_cmd "test-impl"     "Implement test files for changed source"
 
 echo "open-sdd: 17 commands installed to $CMD_DIR"
+echo ""
+
+cp "$OPENSDD_PATH/templates/AGENTS.md" "$OPENCODE_DIR/AGENTS.md" 2>/dev/null && echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
+
 echo ""
 echo "Re-run this script after moving open-sdd or adding new commands."
