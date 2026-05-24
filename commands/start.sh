@@ -143,11 +143,17 @@ echo "Working branch: $BRANCH"
 # ---- bootstrap project setup (on feature branch, no commit) -----------------
 
 if [ ! -f "AGENTS.md" ]; then
-  cp "$TEMPLATES_DIR/AGENTS.md" "AGENTS.md" 2>/dev/null && echo "Created AGENTS.md"
+  if cp "$TEMPLATES_DIR/AGENTS.md" "AGENTS.md"; then
+    echo "Created AGENTS.md"
+  fi
 fi
 if [ ! -d ".opensdd" ]; then
   mkdir -p ".opensdd"
-  cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md" 2>/dev/null && echo "Created .opensdd/service-rules.md"
+fi
+if [ ! -f ".opensdd/service-rules.md" ]; then
+  if cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md"; then
+    echo "Created .opensdd/service-rules.md"
+  fi
 fi
 
 # ---- scaffold .specwork/ ----------------------------------------------------

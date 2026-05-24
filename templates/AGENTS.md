@@ -5,6 +5,9 @@ open-sdd is at `~/team/Yield/open-sdd/`.
 Load `~/team/Yield/open-sdd/agent/SDD_AGENT_INSTRUCTIONS.md` for the full
 pipeline protocol (gates, spec template, stack detection, OQ rules).
 
+If `.opensdd/service-rules.md` exists, load it for project-specific
+invariants (business rules, fallback behavior, architecture constraints).
+
 ## Core Rules
 
 - Never silently infer missing business behavior.
