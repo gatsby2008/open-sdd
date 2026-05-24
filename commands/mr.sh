@@ -141,6 +141,15 @@ fi
 MR_BODY_FILE=$(mktemp)
 echo "$PLAN_TEXT" > "$MR_BODY_FILE"
 
+# ---- fix MR title format ----------------------------------------------------
+
+TICKET=$(echo "$BRANCH" | sed -n 's/.*\/\([A-Z][A-Z0-9]*-[0-9]*\).*/\1/p')
+if [ -n "$TICKET" ]; then
+  MR_TITLE="[$TICKET] feat: $SPEC_TITLE"
+else
+  MR_TITLE="feat: $SPEC_TITLE"
+fi
+
 # ---- create or update MR ----------------------------------------------------
 
 echo ""

@@ -122,10 +122,27 @@ Implement the next focused change from the spec.
 
 Stage all changes, generate a semantic commit message, confirm with user.
 
-1. Auto-stage unstaged tracked files when nothing is staged
-2. Generate commit message from spec summary + diff
-3. Show message to user, ask for approval
+1. Run `bash commands/commit.sh` — it stages changes and prints context
+   (branch, ticket, files, diff stat)
+2. Generate the commit message in this format:
+   ```
+   [TICKET-ID] <type>: <concise description>
+   ```
+   - Ticket extracted from branch name: `feature/JIRA-123-foo` → `[JIRA-123]`
+   - If no ticket found, omit the bracket prefix
+   - Types: `feat` | `fix` | `refactor` | `docs` | `test` | `perf`
+   - Description is concise (<72 chars), not a copy of the spec title
+3. Show the proposed message to the user for approval
 4. On approval: `git commit -m "<message>"`
+5. Update state.json with commit SHA
+
+Commit discipline: one logical change per commit. Examples:
+```
+[JIRA-123] feat: add Flyway migration V23 for consent_flag column
+[JIRA-123] feat: add ConsentService with saveConsent logic
+[JIRA-123] feat: add ConsentController POST /api/v1/consent
+[JIRA-123] test: add unit and integration tests for consent flow
+```
 
 ### /mr
 
@@ -134,11 +151,27 @@ Generate MR description, validate tests, push, create MR.
 1. Load spec, read commit history vs target branch
 2. Check branch is not behind target — offer rebase if needed
 3. Run test suite — abort on failure (allow `--skip-validation`)
-4. Generate MR title + description from commits + spec
-5. Optionally copy spec to `docs/specs/`
+4. Generate MR title in this format:
+   ```
+   [TICKET-ID] <type>: <short summary>
+   ```
+   - Type comes from dominant commit type
+   - If no ticket, omit bracket prefix
+5. Generate MR body with sections:
+   ```
+   Title: [TICKET-ID] <type>: <short summary>
+
+   Summary:
+   - what changed
+   - why
+   - key risks or notes
+
+   Testing:
+   - <short list from commits + spec>
+   ```
 6. Push: `git push -u origin HEAD`
-7. If `gh` is available, create MR via API; otherwise print manual URL
-8. Check for resolved Open Questions — suggest `/doc-adr open-questions`
+7. Create/update MR via `gh pr create` or `gh pr edit`
+8. Check for resolved Open Questions
 
 ### /close
 
