@@ -54,9 +54,14 @@ Initialize the pipeline and create/select a working branch.
    - Custom branch: `bash commands/start.sh <input> --branch <name>`
    - Stay on current: `bash commands/start.sh <input> --keep`
    - Default (suggested): `bash commands/start.sh <input>`
-6. **STOP.** Do NOT continue to `/f-implement` or any next step.
-   Inform the user the spec is ready for editing and they should resolve
-   Open Questions before proceeding.
+6. Read the generated `source.md` and the spec scaffold. Draft initial
+   content into the spec based on the input: fill in Summary, Scope
+   (In/Out), Behavior, Implementation Context, Expected Change Scope,
+   Safe Constraints, and at least one Open Question. Keep the spec
+   structure intact.
+7. **STOP.** Tell the user the spec is drafted and they can edit it or
+   resolve Open Questions before proceeding. Do NOT continue to
+   `/f-implement` or any next step automatically.
 
 **Script behavior** (`start.sh`):
 1. Fetches Jira via `source lib/jira.sh && jira_write_issue_markdown` when

@@ -32,7 +32,7 @@ ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --branch <name>   # for a custom b
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --keep            # to stay on current
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch
 
-After the script finishes, STOP. Do NOT continue to /f-implement or /f-commit. Tell the user the spec is ready, they need to edit it and resolve Open Questions before proceeding."
+After the script finishes, read the generated source.md and the spec.md scaffold. Draft the initial content into the spec based on the user's input: fill in Summary, Scope (In/Out), Behavior, Implementation Context, Expected Change Scope, Safe Constraints, and at least one Open Question. Keep the spec structure intact. Then STOP. Tell the user the spec is drafted and they can edit it or resolve Open Questions before proceeding."
 install_cmd "plan"          "Discover target files and write implementation plan"
 install_cmd "implement"     "Implement next focused change from the spec"
 install_cmd "commit"        "Stage changes and generate semantic commit"
