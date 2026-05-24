@@ -19,8 +19,8 @@ open-sdd está en `~/team/Yield/open-sdd/`.
 | `/f-spec-refine <contexto>` | Agrega contexto a la spec (archivos, jira, texto) |
 | `/f-resync` | Resincroniza pipeline tras renombrar la branch |
 | `/f-resync <nueva-branch>` | Renombra branch y resincroniza (atómico) |
-| `/f-code-review` | Review de calidad/seguridad del diff actual |
-| `/f-code-review --recheck` | Re-review comparando contra reporte anterior |
+| `/f-review` | Review de calidad/seguridad del diff actual |
+| `/f-review --recheck` | Re-review comparando contra reporte anterior |
 | `/f-help` | Muestra el estado del pipeline y el próximo paso |
 | `/f-help overview` | Referencia completa del pipeline |
 | `/f-review-address` | Revisa y responde comentarios del MR uno por uno |
