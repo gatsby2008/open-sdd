@@ -38,21 +38,31 @@ strict, deterministic protocols.
 
 Initialize the pipeline and create/select a working branch.
 
+**LLM flow (when invoked via opencode custom command):**
 1. Detect current branch
 2. If on `main`/`develop`, require clean tree — abort if dirty
 3. Suggest feature branch name from ticket (e.g., `feature/JIRA-123`) or
    slugified free text
-4. Offer: create from current HEAD / custom name / stay on current branch
-5. Fetch Jira via `source lib/jira.sh && jira_write_issue_markdown` when
+4. **Ask the user** about branch choice:
+   - Create from suggested name (default)
+   - Enter a custom branch name
+   - Stay on current branch
+5. Run the script with the appropriate flags:
+   - Custom branch: `bash commands/start.sh <input> --branch <name>`
+   - Stay on current: `bash commands/start.sh <input> --keep`
+   - Default (suggested): `bash commands/start.sh <input>`
+
+**Script behavior** (`start.sh`):
+1. Fetches Jira via `source lib/jira.sh && jira_write_issue_markdown` when
    configured; otherwise use free text as source
-6. Create `.specwork/` directories (`_spec/`, `_state/`, `_progress/`)
-7. Load rules from `lib/gates.sh` equivalent, write `rules.json`
-8. Initialize `implementation-cache.json` with empty arrays
-9. Write `state.json` with: branch, slug, id, ticket, input_type,
+2. Creates `.specwork/` directories (`_spec/`, `_state/`, `_progress/`)
+3. Loads rules from `templates/rules.md` + `.opensdd/service-rules.md`, writes `rules.json`
+4. Initializes `implementation-cache.json` with empty arrays
+5. Writes `state.json` with: branch, slug, id, ticket, input_type,
    spec_write_timestamp (current epoch seconds), base_branch
-10. Draft `spec.md` from source + rules using spec template
-11. If unresolved Open Questions exist, warn user
-12. Output: branch created, spec path, next step recommendation
+6. Drafts `spec.md` from source + rules using spec template
+7. If unresolved Open Questions exist, warns user
+8. Output: branch created, spec path, next step recommendation
 
 ### /plan (optional)
 

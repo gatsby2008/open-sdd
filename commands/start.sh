@@ -48,9 +48,19 @@ fi
 
 # ---- main -------------------------------------------------------------------
 
-INPUT="${1:-}"
+BRANCH_FLAG=""
+CUSTOM_BRANCH=""
+INPUT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --keep)    BRANCH_FLAG="keep"; shift ;;
+    --branch)  BRANCH_FLAG="branch"; shift; CUSTOM_BRANCH="${1:-}"; [ -z "$CUSTOM_BRANCH" ] && { echo "Error: --branch requires a name"; exit 1; }; shift ;;
+    *)         INPUT="$1"; shift ;;
+  esac
+done
+
 [ -z "$INPUT" ] && {
-  echo "Usage: /f-start <TICKET-123|description of feature>"
+  echo "Usage: /f-start <TICKET-123|description> [--branch <name>] [--keep]"
   exit 1
 }
 
@@ -100,42 +110,49 @@ if [ -d ".specwork" ]; then
   rm -rf .specwork
 fi
 
-# ---- branch prompt ----------------------------------------------------------
+# ---- branch decision --------------------------------------------------------
 
-CHOICE="A"
-if [ -t 0 ]; then
-  echo ""
-  echo "Suggested branch: $SUGGESTED_BRANCH"
-  echo ""
-  echo "  A) Create '$SUGGESTED_BRANCH' from current HEAD ($BASE_BRANCH)"
-  echo "  B) Enter a custom branch name"
-  echo "  C) Keep working on current branch ($CURRENT)"
-  echo ""
-  printf "Choice [A/B/C]: "
-  read -r CHOICE
+if [ "$BRANCH_FLAG" = "branch" ]; then
+  BRANCH="$CUSTOM_BRANCH"
+  git checkout -b "$BRANCH"
+  SLUG=$(slugify "$(echo "$BRANCH" | sed 's/^feature\///; s/^bugfix\///; s/^hotfix\///; s/^release\///')")
+elif [ "$BRANCH_FLAG" = "keep" ]; then
+  BRANCH="$CURRENT"
+  echo "Staying on $BRANCH."
+else
+  CHOICE="A"
+  if [ -t 0 ]; then
+    echo ""
+    echo "Suggested branch: $SUGGESTED_BRANCH"
+    echo ""
+    echo "  A) Create '$SUGGESTED_BRANCH' from current HEAD ($BASE_BRANCH)"
+    echo "  B) Enter a custom branch name"
+    echo "  C) Keep working on current branch ($CURRENT)"
+    echo ""
+    printf "Choice [A/B/C]: "
+    read -r CHOICE
+  fi
+  case "$CHOICE" in
+    A|a)
+      BRANCH="$SUGGESTED_BRANCH"
+      git checkout -b "$BRANCH"
+      ;;
+    B|b)
+      printf "Enter branch name: "
+      read -r BRANCH
+      git checkout -b "$BRANCH"
+      SLUG=$(slugify "$(echo "$BRANCH" | sed 's/^feature\///; s/^bugfix\///; s/^hotfix\///; s/^release\///')")
+      ;;
+    C|c)
+      BRANCH="$CURRENT"
+      echo "Staying on $BRANCH."
+      ;;
+    *)
+      echo "Invalid choice."
+      exit 1
+      ;;
+  esac
 fi
-
-case "$CHOICE" in
-  A|a)
-    BRANCH="$SUGGESTED_BRANCH"
-    git checkout -b "$BRANCH"
-    ;;
-  B|b)
-    printf "Enter branch name: "
-    read -r BRANCH
-    git checkout -b "$BRANCH"
-    # Re-derive slug from actual branch
-    SLUG=$(slugify "$(echo "$BRANCH" | sed 's/^feature\///; s/^bugfix\///; s/^hotfix\///; s/^release\///')")
-    ;;
-  C|c)
-    BRANCH="$CURRENT"
-    echo "Staying on $BRANCH."
-    ;;
-  *)
-    echo "Invalid choice."
-    exit 1
-    ;;
-esac
 
 echo "Working branch: $BRANCH"
 

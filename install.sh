@@ -15,7 +15,22 @@ Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline proto
 EOF
 }
 
-install_cmd "start"         "Initialize SDD pipeline: branch + spec scaffold"
+install_cmd_directive() {
+  local name="$1" description="$2" directive="$3"
+  cat > "${CMD_DIR}/f-${name}.md" <<EOF
+---description: ${description}---
+${directive}
+EOF
+}
+
+install_cmd_directive "start" "Initialize SDD pipeline: branch + spec scaffold" "\
+Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+
+Ask the user about branch choice using the suggested name (prefixed with 'feature/'), a custom name, or staying on the current branch. Once decided, run:
+
+${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --branch <name>   # for a custom branch
+${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --keep            # to stay on current
+${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch"
 install_cmd "plan"          "Discover target files and write implementation plan"
 install_cmd "implement"     "Implement next focused change from the spec"
 install_cmd "commit"        "Stage changes and generate semantic commit"
