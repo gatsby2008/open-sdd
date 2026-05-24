@@ -18,8 +18,42 @@ fmt_bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
 SLUG=$(resolve_slug) || die "Could not resolve slug."
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# ---- check MR merge status --------------------------------------------------
+# ---- step 1: check dirty tree ----------------------------------------------
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Uncommitted changes detected."
+  echo ""
+  echo "  p) Pause — save everything (code + specwork) via f-pause, then close"
+  echo "  d) Discard all changes and continue close"
+  echo "  q) Quit — handle changes manually"
+  echo ""
+  read -r choice
+  case "$choice" in
+    p|P)
+      echo "Pausing work..."
+      git add -A
+      git add -f .specwork/ 2>/dev/null || true
+      git stash push --message "f-pause: $BRANCH"
+      echo "Work stashed. Proceeding with close."
+      ;;
+    d|D)
+      echo "Discarding all tracked changes..."
+      git restore .
+      echo "Removing untracked files..."
+      git clean -fd
+      echo "Changes discarded."
+      ;;
+    *)
+      echo "Aborted."
+      exit 1
+      ;;
+  esac
+  echo ""
+fi
+
+# ---- step 2: check MR merge status -----------------------------------------
 
 MR_URL=""
 if [ -f "$STATE_FILE" ]; then
@@ -37,7 +71,7 @@ if [ -n "$MR_URL" ]; then
   if command -v gh &>/dev/null; then
     MR_NUM=$(echo "$MR_URL" | grep -oE '[0-9]+$' || true)
     if [ -n "$MR_NUM" ]; then
-      MR_STATE=$(gh pr view "$MR_NUM" --json state,merged --jq '.state' 2>/dev/null || echo "")
+      MR_STATE=$(gh pr view "$MR_NUM" --json state --jq '.state' 2>/dev/null || echo "")
       MR_MERGED=$(gh pr view "$MR_NUM" --json merged --jq '.merged' 2>/dev/null || echo "false")
 
       if [ "$MR_STATE" = "MERGED" ] || [ "$MR_MERGED" = "true" ]; then
@@ -86,16 +120,15 @@ else
   esac
 fi
 
-# ---- delete .specwork/ ------------------------------------------------------
+# ---- step 3: delete .specwork/ ---------------------------------------------
 
 echo ""
 fmt_bold "Deleting .specwork/ ..."
 rm -rf .specwork/
 echo "Done. .specwork/ removed."
 
-# ---- offer branch cleanup ---------------------------------------------------
+# ---- step 4: offer branch cleanup -------------------------------------------
 
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
 DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")
 
 if [ "$BRANCH" != "$DEFAULT_BRANCH" ]; then

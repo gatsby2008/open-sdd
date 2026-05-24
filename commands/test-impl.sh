@@ -26,7 +26,6 @@ STACK=$(detect_stack)
 echo "Stack: $STACK"
 
 if [ -n "$SLUG" ]; then
-  STATE_FILE=".specwork/_state/${SLUG}-state.json"
   SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
   echo "Slug: $SLUG"
 fi

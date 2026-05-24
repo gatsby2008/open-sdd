@@ -51,6 +51,12 @@ if ! gh auth status 2>/dev/null; then
   exit 1
 fi
 
+# ---- quality gate: run tests ------------------------------------------------
+
+echo "Running pre-push checks..."
+bash "$SCRIPT_DIR/check.sh" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
+echo ""
+
 # ---- determine default branch -----------------------------------------------
 
 DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")

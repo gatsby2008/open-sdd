@@ -14,6 +14,7 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
           ▼
     ┌─────────────┐
     │  /f-start   │  → pre-flight, create/select branch, write state + source + spec
+    │             │  → triage: classify ticket → path.json (advisory)
     └──────┬──────┘
            │  ◄──── /f-refine    [any time — resolve Open Questions, add scope, add constraints]
            ▼              (warns if plan.md is now stale)
@@ -65,6 +66,7 @@ INDEPENDENT (any branch, any time):
 UTILITIES:
   /f-help              — where am I, what's next
   /f-status            — detailed pipeline progress
+  /f-triage            — classify ticket and recommend pipeline path
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
   /f-resync            — sync artifacts when branch was renamed
@@ -79,7 +81,7 @@ UTILITIES:
 
 ## Install
 
-Registers all 17 `/f-*` commands as native opencode custom commands
+Registers all 18 `/f-*` commands as native opencode custom commands
 (underlined, tab-completion, no trailing space needed):
 
 ```bash
@@ -93,10 +95,11 @@ Re-run `install.sh` after moving open-sdd or adding new commands.
 
 In each consumer project where you want to use the pipeline:
 
-1. Copy `templates/AGENTS.md` to the project root
-   (or run `/init` in opencode and append the command mappings)
-2. Optionally copy `templates/service-rules.md` to
-   `.opensdd/service-rules.md` and tailor it
+1. Install open-sdd globally (see Install above)
+2. Create `.opensdd/service-rules.md` for service-level invariants
+   (copy from `templates/service-rules.md` and tailor it)
+
+The first `/f-start` auto-bootstraps `AGENTS.md` and `.opensdd/` in the project.
 
 ## One-Time Setup
 
@@ -218,7 +221,7 @@ into `.specwork/_state/<slug>-rules.json`.
 - Creates `.specwork/_handoff/<slug>-execution-pack.md` + `.json`
 - Gate: no unresolved Open Questions
 
-### /f-code-review-address
+### /f-review-address
 
 - Address unresolved MR comments thread by thread
 - Tracks progress in `.specwork/_review/<slug>-review-address.md`
@@ -311,8 +314,8 @@ open-sdd/
 │   ├── gates.sh                     # Validation gates
 │   ├── metrics.sh                   # Timing & token metrics (opt-in)
 │   └── jira.sh                      # Jira REST client via curl
-├── commands/                        # 17 pipeline commands
-│   ├── close.sh
+├── commands/                        # 19 pipeline commands
+│   ├── check.sh
 │   ├── commit.sh
 │   ├── handoff.sh
 │   ├── help.sh
@@ -323,12 +326,13 @@ open-sdd/
 │   ├── refine.sh
 │   ├── resume.sh
 │   ├── resync.sh
-│   ├── review.sh
+│   ├── code-review.sh
 │   ├── review-address.sh
 │   ├── start.sh
 │   ├── status.sh
 │   ├── test-design.sh
-│   └── test-impl.sh
+│   ├── test-impl.sh
+│   └── triage.sh
 ├── templates/
 │   ├── AGENTS.md                    # For opencode auto-discovery (copy to project root)
 │   ├── CLAUDE.md                    # For Claude Code auto-discovery (copy to project root)
@@ -361,6 +365,7 @@ open-sdd/
 - **python3** — used by `start.sh` for JSON/rules processing
 - **opencode** — required only for `/f-*` command integration (via `install.sh`)
 - **GitHub CLI (`gh`)** — required for `mr.sh` and `close.sh`
+- **Stack-specific toolchain** — required by `check.sh` (e.g., Gradle for Java projects, npm for Node)
 - **jq** — optional, for Jira integration
 - **JIRA_BASE_URL**, **JIRA_USER**, **JIRA_TOKEN** — required only for
   Jira ticket fetching in `start.sh`

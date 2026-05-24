@@ -138,8 +138,6 @@ elif [ "$GIT_TREE" -gt 0 ]; then
   fi
 elif [ -f "$PLAN_FILE" ]; then
   NEXT="/f-mr"
-else
-  NEXT_DUAL="true"
 fi
 
 if [ -z "$NEXT" ]; then

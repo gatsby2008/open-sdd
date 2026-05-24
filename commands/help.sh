@@ -47,7 +47,7 @@ FEATURE PIPELINE
   ./commands/test-impl.sh
     [optional] Implement test files from the design.
 
-  ./commands/review.sh
+  ./commands/code-review.sh
     [optional] Stack-aware code quality and security review.
 
   ./commands/mr.sh

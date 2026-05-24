@@ -24,15 +24,17 @@ strict, deterministic protocols.
 
 ```
 .specwork/
-├── _spec/<slug>-spec.md             # Specification
-├── _spec/<slug>-source.md           # Raw source (Jira/free text)
-├── _plan/<slug>-plan.md              # Implementation plan
-├── _state/<slug>-state.json          # Pipeline metadata
-├── _state/<slug>-rules.json          # Compiled rules
+├── _spec/<slug>-spec.md                  # Specification
+├── _spec/<slug>-source.md                # Raw source (Jira/free text)
+├── _plan/<slug>-plan.md                  # Implementation plan
+├── _state/<slug>-state.json              # Pipeline metadata
+├── _state/<slug>-rules.json              # Compiled rules
 ├── _state/<slug>-implementation-cache.json  # Discovered facts
-├── _progress/escalations.md          # Escalation log
-├── _metrics/<slug>-metrics.json      # Timing data
-└── _handoff/<slug>-execution-pack.md  # Handoff contract
+├── _progress/escalations.md              # Escalation log
+├── _metrics/<slug>-metrics.json          # Timing data
+├── _review/<slug>-code-review.md         # Code review report
+├── _review/<slug>-review-address.md      # Review comment resolution
+└── _handoff/<slug>-execution-pack.md     # Handoff contract
 ```
 
 ## Commands
@@ -59,9 +61,21 @@ Initialize the pipeline and create/select a working branch.
    (In/Out), Behavior, Implementation Context, Expected Change Scope,
    Safe Constraints, and at least one Open Question. Keep the spec
    structure intact.
-7. **STOP.** Tell the user the spec is drafted and they can edit it or
-   resolve Open Questions before proceeding. Do NOT continue to
-   `/f-implement` or any next step automatically.
+7. Run `bash commands/triage.sh <slug>` to classify the ticket. This
+   writes `.specwork/_state/<slug>-path.json` with the recommended
+   pipeline path. Print the classification in the summary:
+   ```
+   Triage:  <ticket_type> (<complexity>)
+   Path:    /<path steps joined by " → ">
+   Why:     <reason>
+   ```
+8. **STOP.** Tell the user the spec is drafted. Format links cleanly so
+   the file path + line number are clickable: put the description
+   separately, e.g. `path/file.md:42` — Open Questions section. Do NOT
+   append text directly after the line number (e.g. avoid `:42 <- OQ`).
+   Include the triage info above, plus a note that the recommended path
+   is advisory — the developer can override at any step.
+   Do NOT continue to `/f-implement` or any next step automatically.
 
 **Script behavior** (`start.sh`):
 1. Fetches Jira via `source lib/jira.sh && jira_write_issue_markdown` when
@@ -146,39 +160,29 @@ Commit discipline: one logical change per commit. Examples:
 
 ### /mr
 
-Generate MR description, validate tests, push, create MR.
+Generate MR description, push, create/update MR via GitHub CLI.
 
-1. Load spec, read commit history vs target branch
-2. Check branch is not behind target — offer rebase if needed
-3. Run test suite — abort on failure (allow `--skip-validation`)
-4. Generate MR title in this format:
-   ```
-   [TICKET-ID] <type>: <short summary>
-   ```
-   - Type comes from dominant commit type
-   - If no ticket, omit bracket prefix
-5. Generate MR body with sections:
-   ```
-   Title: [TICKET-ID] <type>: <short summary>
-
-   Summary:
-   - what changed
-   - why
-   - key risks or notes
-
-   Testing:
-   - <short list from commits + spec>
-   ```
-6. Push: `git push -u origin HEAD`
-7. Create/update MR via `gh pr create` or `gh pr edit`
-8. Check for resolved Open Questions
+1. Run `bash commands/mr.sh`
+2. (Script) Check gh is installed and authenticated
+3. (Script) Detect default branch from remote
+4. (Script) Build MR body from spec + plan (if available), title from ticket + spec
+5. (Script) Push branch to origin
+6. (Script) Create new MR via `gh pr create` or update existing via `gh pr edit`
+7. (Script) Store MR URL in state.json
+8. Confirm MR URL and next step (close.sh after merge)
 
 ### /close
 
-Wipe `.specwork/` after merge.
+Close the feature pipeline and clean up. The script handles dirty tree,
+MR status, and optional branch cleanup.
 
-1. `rm -rf .specwork/`
-2. Confirm: "`.specwork/` cleaned. Ready for next feature."
+1. Run `bash commands/close.sh`
+2. (Script) If dirty tree → prompt pause / discard / abort
+3. (Script) If MR exists → check merge status via `gh`; warn if open/closed
+4. (Script) Confirm deletion of `.specwork/`
+5. (Script) Delete `.specwork/` via `rm -rf .specwork/`
+6. (Script) Offer branch cleanup: delete + switch, keep + switch, or stay
+7. Confirm: "Feature pipeline closed."
 
 ### /pause
 

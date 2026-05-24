@@ -59,6 +59,5 @@ Do not create for:
 
 ## Quality Gates
 
-- `./gradlew check` must pass before committing (`/f-commit`) and again before pushing (`/f-mr`).
-- If the project is non-Gradle, detect the equivalent test command (`npm test`, `pytest`, `mvn test`, etc.).
+- `bash commands/check.sh` must pass before committing (`/f-commit`) and again before pushing (`/f-mr`).
 - Failed quality checks block progression — do not commit or push on failure.

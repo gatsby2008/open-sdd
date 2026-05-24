@@ -27,6 +27,11 @@ SLUG=$(resolve_slug) || die "Could not resolve slug."
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 
+# ---- quality gate: run tests ------------------------------------------------
+
+echo "Running pre-commit checks..."
+bash "$SCRIPT_DIR/check.sh" || die "Checks failed. Fix issues before committing."
+
 # ---- check for changes ------------------------------------------------------
 
 HAS_STAGED=false

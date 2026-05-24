@@ -33,7 +33,7 @@ ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --branch <name>   # for a custom b
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --keep            # to stay on current
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch
 
-After the script finishes, read the generated source.md and the spec.md scaffold. Draft the initial content into the spec based on the user's input: fill in Summary, Scope (In/Out), Behavior, Implementation Context, Expected Change Scope, Safe Constraints, and at least one Open Question. Keep the spec structure intact. Then STOP. Tell the user the spec is drafted and they can edit it or resolve Open Questions before proceeding."
+After the script finishes, read the generated source.md and the spec.md scaffold. Draft the initial content into the spec based on the user's input: fill in Summary, Scope (In/Out), Behavior, Implementation Context, Expected Change Scope, Safe Constraints, and at least one Open Question. Keep the spec structure intact. Then run ${OPENSDD_PATH}/commands/triage.sh <slug> to classify the ticket. Print the triage result (type, complexity, path, reason). Format links cleanly so the file path + line number are clickable: put the description separately, e.g. \`path/file.md:42\` — Open Questions section. Do NOT append text directly after the line number (e.g. avoid \`:42 <- OQ\`). Then STOP. Tell the user the spec is drafted. Note that the recommended path is advisory."
 install_cmd "plan"          "Discover target files and write implementation plan"
 install_cmd "implement"     "Implement next focused change from the spec"
 install_cmd "commit"        "Stage changes and generate semantic commit"
@@ -50,8 +50,9 @@ install_cmd "review-address" "Work through MR review comments"
 install_cmd "handoff"       "Package artifacts for another agent"
 install_cmd "test-design"   "Design test cases for current changes"
 install_cmd "test-impl"     "Implement test files for changed source"
+install_cmd "triage"        "Classify ticket complexity from spec and recommend pipeline path"
 
-echo "open-sdd: 17 commands installed to $CMD_DIR"
+echo "open-sdd: 18 commands installed to $CMD_DIR"
 echo ""
 
 cp "$OPENSDD_PATH/templates/AGENTS.md" "$OPENCODE_DIR/AGENTS.md" 2>/dev/null && echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
