@@ -50,7 +50,7 @@ fi
 
 INPUT="${1:-}"
 [ -z "$INPUT" ] && {
-  echo "Usage: ./commands/start.sh <TICKET-123|description of feature>"
+  echo "Usage: /f-start <TICKET-123|description of feature>"
   exit 1
 }
 
@@ -102,15 +102,18 @@ fi
 
 # ---- branch prompt ----------------------------------------------------------
 
-echo ""
-echo "Suggested branch: $SUGGESTED_BRANCH"
-echo ""
-echo "  A) Create '$SUGGESTED_BRANCH' from current HEAD ($BASE_BRANCH)"
-echo "  B) Enter a custom branch name"
-echo "  C) Keep working on current branch ($CURRENT)"
-echo ""
-printf "Choice [A/B/C]: "
-read -r CHOICE
+CHOICE="A"
+if [ -t 0 ]; then
+  echo ""
+  echo "Suggested branch: $SUGGESTED_BRANCH"
+  echo ""
+  echo "  A) Create '$SUGGESTED_BRANCH' from current HEAD ($BASE_BRANCH)"
+  echo "  B) Enter a custom branch name"
+  echo "  C) Keep working on current branch ($CURRENT)"
+  echo ""
+  printf "Choice [A/B/C]: "
+  read -r CHOICE
+fi
 
 case "$CHOICE" in
   A|a)
@@ -320,6 +323,6 @@ echo "  Edit the spec to fill in ## Behavior, ## Implementation Context,"
 echo "  and resolve ## Open Questions."
 echo ""
 echo "  Then run:"
-echo "    ./commands/plan.sh       (optional — for 3+ files)"
-echo "    ./commands/implement.sh   (start implementing)"
+echo "    /f-plan       (optional — for 3+ files)"
+echo "    /f-implement   (start implementing)"
 echo "============================================================"
