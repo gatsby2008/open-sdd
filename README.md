@@ -234,6 +234,28 @@ into `.specwork/_state/<slug>-rules.json`.
 
 ---
 
+## Companion Skills (Doc / ADR)
+
+Beyond the pipeline, open-sdd bundles companion skills for cross-service
+documentation and architecture decisions. These load automatically when
+opencode starts (from `~/.claude/skills/doc/`):
+
+| Command | What it does |
+|---------|--------------|
+| **`/doc-catalog`** | Scan the current microservice and generate `docs/service-info.md` with endpoints, integrations, and config |
+| **`/doc-publish`** | Publish the catalog to the central registry (`$CLAUDE_DOC_HOME/service-catalog/`) |
+| **`/doc-query`** | Ask cross-service questions across all registered catalogs |
+| **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
+| **`/adr-publish`** | Publish all ADRs to the central registry (`$CLAUDE_DOC_HOME/adr-registry/<service>/`) |
+| **`/adr-query`** | Ask decision-history questions across all registered ADRs |
+
+The `/f-mr` command will suggest running `/doc-adr open-questions` when the
+spec has resolved Open Questions worth preserving as ADRs.
+
+**See also:** [docs/learning/doc-adr-cheatsheet.md](docs/learning/doc-adr-cheatsheet.md)
+
+---
+
 ## Implementation Cadence
 
 ```bash
