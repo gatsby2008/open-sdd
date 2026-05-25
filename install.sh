@@ -55,7 +55,9 @@ install_cmd "triage"        "Classify ticket complexity from spec and recommend 
 echo "open-sdd: 18 commands installed to $CMD_DIR"
 echo ""
 
-cp "$OPENSDD_PATH/templates/AGENTS.md" "$OPENCODE_DIR/AGENTS.md" 2>/dev/null && echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
+# Generate AGENTS.md with resolved OPEN_SDD_ROOT path
+sed "s|\$OPEN_SDD_ROOT|$OPENSDD_PATH|g" "$OPENSDD_PATH/templates/AGENTS.md" > "$OPENCODE_DIR/AGENTS.md"
+echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
 
 # ---- standalone skills (doc) -------------------------------------------------
 
@@ -81,6 +83,10 @@ EOF
   done
   echo "doc skills (6) installed to $SKILLS_DST/doc/ — available as /doc-adr, /doc-catalog, etc."
 fi
+
+# ---- set environment variable ----
+echo "export OPEN_SDD_ROOT=\"$OPENSDD_PATH\"" >> ~/.zshrc
+echo "OPEN_SDD_ROOT exported to ~/.zshrc"
 
 echo ""
 echo "Re-run this script after moving open-sdd or adding new commands."
