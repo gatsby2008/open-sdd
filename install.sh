@@ -57,5 +57,14 @@ echo ""
 
 cp "$OPENSDD_PATH/templates/AGENTS.md" "$OPENCODE_DIR/AGENTS.md" 2>/dev/null && echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
 
+# ---- standalone skills (doc) -------------------------------------------------
+
+SKILLS_DST="${HOME}/.claude/skills"
+if [ -d "$OPENSDD_PATH/skills/doc" ]; then
+  mkdir -p "$SKILLS_DST/doc"
+  cp -r "$OPENSDD_PATH/skills/doc/"* "$SKILLS_DST/doc/"
+  echo "doc skills (6) installed to $SKILLS_DST/doc/"
+fi
+
 echo ""
 echo "Re-run this script after moving open-sdd or adding new commands."
