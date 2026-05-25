@@ -195,6 +195,19 @@ fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
 
 echo "State updated with MR URL."
+
+# ---- ADR hint -----------------------------------------------------------------
+
+if [ -f "$SPEC_FILE" ]; then
+  RESOLVED_OQS=$(grep -c '^- \[x\]' "$SPEC_FILE" 2>/dev/null || true)
+  if [ "$RESOLVED_OQS" -gt 0 ]; then
+    echo ""
+    echo "Tip: this spec had Open Questions resolved during planning."
+    echo "Consider running: /doc-adr open-questions"
+    echo "to capture those decisions as ADRs in docs/adr/ before the MR is merged."
+  fi
+fi
+
 echo ""
 echo "Next steps:"
 echo "  - Review the MR at $MR_URL"
