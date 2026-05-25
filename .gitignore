@@ -13,6 +13,10 @@ Thumbs.db
 .idea/
 *.iml
 
+# Python
+__pycache__/
+*.pyc
+
 # Secrets
 .env
 .env.local
