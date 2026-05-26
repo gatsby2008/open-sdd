@@ -53,6 +53,7 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 ---
 
 **See also:**
+- [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A on pipeline mechanics

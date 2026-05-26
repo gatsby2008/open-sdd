@@ -14,6 +14,7 @@ Cross-cutting ideas that govern how the pipeline works in this project. Understa
 ---
 
 **See also:**
+- [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — command lookup
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A

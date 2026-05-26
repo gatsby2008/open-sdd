@@ -27,6 +27,7 @@ Command-by-command reference for the documentation and architecture-decision too
 ---
 
 **See also:**
+- [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — pipeline command lookup
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A

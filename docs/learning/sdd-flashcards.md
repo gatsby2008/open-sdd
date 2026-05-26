@@ -3,6 +3,7 @@
 Hard questions about the spec-driven development pipeline as it applies to this project. Covers artifact layout, AGENTS.md consumption, skill architecture, quality gates, and registries.
 
 **See also:**
+- [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — command lookup
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
