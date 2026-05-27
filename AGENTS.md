@@ -94,6 +94,6 @@ Do not create for:
 | `/f-review-address` | `bash ~/team/Yield/open-sdd/commands/review-address.sh` |
 | `/f-handoff` | `bash ~/team/Yield/open-sdd/commands/handoff.sh` |
 | `/f-mr` | `bash ~/team/Yield/open-sdd/commands/mr.sh` |
-| `/f-close` | `bash ~/team/Yield/open-sdd/commands/close.sh` |
+| `/f-close` | `bash ~/team/Yield/open-sdd/commands/close.sh` | Scorch-earth: revert changes, delete `.specwork/`, optionally delete branch |
 
 All commands run from the root of the current project.

@@ -69,10 +69,14 @@ for path_str in sys.argv[1:]:
     section = m.group(1) if m else ""
     unresolved = [l.strip() for l in section.splitlines() if re.match(r'^\s*-\s*\[\s\]', l)]
     if unresolved:
-        blockers.append((path_str, unresolved))
+        abs_path = str(p.resolve())
+        lines = text.splitlines()
+        oq_line = next((i + 1 for i, ln in enumerate(lines) if ln.startswith("## Open Questions")), None)
+        suffix = f":{oq_line}" if oq_line else ""
+        blockers.append((f"{abs_path}{suffix}", unresolved))
 
 for path, items in blockers:
-    print(f"--- {path}")
+    print(f"--- `{path}`")
     for l in items:
         print(l)
 

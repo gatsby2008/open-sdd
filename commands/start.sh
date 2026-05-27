@@ -87,11 +87,14 @@ case "$CURRENT" in
     ;;
 esac
 
-# ---- clean stale .specwork/ -------------------------------------------------
+# ---- precondition: refuse to re-init over an active pipeline ----------------
 
-if [ -d ".specwork" ]; then
-  echo "Found existing .specwork/. Cleaning merged artifacts from prior features."
-  rm -rf .specwork
+if ! PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli precheck --fresh >/dev/null 2>&1; then
+  echo "✗ Pipeline already active here — not re-initializing." >&2
+  echo "  • Next step:       run ./commands/status.sh to see the next pending step" >&2
+  echo "  • Change the spec: run ./commands/refine.sh" >&2
+  echo "  • Start over:      run ./commands/close.sh first, then start.sh" >&2
+  exit 1
 fi
 
 # ---- branch decision --------------------------------------------------------
@@ -143,7 +146,10 @@ echo "Working branch: $BRANCH"
 # ---- bootstrap project setup (on feature branch, no commit) -----------------
 
 if [ ! -f "AGENTS.md" ]; then
-  if cp "$TEMPLATES_DIR/AGENTS.md" "AGENTS.md"; then
+  # Bake the absolute open-sdd path into the template (same as install.sh) so the
+  # command paths resolve even when $OPEN_SDD_ROOT is not exported in the shell.
+  OPEN_SDD_ROOT_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
+  if sed "s|\$OPEN_SDD_ROOT|$OPEN_SDD_ROOT_PATH|g" "$TEMPLATES_DIR/AGENTS.md" > "AGENTS.md"; then
     echo "Created AGENTS.md"
   fi
 fi
@@ -208,6 +214,12 @@ cat > ".specwork/_state/${SLUG}-state.json" <<ENDJSON
 {
   "schema_version": 1,
   "id": "${SLUG}",
+  "slug": "${SLUG}",
+  "ticket_type": "feature",
+  "current_step": "spec",
+  "step_index": 0,
+  "retries": 0,
+  "max_retries": 2,
   "branch": "${BRANCH}",
   "base_branch": "${BASE_BRANCH}",
   "ticket": $( [ -n "$TICKET" ] && echo "\"${TICKET}\"" || echo "null" ),
@@ -326,6 +338,12 @@ Concrete estimate of files and layers touched.
 ENDSPEC
 
 echo "Spec written to $SPEC_FILE"
+
+# advance pipeline state: spec → plan
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
+engine advance-step "$SLUG" >/dev/null 2>&1 || true
+
 echo ""
 echo "============================================================"
 echo "Pipeline initialized."

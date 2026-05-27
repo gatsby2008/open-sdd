@@ -11,6 +11,11 @@ source "$LIB_DIR/gates.sh"
 die() { echo "$*" >&2; exit 1; }
 fmt_bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
+# ---- step 0: pipeline precondition gate -------------------------------------
+
+PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli precheck >/dev/null 2>&1 \
+  || die "No active pipeline (.specwork/ missing or uninitialized). Run ./commands/start.sh first."
+
 # ---- step 1: resolve slug ---------------------------------------------------
 
 SLUG=""
@@ -68,14 +73,19 @@ check_oqs_file() {
 import re, sys
 from pathlib import Path
 file = sys.argv[1]
-label = sys.argv[2]
-text = Path(file).read_text(encoding="utf-8")
+p = Path(file)
+text = p.read_text(encoding="utf-8")
 m = re.search(r'(?ms)^## Open Questions\b(.*?)(?=^## |\Z)', text)
 if not m:
     sys.exit(0)
 section = m.group(1)
 open_items = [l.strip() for l in section.splitlines() if re.match(r'^\s*-\s*\[\s\]', l)]
 if open_items:
+    abs_path = str(p.resolve())
+    lines = text.splitlines()
+    oq_line = next((i + 1 for i, ln in enumerate(lines) if ln.startswith("## Open Questions")), "")
+    suffix = f":{oq_line}" if oq_line else ""
+    label = f"`{abs_path}{suffix}`"
     print(f"  - {label}  ({len(open_items)} items)")
     for item in open_items:
         print(f"    {item}")

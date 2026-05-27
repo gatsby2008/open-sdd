@@ -3,6 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 
 source "$LIB_DIR/gates.sh"
 
@@ -26,6 +29,17 @@ extract_ticket() {
 SLUG=$(resolve_slug) || die "Could not resolve slug."
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
+
+# ---- pipeline step gate ----------------------------------------------------
+
+STEP_RESULT=$(engine expected-step commit "$SLUG" 2>&1) || {
+  case "$STEP_RESULT" in
+    NO_STATE*) : ;;  # no pipeline → standalone (git-only / vibe-coding) mode
+    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step commit' to override." ;;
+    STEP_NOT_IN_FLOW*) die "Step 'commit' not in flow for current ticket_type: $STEP_RESULT" ;;
+    *) die "Step gate failed: $STEP_RESULT" ;;
+  esac
+}
 
 # ---- quality gate: run tests ------------------------------------------------
 
@@ -127,9 +141,10 @@ if [ "$HAS_STAGED" = true ] && [ -t 0 ]; then
       ;;
   esac
 
-  # update state.json with commit sha
+  # update state.json with commit sha (pipeline mode only)
   LAST_COMMIT=$(git rev-parse HEAD)
-  python3 - "$STATE_FILE" "$LAST_COMMIT" <<'PY'
+  if [ -f "$STATE_FILE" ]; then
+    python3 - "$STATE_FILE" "$LAST_COMMIT" <<'PY'
 import json, sys
 from pathlib import Path
 fp = Path(sys.argv[1])
@@ -142,5 +157,10 @@ data["commits"] = commits
 data["last_commit"] = sha
 fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
-  echo "State updated with commit $LAST_COMMIT"
+    echo "State updated with commit $LAST_COMMIT"
+  fi
+
+  # advance pipeline state: commit → mr. Anchor on "commit" so a commit reached
+  # by skipping optional steps (test-design/test-impl/review) still lands on mr.
+  engine advance-step "$SLUG" commit >/dev/null 2>&1 || true
 fi

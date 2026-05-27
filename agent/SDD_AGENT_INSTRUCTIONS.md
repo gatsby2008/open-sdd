@@ -69,12 +69,14 @@ Initialize the pipeline and create/select a working branch.
    Path:    /<path steps joined by " → ">
    Why:     <reason>
    ```
-8. **STOP.** Tell the user the spec is drafted. Format links cleanly so
-   the file path + line number are clickable: put the description
-   separately, e.g. `path/file.md:42` — Open Questions section. Do NOT
-   append text directly after the line number (e.g. avoid `:42 <- OQ`).
-   Include the triage info above, plus a note that the recommended path
-   is advisory — the developer can override at any step.
+8. **STOP.** Show the spec file path with the Open Questions line number
+   appended. Use the real absolute path — substitute the actual working
+   directory (run `pwd` if unsure), do NOT print the literal text `$PWD`,
+   which is a shell variable the terminal will not expand here — so it's
+   clickable, e.g. `` Spec: `/abs/path/repo/.specwork/_spec/<slug>-spec.md:43` ``.
+   Do NOT list individual sections or their line numbers. Include the
+   triage info above, plus a note that the recommended path is advisory
+   — the developer can override at any step.
    Do NOT continue to `/f-implement` or any next step automatically.
 
 **Script behavior** (`start.sh`):

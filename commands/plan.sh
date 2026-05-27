@@ -3,6 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 
 source "$LIB_DIR/gates.sh"
 
@@ -22,10 +25,26 @@ CONSISTENCY_ISSUES=()
 
 die() { echo "$*" >&2; exit 1; }
 
+# ---- step 0: pipeline precondition gate -------------------------------------
+
+engine precheck >/dev/null 2>&1 \
+  || die "No active pipeline (.specwork/ missing or uninitialized). Run ./commands/start.sh first."
+
 # ---- step 1: resolve slug ---------------------------------------------------
 
 SLUG=$(resolve_slug) || die "Could not resolve slug from current branch."
 echo "Slug: $SLUG"
+
+# ---- step 1.5: pipeline step gate -------------------------------------------
+
+STEP_RESULT=$(engine expected-step plan "$SLUG" 2>&1) || {
+  case "$STEP_RESULT" in
+    NO_STATE*) die "Pipeline state missing. Run ./commands/start.sh first." ;;
+    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step plan' to override." ;;
+    STEP_NOT_IN_FLOW*) die "Step 'plan' not in flow for current ticket_type: $STEP_RESULT" ;;
+    *) die "Step gate failed: $STEP_RESULT" ;;
+  esac
+}
 
 # ---- step 2: check required artifacts ---------------------------------------
 
@@ -515,6 +534,10 @@ fi
 if [ -n "$RISK_HITS" ] && [ "$RISK_HITS" != "{}" ]; then
   echo "  ⚠ Risk signals detected — see plan for details."
 fi
+
+# advance pipeline state: plan → implement
+engine advance-step "$SLUG" plan >/dev/null 2>&1 || true
+
 echo ""
 echo "Next:"
 echo "  Review the plan, then run:"

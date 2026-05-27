@@ -1,154 +1,97 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$SCRIPT_DIR/../lib"
-
-source "$LIB_DIR/gates.sh"
-
-# ---- state ------------------------------------------------------------------
-
-SLUG=""
-STATE_FILE=""
-
 die() { echo "$*" >&2; exit 1; }
-fmt_bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
-# ---- resolve slug -----------------------------------------------------------
-
-SLUG=$(resolve_slug) || die "Could not resolve slug."
-STATE_FILE=".specwork/_state/${SLUG}-state.json"
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# ---- step 1: check dirty tree ----------------------------------------------
+# ---- check pipeline exists ---------------------------------------------------
+
+if [ ! -d ".specwork" ] || [ -z "$(find .specwork/_state -name '*-state.json' -maxdepth 1 2>/dev/null | head -1)" ]; then
+  echo "No active pipeline found in .specwork/."
+  echo "Nothing to close."
+  exit 0
+fi
+
+# ---- resolve parent branch from state ---------------------------------------
+
+PARENT=""
+STATE_FILE=$(find .specwork/_state -name '*-state.json' -maxdepth 1 2>/dev/null | head -1)
+if [ -n "$STATE_FILE" ]; then
+  PARENT=$(python3 -c "
+import json, sys
+data = json.load(open(sys.argv[1]))
+print(data.get('base_branch', ''))
+" "$STATE_FILE" 2>/dev/null || true)
+fi
+if [ -z "$PARENT" ]; then
+  PARENT=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")
+fi
+
+echo "Closing feature pipeline on branch '$BRANCH' ..."
+echo ""
+
+# ---- revert all local changes -----------------------------------------------
 
 if [ -n "$(git status --porcelain)" ]; then
-  echo "Uncommitted changes detected."
-  echo ""
-  echo "  p) Pause — save everything (code + specwork) via f-pause, then close"
-  echo "  d) Discard all changes and continue close"
-  echo "  q) Quit — handle changes manually"
-  echo ""
-  read -r choice
-  case "$choice" in
-    p|P)
-      echo "Pausing work..."
-      git add -A
-      git add -f .specwork/ 2>/dev/null || true
-      git stash push --message "f-pause: $BRANCH"
-      echo "Work stashed. Proceeding with close."
-      ;;
-    d|D)
-      echo "Discarding all tracked changes..."
-      git restore .
-      echo "Removing untracked files..."
-      git clean -fd
-      echo "Changes discarded."
-      ;;
-    *)
-      echo "Aborted."
-      exit 1
-      ;;
-  esac
+  echo "Reverting all local changes..."
+  git restore .
+  git clean -fd
+  echo "Done."
   echo ""
 fi
 
-# ---- step 2: check MR merge status -----------------------------------------
+# ---- delete .specwork -------------------------------------------------------
 
-MR_URL=""
-if [ -f "$STATE_FILE" ]; then
-  MR_URL=$(python3 - "$STATE_FILE" 2>/dev/null <<'PY' || true
-import json, sys
-from pathlib import Path
-data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(data.get("mr_url", ""))
-PY
-)
-fi
-
-if [ -n "$MR_URL" ]; then
-  echo "Checking MR status..."
-  if command -v gh &>/dev/null; then
-    MR_NUM=$(echo "$MR_URL" | grep -oE '[0-9]+$' || true)
-    if [ -n "$MR_NUM" ]; then
-      MR_STATE=$(gh pr view "$MR_NUM" --json state --jq '.state' 2>/dev/null || echo "")
-      MR_MERGED=$(gh pr view "$MR_NUM" --json merged --jq '.merged' 2>/dev/null || echo "false")
-
-      if [ "$MR_STATE" = "MERGED" ] || [ "$MR_MERGED" = "true" ]; then
-        echo "MR is merged. Proceeding with close."
-      elif [ "$MR_STATE" = "CLOSED" ]; then
-        echo "MR is closed (not merged)."
-        echo ""
-        echo "  c) Delete .specwork anyway"
-        echo "  q) Quit and investigate"
-        read -r choice
-        case "$choice" in
-          c|C) echo "Proceeding..." ;;
-          *) exit 1 ;;
-        esac
-      else
-        echo "MR #$MR_NUM is still open ($MR_STATE)."
-        echo ""
-        echo "Are you sure you want to close the feature pipeline? [y/N]"
-        read -r choice
-        if [ "$choice" != "y" ] && [ "$choice" != "Y" ]; then
-          echo "Aborted."
-          exit 1
-        fi
-      fi
-    fi
-  else
-    echo "gh not installed. Cannot verify MR status."
-    echo ""
-    echo "  y) Delete .specwork anyway"
-    echo "  n) Abort"
-    read -r choice
-    case "$choice" in
-      y|Y) echo "Proceeding..." ;;
-      *) exit 1 ;;
-    esac
+if [ -d ".specwork" ]; then
+  echo "Deleting .specwork/ ..."
+  rm -rf .specwork/
+  if [ -d ".specwork" ]; then
+    die "Could not fully remove .specwork/ — remove it manually before retrying."
   fi
-else
-  echo "No MR URL found in state."
+  echo "Done."
   echo ""
-  echo "  y) Delete .specwork anyway"
-  echo "  n) Abort"
-  read -r choice
-  case "$choice" in
-    y|Y) echo "Proceeding..." ;;
-    *) exit 1 ;;
-  esac
 fi
 
-# ---- step 3: delete .specwork/ ---------------------------------------------
+# ---- branch cleanup ---------------------------------------------------------
 
-echo ""
-fmt_bold "Deleting .specwork/ ..."
-rm -rf .specwork/
-echo "Done. .specwork/ removed."
+# Switch to the parent branch, checking it out from origin if it only exists
+# remotely. Returns non-zero (without exiting) when the parent cannot be found,
+# so the dialog can fall back to keeping the current branch instead of dying.
+checkout_parent() {
+  if git rev-parse --verify --quiet "refs/heads/$PARENT" >/dev/null; then
+    git checkout "$PARENT"
+  elif git rev-parse --verify --quiet "refs/remotes/origin/$PARENT" >/dev/null; then
+    git checkout -b "$PARENT" "origin/$PARENT"
+  else
+    echo "Parent branch '$PARENT' not found locally or on origin." >&2
+    return 1
+  fi
+}
 
-# ---- step 4: offer branch cleanup -------------------------------------------
-
-DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")
-
-if [ "$BRANCH" != "$DEFAULT_BRANCH" ]; then
+if [ "$BRANCH" != "$PARENT" ]; then
+  echo "Branch '$BRANCH' is not the parent ($PARENT)."
   echo ""
-  echo "You are on feature branch '$BRANCH'."
-  echo ""
-  echo "  d) Delete local branch and switch to $DEFAULT_BRANCH"
-  echo "  k) Keep branch, switch to $DEFAULT_BRANCH"
+  echo "  d) Delete local branch and switch to $PARENT"
+  echo "  k) Keep branch, switch to $PARENT"
   echo "  s) Stay on branch"
   echo "  q) Quit"
   read -r choice
   case "$choice" in
     d|D)
-      git checkout "$DEFAULT_BRANCH"
-      git branch -D "$BRANCH"
-      echo "Branch '$BRANCH' deleted. Switched to $DEFAULT_BRANCH."
+      if checkout_parent; then
+        git branch -D "$BRANCH"
+        echo "Branch '$BRANCH' deleted. Switched to $PARENT."
+      else
+        echo "Staying on '$BRANCH' — branch not deleted."
+      fi
       ;;
     k|K)
-      git checkout "$DEFAULT_BRANCH"
-      echo "Switched to $DEFAULT_BRANCH. Branch '$BRANCH' preserved."
+      if checkout_parent; then
+        echo "Switched to $PARENT. Branch preserved."
+      else
+        echo "Staying on '$BRANCH'. Branch preserved."
+      fi
       ;;
     s|S)
       echo "Staying on branch '$BRANCH'."

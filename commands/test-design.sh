@@ -3,6 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 
 source "$LIB_DIR/gates.sh"
 
@@ -11,6 +14,7 @@ source "$LIB_DIR/gates.sh"
 SLUG=""
 STACK=""
 SPEC_FILE=""
+TRACKED=false   # true when test-design is a tracked step in the current flow
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -18,15 +22,26 @@ die() { echo "$*" >&2; exit 1; }
 fmt_bold()  { printf '\033[1m%s\033[0m\n' "$1"; }
 fmt_dim()   { printf '\033[2m%s\033[0m\n' "$1"; }
 
-# ---- resolve context --------------------------------------------------------
+# ---- resolve context (pipeline required) ------------------------------------
 
-SLUG=$(resolve_slug) || SLUG=""
+SLUG=$(resolve_slug) || die "No pipeline found. Run ./commands/start.sh first — test-design runs inside a pipeline."
+[ -f ".specwork/_state/${SLUG}-state.json" ] || die "No pipeline state for '$SLUG'. Run ./commands/start.sh first."
 STACK=$(detect_stack)
+SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 echo "Stack: $STACK"
+echo "Slug: $SLUG"
 
-if [ -n "$SLUG" ]; then
-  SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
-  echo "Slug: $SLUG"
+# ---- pipeline step gate -----------------------------------------------------
+
+if STEP_RESULT=$(engine expected-step test-design "$SLUG" 2>&1); then
+  TRACKED=true
+else
+  case "$STEP_RESULT" in
+    STEP_NOT_IN_FLOW*) echo "Note: test-design is not a tracked step in this flow — running as an optional aid." ;;
+    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine set-step test-design' to override." ;;
+    NO_STATE*) die "No pipeline state for '$SLUG'. Run ./commands/start.sh first." ;;
+    *) die "Step gate failed: $STEP_RESULT" ;;
+  esac
 fi
 
 # ---- detect changed files ---------------------------------------------------
@@ -82,6 +97,38 @@ for f in files:
 PY
 )
 
+# ---- write the test-design artifact -----------------------------------------
+# test-impl depends on this file: its existence is the proof test-design ran.
+# The script seeds the header + context; the design itself is filled in below.
+
+TEST_DIR=".specwork/_test"
+mkdir -p "$TEST_DIR"
+TEST_DESIGN_FILE="$TEST_DIR/${SLUG}-test-design.md"
+{
+  echo "# Test Design — $SLUG"
+  echo ""
+  echo "_Seeded by test-design. Fill in the designed cases under \"Designed test cases\"._"
+  echo "_test-impl reads this file and refuses to run if it is missing._"
+  echo ""
+  echo "## Changed files"
+  echo '```'
+  echo "$CHANGED_FILES"
+  echo '```'
+  if [ -n "$INT_CANDIDATES" ]; then
+    echo ""
+    echo "## Integration entry points"
+    echo '```'
+    echo "$INT_CANDIDATES"
+    echo '```'
+  fi
+  echo ""
+  echo "## Designed test cases"
+  echo ""
+  echo "<!-- Group by unit / integration / edge cases / missing coverage, with"
+  echo "     concrete class/component names from the diff. -->"
+} > "$TEST_DESIGN_FILE"
+echo "Wrote $TEST_DESIGN_FILE"
+
 # ---- print design instructions ----------------------------------------------
 
 cat <<INSTRUCTIONS
@@ -91,11 +138,15 @@ cat <<INSTRUCTIONS
 ===================================================
 
 You have loaded the optional test design step.
-Analyze the code changes below and design test cases.
+Analyze the code changes below and design test cases, then WRITE them into:
+
+    $TEST_DESIGN_FILE
+
+under the "## Designed test cases" heading. test-impl reads that file.
 
 STACK:    $STACK
 FRAMEWORK: $FRAMEWORK
-SLUG:     ${SLUG:-"(no pipeline)"}
+SLUG:     $SLUG
 ${SPEC_FILE:+SPEC:     $SPEC_FILE}
 
 ===================================================
@@ -138,5 +189,11 @@ fi
 cat <<INSTRUCTIONS
 
 
-Next: run ./commands/test-impl.sh to implement the test files.
+Next: run ./commands/test-impl.sh to implement the test files,
+or skip straight to ./commands/commit.sh (test-impl is optional).
 INSTRUCTIONS
+
+# advance the pipeline only when test-design is a tracked step in this flow
+if [ "$TRACKED" = "true" ]; then
+  engine advance-step "$SLUG" test-design >/dev/null 2>&1 || true
+fi

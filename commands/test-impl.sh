@@ -3,6 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 
 source "$LIB_DIR/gates.sh"
 
@@ -22,12 +25,41 @@ fi
 # ---- resolve context --------------------------------------------------------
 
 SLUG=$(resolve_slug) || SLUG=""
+SPEC_FILE=""
+TEST_DESIGN_FILE=""
+TRACKED=false   # true when test-impl is a tracked step in the current flow
 STACK=$(detect_stack)
 echo "Stack: $STACK"
 
-if [ -n "$SLUG" ]; then
+# dry-run ('list') is a read-only preview — it only needs the git diff, so it
+# stays usable outside a pipeline. The real run requires a pipeline (R2) and a
+# completed test-design (R1).
+if [ "$DRY_RUN" = "true" ]; then
+  if [ -n "$SLUG" ]; then
+    SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
+    echo "Slug: $SLUG"
+  fi
+else
+  [ -n "$SLUG" ] || die "No pipeline found. Run ./commands/start.sh first — test-impl runs inside a pipeline."
+  [ -f ".specwork/_state/${SLUG}-state.json" ] || die "No pipeline state for '$SLUG'. Run ./commands/start.sh first."
   SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
   echo "Slug: $SLUG"
+
+  # ---- dependency: test-design must have run (R1) -------------------------
+  TEST_DESIGN_FILE=".specwork/_test/${SLUG}-test-design.md"
+  [ -f "$TEST_DESIGN_FILE" ] || die "test-impl depends on test-design — run ./commands/test-design.sh first (missing $TEST_DESIGN_FILE)."
+
+  # ---- pipeline step gate -------------------------------------------------
+  if STEP_RESULT=$(engine expected-step test-impl "$SLUG" 2>&1); then
+    TRACKED=true
+  else
+    case "$STEP_RESULT" in
+      STEP_NOT_IN_FLOW*) echo "Note: test-impl is not a tracked step in this flow — running as an optional aid." ;;
+      WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine set-step test-impl' to override." ;;
+      NO_STATE*) die "No pipeline state for '$SLUG'. Run ./commands/start.sh first." ;;
+      *) die "Step gate failed: $STEP_RESULT" ;;
+    esac
+  fi
 fi
 
 # ---- detect changed source files --------------------------------------------
@@ -137,11 +169,13 @@ cat <<INSTRUCTIONS
 ===================================================
 
 You have loaded the optional test implementation step.
-Create test files for the changed source files listed below.
+Create test files for the changed source files listed below, following the
+designed cases from the test-design artifact shown after these instructions.
 
 STACK:    $STACK
 SLUG:     ${SLUG:-"(no pipeline)"}
 ${SPEC_FILE:+SPEC:     $SPEC_FILE}
+${TEST_DESIGN_FILE:+DESIGN:   $TEST_DESIGN_FILE}
 
 ===================================================
 
@@ -172,3 +206,16 @@ A non-null check is acceptable ONLY as a precondition before a content assertion
 
 Next: run ./commands/commit.sh to stage and commit the test files.
 INSTRUCTIONS
+
+# surface the designed cases so they drive the implementation
+if [ "$DRY_RUN" = "false" ] && [ -n "$TEST_DESIGN_FILE" ] && [ -f "$TEST_DESIGN_FILE" ]; then
+  echo ""
+  echo "====== TEST DESIGN (from test-design) ======"
+  cat "$TEST_DESIGN_FILE"
+  echo "============================================"
+fi
+
+# advance the pipeline only when test-impl is a tracked step in this flow
+if [ "$DRY_RUN" = "false" ] && [ "$TRACKED" = "true" ]; then
+  engine advance-step "$SLUG" test-impl >/dev/null 2>&1 || true
+fi

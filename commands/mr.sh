@@ -3,6 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 
 source "$LIB_DIR/gates.sh"
 
@@ -22,6 +25,17 @@ SLUG=$(resolve_slug) || die "Could not resolve slug."
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 PLAN_JSON_FILE=".specwork/_plan/${SLUG}-plan.json"
+
+# ---- pipeline step gate ----------------------------------------------------
+
+STEP_RESULT=$(engine expected-step mr "$SLUG" 2>&1) || {
+  case "$STEP_RESULT" in
+    NO_STATE*) : ;;  # no pipeline → standalone (git-only) mode, generate from git history
+    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step mr' to override." ;;
+    STEP_NOT_IN_FLOW*) die "Step 'mr' not in flow for current ticket_type: $STEP_RESULT" ;;
+    *) die "Step gate failed: $STEP_RESULT" ;;
+  esac
+}
 
 # ---- pre-flight -------------------------------------------------------------
 
@@ -182,9 +196,10 @@ fi
 
 rm -f "$MR_BODY_FILE"
 
-# ---- update state.json with MR URL ------------------------------------------
+# ---- update state.json with MR URL (pipeline mode only) ---------------------
 
-python3 - "$STATE_FILE" "$MR_URL" <<'PY'
+if [ -f "$STATE_FILE" ]; then
+  python3 - "$STATE_FILE" "$MR_URL" <<'PY'
 import json, sys
 from pathlib import Path
 fp = Path(sys.argv[1])
@@ -193,8 +208,8 @@ data = json.loads(fp.read_text(encoding="utf-8"))
 data["mr_url"] = url
 fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
-
-echo "State updated with MR URL."
+  echo "State updated with MR URL."
+fi
 
 # ---- ADR hint -----------------------------------------------------------------
 
@@ -207,6 +222,9 @@ if [ -f "$SPEC_FILE" ]; then
     echo "to capture those decisions as ADRs in docs/adr/ before the MR is merged."
   fi
 fi
+
+# advance pipeline state: mr → close
+engine advance-step "$SLUG" mr >/dev/null 2>&1 || true
 
 echo ""
 echo "Next steps:"
