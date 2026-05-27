@@ -60,7 +60,7 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
 INDEPENDENT (any branch, any time):
   /f-commit            — semantic commit messages
   /f-mr                — MR description & creation
-  /f-code-review            — stack-aware quality + security review
+  /f-code-review       — stack-aware quality + security review
   /f-handoff           — package artifacts for other agents
 
 UTILITIES:
@@ -71,8 +71,6 @@ UTILITIES:
   /f-resume            — restore paused work
   /f-resync            — sync artifacts when branch was renamed
   /f-refine            — refine spec with additional context
-  /f-test-design       — design test cases
-  /f-test-impl         — implement test files
 ```
 
 > **Open Questions** are unresolved markdown checkboxes (`- [ ]`) in `spec.md`
