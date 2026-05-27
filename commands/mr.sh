@@ -41,39 +41,81 @@ STEP_RESULT=$(engine expected-step mr "$SLUG" 2>&1) || {
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# Check for pushed commits
-CURRENT_SHA=$(git rev-parse HEAD)
-ORIGIN_SHA=$(git rev-parse "@{upstream}" 2>/dev/null || echo "")
+# Determine the base branch up front so we can verify there is something to merge.
+# Prefer the locally-recorded origin HEAD (set at clone, no network); fall back to
+# querying the remote, then to main.
+DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+[ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p' || true)
+[ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH="main"
 
-if [ "$CURRENT_SHA" = "$ORIGIN_SHA" ]; then
-  echo "No new commits to push. Did you forget to commit?"
-  echo "Run ./commands/commit.sh first."
+# An MR from the default branch to itself is meaningless.
+if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+  die "You are on the default branch ('$DEFAULT_BRANCH'). Create a feature branch before opening an MR."
+fi
+
+# Verify this branch has commits the base does not — otherwise the MR is empty.
+# Prefer the remote base ref; fall back to a local one.
+if git rev-parse --verify --quiet "origin/$DEFAULT_BRANCH" >/dev/null; then
+  BASE_REF="origin/$DEFAULT_BRANCH"
+elif git rev-parse --verify --quiet "$DEFAULT_BRANCH" >/dev/null; then
+  BASE_REF="$DEFAULT_BRANCH"
+else
+  BASE_REF=""
+fi
+# If the base cannot be resolved we cannot prove the MR is non-empty; refuse rather
+# than run the quality gate (and open an MR) blindly.
+if [ -z "$BASE_REF" ]; then
+  die "Could not resolve base branch '$DEFAULT_BRANCH' (no origin/$DEFAULT_BRANCH or local $DEFAULT_BRANCH). Fetch it first: git fetch origin $DEFAULT_BRANCH"
+fi
+AHEAD=$(git rev-list --count "$BASE_REF..HEAD" 2>/dev/null || echo 0)
+if [ "$AHEAD" -eq 0 ]; then
+  echo "No commits on '$BRANCH' beyond '$BASE_REF' — nothing to open an MR for."
+  echo "Commit your work first (./commands/commit.sh)."
   exit 1
 fi
 
-# Check gh is installed
-if ! command -v gh &>/dev/null; then
-  echo "GitHub CLI (gh) is required but not installed."
-  echo "Install: https://cli.github.com/"
-  exit 1
+# ---- determine the host provider --------------------------------------------
+# The target host is the project's own remote, NOT where open-sdd lives. An
+# explicit OPEN_SDD_MR_PROVIDER (github|gitlab) wins; otherwise infer from origin.
+
+PROVIDER="${OPEN_SDD_MR_PROVIDER:-}"
+if [ -z "$PROVIDER" ]; then
+  ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+  case "$ORIGIN_URL" in
+    *github.com*) PROVIDER="github" ;;
+    *gitlab*)     PROVIDER="gitlab" ;;
+    *) die "Could not determine the git host from origin ('${ORIGIN_URL:-none}').
+Set OPEN_SDD_MR_PROVIDER=github|gitlab to choose explicitly." ;;
+  esac
+fi
+echo "Host: $PROVIDER"
+
+case "$PROVIDER" in
+  github)
+    command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) is required but not installed. Install: https://cli.github.com/"
+    gh auth status >/dev/null 2>&1 || die "Not authenticated with GitHub CLI. Run: gh auth login" ;;
+  gitlab)
+    command -v glab >/dev/null 2>&1 || die "GitLab CLI (glab) is required but not installed. Install: https://gitlab.com/gitlab-org/cli"
+    glab auth status >/dev/null 2>&1 || die "Not authenticated with GitLab CLI. Run: glab auth login" ;;
+  *)
+    die "Unknown provider '$PROVIDER'. Use OPEN_SDD_MR_PROVIDER=github|gitlab." ;;
+esac
+
+# ---- quality gate: run tests (skip if HEAD was already validated by f-commit) -
+
+HEAD_SHA=$(git rev-parse HEAD)
+CHECKED_SHA=""
+if [ -f "$STATE_FILE" ]; then
+  CHECKED_SHA=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('checked_sha',''))" "$STATE_FILE" 2>/dev/null || true)
 fi
 
-# Check gh auth
-if ! gh auth status 2>/dev/null; then
-  echo "Not authenticated with GitHub CLI."
-  echo "Run: gh auth login"
-  exit 1
+if [ -n "$CHECKED_SHA" ] && [ "$HEAD_SHA" = "$CHECKED_SHA" ]; then
+  echo "Skipping pre-push checks — HEAD already validated by f-commit ($HEAD_SHA)."
+else
+  echo "Running pre-push checks..."
+  bash "$SCRIPT_DIR/check.sh" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
 fi
-
-# ---- quality gate: run tests ------------------------------------------------
-
-echo "Running pre-push checks..."
-bash "$SCRIPT_DIR/check.sh" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
 echo ""
-
-# ---- determine default branch -----------------------------------------------
-
-DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")
 
 # ---- build MR body ----------------------------------------------------------
 
@@ -157,7 +199,7 @@ else
   MR_TITLE="$SPEC_TITLE"
 fi
 
-# Write MR body to temp file for use with gh
+# Write MR body to a temp file (gh reads it via --body-file; glab via cat)
 MR_BODY_FILE=$(mktemp)
 echo "$PLAN_TEXT" > "$MR_BODY_FILE"
 
@@ -175,23 +217,35 @@ fi
 echo ""
 fmt_bold "Looking for existing MR..."
 
-EXISTING_MR=$(gh pr list --head "$BRANCH" --json number,title --jq '.[0].number // empty' 2>/dev/null || true)
-
-if [ -n "$EXISTING_MR" ]; then
-  echo "Found existing MR #$EXISTING_MR. Updating..."
-  gh pr edit "$EXISTING_MR" \
-    --title "$MR_TITLE" \
-    --body-file "$MR_BODY_FILE" 2>&1
-  MR_URL=$(gh pr view "$EXISTING_MR" --json url --jq '.url' 2>/dev/null || echo "#$EXISTING_MR")
-  echo "Updated: $MR_URL"
+if [ "$PROVIDER" = "github" ]; then
+  EXISTING_MR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty' 2>/dev/null || true)
+  if [ -n "$EXISTING_MR" ]; then
+    echo "Found existing MR #$EXISTING_MR. Updating..."
+    gh pr edit "$EXISTING_MR" --title "$MR_TITLE" --body-file "$MR_BODY_FILE" 2>&1
+    MR_URL=$(gh pr view "$EXISTING_MR" --json url --jq '.url' 2>/dev/null || echo "#$EXISTING_MR")
+    echo "Updated: $MR_URL"
+  else
+    echo "Creating new MR..."
+    MR_URL=$(gh pr create --base "$DEFAULT_BRANCH" --head "$BRANCH" \
+      --title "$MR_TITLE" --body-file "$MR_BODY_FILE" 2>&1)
+    echo "Created: $MR_URL"
+  fi
 else
-  echo "Creating new MR..."
-  MR_URL=$(gh pr create \
-    --base "$DEFAULT_BRANCH" \
-    --head "$BRANCH" \
-    --title "$MR_TITLE" \
-    --body-file "$MR_BODY_FILE" 2>&1)
-  echo "Created: $MR_URL"
+  # gitlab — glab accepts a branch name in place of an MR id
+  MR_DESC=$(cat "$MR_BODY_FILE")
+  if glab mr view "$BRANCH" -F json >/dev/null 2>&1; then
+    echo "Found existing MR for '$BRANCH'. Updating..."
+    glab mr update "$BRANCH" --title "$MR_TITLE" --description "$MR_DESC" 2>&1
+    MR_URL=$(glab mr view "$BRANCH" -F json 2>/dev/null \
+      | python3 -c 'import json,sys; print(json.load(sys.stdin).get("web_url",""))' 2>/dev/null || echo "")
+    echo "Updated: ${MR_URL:-$BRANCH}"
+  else
+    echo "Creating new MR..."
+    MR_URL=$(glab mr create --source-branch "$BRANCH" --target-branch "$DEFAULT_BRANCH" \
+      --title "$MR_TITLE" --description "$MR_DESC" --yes 2>&1 \
+      | grep -Eo 'https?://[^[:space:]]+' | tail -1)
+    echo "Created: ${MR_URL:-(see glab output above)}"
+  fi
 fi
 
 rm -f "$MR_BODY_FILE"

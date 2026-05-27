@@ -41,12 +41,9 @@ STEP_RESULT=$(engine expected-step commit "$SLUG" 2>&1) || {
   esac
 }
 
-# ---- quality gate: run tests ------------------------------------------------
-
-echo "Running pre-commit checks..."
-bash "$SCRIPT_DIR/check.sh" || die "Checks failed. Fix issues before committing."
-
-# ---- check for changes ------------------------------------------------------
+# ---- check for changes (before running the quality gate) --------------------
+# Detect / stage changes first so a no-op commit exits immediately instead of
+# paying for the full test suite (e.g. ./gradlew check) only to find nothing.
 
 HAS_STAGED=false
 if ! git diff --cached --quiet 2>/dev/null; then
@@ -75,6 +72,12 @@ else
   echo "No changes to commit."
   exit 1
 fi
+
+# ---- quality gate: run tests ------------------------------------------------
+# Only reached when there is something to commit.
+
+echo "Running pre-commit checks..."
+bash "$SCRIPT_DIR/check.sh" || die "Checks failed. Fix issues before committing."
 
 # ---- print context ----------------------------------------------------------
 
@@ -155,6 +158,9 @@ if sha not in commits:
     commits.append(sha)
 data["commits"] = commits
 data["last_commit"] = sha
+# The quality gate (check.sh) passed just before this commit, so this exact SHA
+# is validated. f-mr reads this to skip re-running the same checks.
+data["checked_sha"] = sha
 fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
     echo "State updated with commit $LAST_COMMIT"
