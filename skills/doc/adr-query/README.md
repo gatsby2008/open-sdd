@@ -1,6 +1,6 @@
 # ADR Query
 
-Answers architecture-decision questions by reading every ADR under `~/.claude/adr-registry/*/` and synthesizing an answer from the combined knowledge. The registry is populated by `/adr-publish` runs from each service.
+Answers architecture-decision questions by reading every ADR under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/*/` and synthesizing an answer from the combined knowledge. The registry is populated by `/adr-publish` runs from each service.
 
 ## Usage
 
@@ -69,7 +69,7 @@ Every answer cites the source as `<service>/<ADR-file>` — if a fact is stale, 
 
 ## What it does
 
-1. Lists every service subdir under `~/.claude/adr-registry/`.
+1. Lists every service subdir under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/`.
 2. **Detects whether the question targets a specific service** — looks for kebab-case tokens in the query (e.g., `transunion-service`, `consumer-portal`) and matches them against the registry's subdir names. When a match is found, narrows the read scope to that subdir; otherwise reads the full registry. Aggregate questions ("which services…", "compare", "across services") always trigger a full read.
 3. Reads the ADRs in scope.
 4. Synthesizes an evidence-based answer, citing each claim with `<service>/<ADR-file>`.
@@ -87,11 +87,11 @@ The narrowing keeps responses faster and avoids spending tokens on unrelated ADR
 
 ## Requirements
 
-- At least one ADR must exist under `~/.claude/adr-registry/*/` (or `$CLAUDE_DOC_HOME/adr-registry/*/` if the env var is set). Populate it by running `/doc-adr` followed by `/adr-publish` in each service repository.
+- At least one ADR must exist under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/*/` (or `$OPEN_SDD_DOC_HOME/adr-registry/*/` if the env var is set). Populate it by running `/doc-adr` followed by `/adr-publish` in each service repository.
 
 ## Registry location
 
-Defaults to `~/.claude/adr-registry/`. Override with `CLAUDE_DOC_HOME` to point at a different folder (e.g., a cloned GitLab repo for team sharing) — the skill reads from `$CLAUDE_DOC_HOME/adr-registry/`. See the bundle README's *Team-shared registry* section for the full setup guide.
+Defaults to `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/`. Override with `OPEN_SDD_DOC_HOME` to point at a different folder (e.g., a cloned GitLab repo for team sharing) — the skill reads from `$OPEN_SDD_DOC_HOME/adr-registry/`. See the bundle README's *Team-shared registry* section for the full setup guide.
 
 ## Limitations
 

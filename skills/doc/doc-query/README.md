@@ -1,6 +1,6 @@
 # Architecture Query
 
-Answers cross-service architecture questions by reading every catalog under `~/.claude/service-catalog/` and synthesizing an answer from the combined knowledge. The registry is populated by `/doc-publish` runs from each service.
+Answers cross-service architecture questions by reading every catalog under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/` and synthesizing an answer from the combined knowledge. The registry is populated by `/doc-publish` runs from each service.
 
 ## Usage
 
@@ -82,17 +82,17 @@ Every answer cites the catalogs it pulled from — if a fact is wrong, refresh t
 
 ## What it does
 
-1. Lists every file under `~/.claude/service-catalog/`.
+1. Lists every file under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`.
 2. Reads each catalog.
 3. Synthesizes an evidence-based answer citing the services involved and the relevant catalog entries.
 
 ## Requirements
 
-- At least one catalog must exist under `~/.claude/service-catalog/` (or `$CLAUDE_DOC_HOME/service-catalog/` if the env var is set). Populate it by running `/doc-catalog` followed by `/doc-publish` in each service repository.
+- At least one catalog must exist under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/` (or `$OPEN_SDD_DOC_HOME/service-catalog/` if the env var is set). Populate it by running `/doc-catalog` followed by `/doc-publish` in each service repository.
 
 ## Registry location
 
-Defaults to `~/.claude/service-catalog/`. Override with `CLAUDE_DOC_HOME` to point at a different folder (e.g., a cloned GitLab repo for team sharing) — the skill reads from `$CLAUDE_DOC_HOME/service-catalog/`. See the bundle README's *Team-shared registry* section for the full setup guide.
+Defaults to `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`. Override with `OPEN_SDD_DOC_HOME` to point at a different folder (e.g., a cloned GitLab repo for team sharing) — the skill reads from `$OPEN_SDD_DOC_HOME/service-catalog/`. See the bundle README's *Team-shared registry* section for the full setup guide.
 
 ## Limitations
 

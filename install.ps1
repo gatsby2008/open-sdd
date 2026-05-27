@@ -69,44 +69,36 @@ $agentsOut = Join-Path $OPENCODE_DIR "AGENTS.md"
 (Get-Content $template -Raw) -replace '\$OPEN_SDD_ROOT', $OPENSDD_PATH | Set-Content -Path $agentsOut -Encoding UTF8 -NoNewline
 Write-Host "Global AGENTS.md placed at $agentsOut"
 
-# ---- standalone skills (doc) -------------------------------------------------
-$skillsDst = Join-Path $HOME ".claude" "skills"
+# ---- standalone skills (doc) slash commands ----------------------------------
 $docSrc = Join-Path $OPENSDD_PATH "skills" "doc"
-if (Test-Path $docSrc) {
-  $docDst = Join-Path $skillsDst "doc"
-  New-Item -ItemType Directory -Force -Path $docDst | Out-Null
-  Get-ChildItem -Path $docSrc -Directory | ForEach-Object {
-    Copy-Item -Path $_.FullName -Destination $docDst -Recurse -Force
-  }
-
-  Get-ChildItem -Path $docSrc -Directory | ForEach-Object {
-    $skillName = $_.Name
-    $skillFile = Join-Path $_.FullName "SKILL.md"
-    $desc = ""
-    if (Test-Path $skillFile) {
-      $firstLine = Get-Content -Path $skillFile -TotalCount 1
-      if ($firstLine -eq "---") {
-        $thirdLine = Get-Content -Path $skillFile -TotalCount 3 | Select-Object -Last 1
-        $desc = $thirdLine -replace '^description: ', ''
-      }
+Get-ChildItem -Path $docSrc -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+  $skillName = $_.Name
+  $skillFile = Join-Path $_.FullName "SKILL.md"
+  $desc = ""
+  if (Test-Path $skillFile) {
+    $firstLine = Get-Content -Path $skillFile -TotalCount 1
+    if ($firstLine -eq "---") {
+      $thirdLine = Get-Content -Path $skillFile -TotalCount 3 | Select-Object -Last 1
+      $desc = $thirdLine -replace '^description: ', ''
     }
-    if (-not $desc) { $desc = "${skillName} skill" }
-    $cmdContent = @"
----description: ${desc}---
-View $(Join-Path $docDst $skillName "SKILL.md") and follow the instructions.
-"@
-    Set-Content -Path (Join-Path $CMD_DIR "${skillName}.md") -Value $cmdContent -Encoding UTF8
   }
-  Write-Host "doc skills (6) installed to $docDst — available as /doc-adr, /doc-catalog, etc."
+  if (-not $desc) { $desc = "${skillName} skill" }
+  $cmdContent = @"
+---description: ${desc}---
+View $(Join-Path $OPENSDD_PATH "skills" "doc" $skillName "SKILL.md") and follow the instructions.
+"@
+  Set-Content -Path (Join-Path $CMD_DIR "${skillName}.md") -Value $cmdContent -Encoding UTF8
 }
+Write-Host "doc skills (6) slash commands installed — available as /doc-adr, /doc-catalog, etc."
 
-# ---- set environment variable -------------------------------------------------
+# ---- set environment variables -------------------------------------------------
 $profilePath = $PROFILE.CurrentUserAllHosts
 if (-not (Test-Path $profilePath)) {
   New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
 "`$env:OPEN_SDD_ROOT = '$OPENSDD_PATH'" | Out-File -FilePath $profilePath -Append -Encoding UTF8
-Write-Host "OPEN_SDD_ROOT added to PowerShell profile ($profilePath)"
+"`$env:OPEN_SDD_DOC_HOME = '`${OPEN_SDD_ROOT:-`$HOME}/.opensdd/registry'" | Out-File -FilePath $profilePath -Append -Encoding UTF8
+Write-Host "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME added to PowerShell profile ($profilePath)"
 
 Write-Host ""
 Write-Host "Re-run this script after moving open-sdd or adding new commands."

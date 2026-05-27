@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Bash(find src:*), Bash(find .:*), Bash(find app:*), 
 
 # Service Catalog
 
-**Load**: `view ~/.claude/skills/doc/doc-catalog/SKILL.md`
+**Load**: `view $OPEN_SDD_ROOT/skills/doc/doc-catalog/SKILL.md`
 
 ---
 

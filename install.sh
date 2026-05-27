@@ -59,34 +59,28 @@ echo ""
 sed "s|\$OPEN_SDD_ROOT|$OPENSDD_PATH|g" "$OPENSDD_PATH/templates/AGENTS.md" > "$OPENCODE_DIR/AGENTS.md"
 echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
 
-# ---- standalone skills (doc) -------------------------------------------------
+# ---- standalone skills (doc) slash commands ----------------------------------
 
-SKILLS_DST="${HOME}/.claude/skills"
-if [ -d "$OPENSDD_PATH/skills/doc" ]; then
-  mkdir -p "$SKILLS_DST/doc"
-  cp -r "$OPENSDD_PATH/skills/doc/"* "$SKILLS_DST/doc/"
-
-  # Generate slash-command files so they show up as /doc-adr, /doc-catalog, etc.
-  for skill_dir in "$OPENSDD_PATH/skills/doc/"*/; do
-    skill_name="$(basename "$skill_dir")"
-    first_line="$(head -1 "$skill_dir/SKILL.md" 2>/dev/null || true)"
-    # Extract description from YAML frontmatter (second line after ---).
-    desc=""
-    if [ "$first_line" = "---" ]; then
-      desc="$(sed -n '3p' "$skill_dir/SKILL.md" 2>/dev/null | sed 's/^description: //')"
-    fi
-    [ -z "$desc" ] && desc="$skill_name skill"
-    cat > "${CMD_DIR}/${skill_name}.md" <<EOF
+for skill_dir in "$OPENSDD_PATH/skills/doc/"*/; do
+  [ -d "$skill_dir" ] || continue
+  skill_name="$(basename "$skill_dir")"
+  first_line="$(head -1 "$skill_dir/SKILL.md" 2>/dev/null || true)"
+  desc=""
+  if [ "$first_line" = "---" ]; then
+    desc="$(sed -n '3p' "$skill_dir/SKILL.md" 2>/dev/null | sed 's/^description: //')"
+  fi
+  [ -z "$desc" ] && desc="$skill_name skill"
+  cat > "${CMD_DIR}/${skill_name}.md" <<EOF
 ---description: ${desc}---
-View ${SKILLS_DST}/doc/${skill_name}/SKILL.md and follow the instructions.
+View ${OPENSDD_PATH}/skills/doc/${skill_name}/SKILL.md and follow the instructions.
 EOF
-  done
-  echo "doc skills (6) installed to $SKILLS_DST/doc/ — available as /doc-adr, /doc-catalog, etc."
-fi
+done
+echo "doc skills (6) slash commands installed — available as /doc-adr, /doc-catalog, etc."
 
-# ---- set environment variable ----
+# ---- set environment variables ----
 echo "export OPEN_SDD_ROOT=\"$OPENSDD_PATH\"" >> ~/.zshrc
-echo "OPEN_SDD_ROOT exported to ~/.zshrc"
+echo "export OPEN_SDD_DOC_HOME=\"\${OPEN_SDD_ROOT:-\$HOME}/.opensdd/registry\"" >> ~/.zshrc
+echo "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME exported to ~/.zshrc"
 
 echo ""
 echo "Re-run this script after moving open-sdd or adding new commands."

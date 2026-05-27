@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Bash(find docs:*), Bash(find .specwork:*), Bash(cat 
 
 # ADR
 
-**Load**: `view ~/.claude/skills/doc/doc-adr/SKILL.md`
+**Load**: `view $OPEN_SDD_ROOT/skills/doc/doc-adr/SKILL.md`
 
 ---
 

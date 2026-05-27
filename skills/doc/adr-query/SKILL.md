@@ -1,6 +1,6 @@
 ---
 name: adr-query
-description: Answer architecture-decision questions by reading every ADR in the registry (default ~/.claude/adr-registry/, override with $CLAUDE_DOC_HOME). Ask things like "why did consumer-portal pick PostgreSQL for circuit-breaker state?", "which services have superseded ADRs?", "what decisions reference Cognito?", "show me every ADR about retries".
+description: Answer architecture-decision questions by reading every ADR in the registry (default ${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/, override with $OPEN_SDD_DOC_HOME). Ask things like "why did consumer-portal pick PostgreSQL for circuit-breaker state?", "which services have superseded ADRs?", "what decisions reference Cognito?", "show me every ADR about retries".
 argument-hint: "free-text decision question"
 allowed-tools: Read, Bash(ls:*), Bash(find:*), Bash(grep:*)
 ---
@@ -14,11 +14,11 @@ allowed-tools: Read, Bash(ls:*), Bash(find:*), Bash(grep:*)
 All registry reads resolve through a single environment variable:
 
 ```bash
-REGISTRY="${CLAUDE_DOC_HOME:-$HOME/.claude}/adr-registry"
+REGISTRY="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/adr-registry"
 ```
 
-- **Default** (no env var set): `~/.claude/adr-registry/` — identical to the original behavior.
-- **Override**: `export CLAUDE_DOC_HOME=/path/to/registry-root` — e.g., a cloned GitLab repo for team-shared ADRs.
+- **Default** (no env var set): `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/` — identical to the original behavior.
+- **Override**: `export OPEN_SDD_DOC_HOME=/path/to/registry-root` — e.g., a cloned GitLab repo for team-shared ADRs.
 
 The same variable controls `/doc-publish`, `/doc-query`, and `/adr-publish`, so all doc registries move together.
 
@@ -28,7 +28,7 @@ The same variable controls `/doc-publish`, `/doc-query`, and `/adr-publish`, so 
 
 | Step | Action |
 |------|--------|
-| 1 | Lists every service subdir under `~/.claude/adr-registry/` |
+| 1 | Lists every service subdir under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/` |
 | 2 | Detects whether the question targets one (or a few) specific services and narrows scope |
 | 3 | Reads every ADR file in scope |
 | 4 | Answers `$ARGUMENTS` using the combined knowledge |
@@ -39,13 +39,13 @@ The same variable controls `/doc-publish`, `/doc-query`, and `/adr-publish`, so 
 ## Step 1 — Check Registry
 
 ```bash
-find "${CLAUDE_DOC_HOME:-$HOME/.claude}/adr-registry" -name "*.md" -type f 2>/dev/null | head -1 | grep -q .
+find "${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/adr-registry" -name "*.md" -type f 2>/dev/null | head -1 | grep -q .
 ```
 
 If empty, abort:
 
 ```
-No ADRs found in ~/.claude/adr-registry/.
+No ADRs found in ${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/.
 
 Run /doc-adr to create ADRs in a project, then /adr-publish to register them.
 ```
@@ -61,7 +61,7 @@ The registry is organized into per-service subdirs. Most questions concern a sin
 1. **List available service subdirs:**
 
    ```bash
-   ls -1 "${CLAUDE_DOC_HOME:-$HOME/.claude}/adr-registry/" 2>/dev/null
+   ls -1 "${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/adr-registry/" 2>/dev/null
    ```
 
 2. **Tokenize `$ARGUMENTS` and extract kebab-case candidates** — sequences containing a `-`, e.g., `transunion-service`, `consumer-portal`, `package-orchestrator`. Service names always contain a hyphen, so plain English words are filtered out automatically.
@@ -190,5 +190,5 @@ or rephrase the question without naming a specific service to broaden the scope.
 ## Related Skills
 
 - `doc-adr` — creates ADRs under `docs/adr/`
-- `adr-publish` — syncs `docs/adr/*.md` to `~/.claude/adr-registry/<service>/`
+- `adr-publish` — syncs `docs/adr/*.md` to `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/<service>/`
 - `doc-query` — same pattern for service catalogs

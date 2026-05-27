@@ -161,6 +161,11 @@ if [ ! -f ".opensdd/service-rules.md" ]; then
     echo "Created .opensdd/service-rules.md"
   fi
 fi
+if [ ! -f ".opensdd/mr-config.json" ]; then
+  if cp "$TEMPLATES_DIR/mr-config.json" ".opensdd/mr-config.json"; then
+    echo "Created .opensdd/mr-config.json"
+  fi
+fi
 
 # ---- scaffold .specwork/ ----------------------------------------------------
 

@@ -41,10 +41,16 @@ STEP_RESULT=$(engine expected-step mr "$SLUG" 2>&1) || {
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# Determine the base branch up front so we can verify there is something to merge.
-# Prefer the locally-recorded origin HEAD (set at clone, no network); fall back to
-# querying the remote, then to main.
-DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+# Determine the target branch for the MR.
+# Priority: 1) .opensdd/mr-config.json, 2) origin/HEAD, 3) remote query, 4) main.
+DEFAULT_BRANCH=""
+CONFIG_FILE=".opensdd/mr-config.json"
+if [ -f "$CONFIG_FILE" ]; then
+  DEFAULT_BRANCH=$(python3 -c "import json; print(json.load(open('$CONFIG_FILE')).get('target_branch',''))" 2>/dev/null || true)
+fi
+if [ -z "$DEFAULT_BRANCH" ]; then
+  DEFAULT_BRANCH=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's@^origin/@@' || true)
+fi
 [ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH=$(git remote show origin 2>/dev/null | sed -n 's/.*HEAD branch: //p' || true)
 [ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH="main"
 

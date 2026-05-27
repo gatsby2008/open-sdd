@@ -238,15 +238,15 @@ into `.specwork/_state/<slug>-rules.json`.
 
 Beyond the pipeline, open-sdd bundles companion skills for cross-service
 documentation and architecture decisions. These load automatically when
-opencode starts (from `~/.claude/skills/doc/`):
+opencode starts (from `$OPEN_SDD_ROOT/skills/doc/`, registered via install.sh):
 
 | Command | What it does |
 |---------|--------------|
 | **`/doc-catalog`** | Scan the current microservice and generate `docs/service-info.md` with endpoints, integrations, and config |
-| **`/doc-publish`** | Publish the catalog to the central registry (`$CLAUDE_DOC_HOME/service-catalog/`) |
+| **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`) |
 | **`/doc-query`** | Ask cross-service questions across all registered catalogs |
 | **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
-| **`/adr-publish`** | Publish all ADRs to the central registry (`$CLAUDE_DOC_HOME/adr-registry/<service>/`) |
+| **`/adr-publish`** | Publish all ADRs to the central registry (`$OPEN_SDD_DOC_HOME/adr-registry/<service>/`) |
 | **`/adr-query`** | Ask decision-history questions across all registered ADRs |
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the

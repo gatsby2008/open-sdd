@@ -1,13 +1,13 @@
 ---
 name: doc-query
-description: Answer cross-service architecture questions by reading all service catalogs from the registry (default ~/.claude/service-catalog/, override with $CLAUDE_DOC_HOME). Ask things like "who consumes the LeadCreated SNS event?", "what services call /api/v1/consent?", "which services does marketing-service depend on?"
+description: Answer cross-service architecture questions by reading all service catalogs from the registry (default ${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/, override with $OPEN_SDD_DOC_HOME). Ask things like "who consumes the LeadCreated SNS event?", "what services call /api/v1/consent?", "which services does marketing-service depend on?"
 argument-hint: "free-text architecture question"
 allowed-tools: Read, Bash(ls:*), Bash(find:*)
 ---
 
 # Architecture Query
 
-**Load**: `view ~/.claude/skills/doc/doc-query/SKILL.md`
+**Load**: `view $OPEN_SDD_ROOT/skills/doc/doc-query/SKILL.md`
 
 ---
 
@@ -16,11 +16,11 @@ allowed-tools: Read, Bash(ls:*), Bash(find:*)
 All registry reads resolve through a single environment variable:
 
 ```bash
-REGISTRY="${CLAUDE_DOC_HOME:-$HOME/.claude}/service-catalog"
+REGISTRY="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/service-catalog"
 ```
 
-- **Default** (no env var set): `~/.claude/service-catalog/` — identical to the original behavior.
-- **Override**: `export CLAUDE_DOC_HOME=/path/to/registry-root` — e.g., a cloned GitLab repo for team-shared catalogs.
+- **Default** (no env var set): `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/` — identical to the original behavior.
+- **Override**: `export OPEN_SDD_DOC_HOME=/path/to/registry-root` — e.g., a cloned GitLab repo for team-shared catalogs.
 
 The same variable controls `/doc-publish`, `/adr-publish`, and `/adr-query`, so all doc registries move together.
 
@@ -30,7 +30,7 @@ The same variable controls `/doc-publish`, `/adr-publish`, and `/adr-query`, so 
 
 | Step | Action |
 |------|--------|
-| 1 | Lists all catalogs in `~/.claude/service-catalog/` |
+| 1 | Lists all catalogs in `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/` |
 | 2 | Reads every catalog file |
 | 3 | Answers `$ARGUMENTS` using the combined knowledge |
 | 4 | Cites which service(s) the answer comes from |
@@ -40,13 +40,13 @@ The same variable controls `/doc-publish`, `/adr-publish`, and `/adr-query`, so 
 ## Step 1 — Check Registry
 
 ```bash
-ls "${CLAUDE_DOC_HOME:-$HOME/.claude}/service-catalog"/*.md 2>/dev/null
+ls "${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/service-catalog"/*.md 2>/dev/null
 ```
 
 If empty, abort:
 
 ```
-No service catalogs found in ~/.claude/service-catalog/.
+No service catalogs found in ${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/.
 
 Run /doc-catalog in each service project, then /doc-publish to register it.
 ```
@@ -65,7 +65,7 @@ Reading 4 service catalogs:
 
 ## Step 2 — Read All Catalogs
 
-Read every `.md` file in `~/.claude/service-catalog/`. Build a combined
+Read every `.md` file in `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`. Build a combined
 knowledge base of:
 
 - REST endpoints (method, path, request/response DTOs)

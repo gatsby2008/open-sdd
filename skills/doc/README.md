@@ -8,9 +8,9 @@ A bundle of six skills that together form a documentation and cross-service arch
 |---------------|---------|
 | `/doc-adr` | Capture an architectural decision as an ADR in `docs/adr/`. Modes: free text, from a Jira ticket, or from resolved Open Questions on the current branch. |
 | `/doc-catalog` | Generate or refresh `docs/service-info.md` for the current microservice (Java Spring Boot or frontend). Scans controllers, listeners, clients, schedulers, and config. |
-| `/doc-publish` | Publish the local `docs/service-info.md` to the central registry at `~/.claude/service-catalog/`. Run after `/doc-catalog`. |
+| `/doc-publish` | Publish the local `docs/service-info.md` to the central registry at `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`. Run after `/doc-catalog`. |
 | `/doc-query` | Answer cross-service architecture questions by reading the catalog registry. Run from any project once catalogs have been published. |
-| `/adr-publish` | Publish the local `docs/adr/*.md` to the central registry at `~/.claude/adr-registry/<service>/`. Run after `/doc-adr`. |
+| `/adr-publish` | Publish the local `docs/adr/*.md` to the central registry at `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/<service>/`. Run after `/doc-adr`. |
 | `/adr-query` | Answer cross-service decision-history questions by reading the ADR registry. Run from any project once ADRs have been published. |
 
 ## Workflow
@@ -20,7 +20,7 @@ Catalogs (one per service):
   /doc-catalog   →  writes docs/service-info.md
        │
        ▼
-  /doc-publish   →  ~/.claude/service-catalog/<service>.md
+  /doc-publish   →  ${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/<service>.md
        │
        ▼
   /doc-query     →  cross-service architecture questions
@@ -29,7 +29,7 @@ ADRs (many per service):
   /doc-adr       →  writes docs/adr/<TICKET>-ADR-NNN-<slug>.md
        │
        ▼
-  /adr-publish   →  ~/.claude/adr-registry/<service>/<TICKET>-ADR-NNN-*.md
+  /adr-publish   →  ${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/<service>/<TICKET>-ADR-NNN-*.md
        │
        ▼
   /adr-query     →  cross-service decision-history questions
@@ -42,14 +42,14 @@ Both pipelines follow the same shape: the `*-publish` step is run inside each se
 All four publish/query skills resolve their registry path from a single environment variable:
 
 ```bash
-REGISTRY_HOME="${CLAUDE_DOC_HOME:-$HOME/.claude}"
+REGISTRY_HOME="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}"
 # service-catalog → $REGISTRY_HOME/service-catalog/
 # adr-registry    → $REGISTRY_HOME/adr-registry/
 ```
 
-| `CLAUDE_DOC_HOME` | Resolves to | Use case |
+| `OPEN_SDD_DOC_HOME` | Resolves to | Use case |
 |-------------------|-------------|----------|
-| not set (default) | `~/.claude/service-catalog/`, `~/.claude/adr-registry/` | Solo developer, local only — identical to the original behavior. No migration needed. |
+| not set (default) | `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`, `${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/` | Solo developer, local only — identical to the original behavior. No migration needed. |
 | `~/repos/docs-registry` (any path) | `~/repos/docs-registry/service-catalog/`, `~/repos/docs-registry/adr-registry/` | Team-shared registry — e.g., a cloned GitLab repo committed and pulled by the whole team. |
 
 Both registries always move together — there is no per-skill override. This keeps the configuration story to one variable.
@@ -65,7 +65,7 @@ To share catalogs and ADRs across a team via a GitLab project:
 git clone git@gitlab.com:<group>/docs-registry.git ~/repos/docs-registry
 
 # 2. Point the skills at it (add to ~/.zshenv on macOS so non-interactive shells see it too)
-echo 'export CLAUDE_DOC_HOME=~/repos/docs-registry' >> ~/.zshenv
+echo 'export OPEN_SDD_DOC_HOME=~/repos/docs-registry' >> ~/.zshenv
 source ~/.zshenv
 
 # 3. Verify
@@ -75,22 +75,22 @@ source ~/.zshenv
 
 ### Migrating existing local data (one-time)
 
-If you already have catalogs/ADRs under `~/.claude/`, copy them into the new registry (the skills do not auto-migrate):
+If you already have catalogs/ADRs under `${OPEN_SDD_ROOT:-~}/.opensdd/registry/`, copy them into the new registry (the skills do not auto-migrate):
 
 ```bash
 # Copy (safer than mv until you confirm the new flow works)
-mkdir -p "$CLAUDE_DOC_HOME/service-catalog" "$CLAUDE_DOC_HOME/adr-registry"
-cp -r ~/.claude/service-catalog/. "$CLAUDE_DOC_HOME/service-catalog/" 2>/dev/null
-cp -r ~/.claude/adr-registry/.    "$CLAUDE_DOC_HOME/adr-registry/"    2>/dev/null
+mkdir -p "$OPEN_SDD_DOC_HOME/service-catalog" "$OPEN_SDD_DOC_HOME/adr-registry"
+cp -r ${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/. "$OPEN_SDD_DOC_HOME/service-catalog/" 2>/dev/null
+cp -r ${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry/.    "$OPEN_SDD_DOC_HOME/adr-registry/"    2>/dev/null
 
 # Commit + push the seed data
-cd "$CLAUDE_DOC_HOME"
+cd "$OPEN_SDD_DOC_HOME"
 git add service-catalog adr-registry
 git commit -m "seed: initial catalogs and ADRs from <your-machine>"
 git push
 
 # Once you're confident the new flow works, clean up the originals
-rm -rf ~/.claude/service-catalog ~/.claude/adr-registry
+rm -rf ${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog ${OPEN_SDD_ROOT:-~}/.opensdd/registry/adr-registry
 ```
 
 ### Day-to-day flow
@@ -101,11 +101,11 @@ rm -rf ~/.claude/service-catalog ~/.claude/adr-registry
 /doc-adr "..." && /adr-publish      # capture + publish ADR
 
 # Share with the team:
-cd "$CLAUDE_DOC_HOME"
+cd "$OPEN_SDD_DOC_HOME"
 git add -A && git commit -m "publish: <what changed>" && git push
 
 # Pull other people's updates:
-cd "$CLAUDE_DOC_HOME" && git pull
+cd "$OPEN_SDD_DOC_HOME" && git pull
 ```
 
 ### Suggested GitLab repo layout

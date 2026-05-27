@@ -1,6 +1,6 @@
 # Publish Service Catalog
 
-Publishes the current project's `docs/service-info.md` (produced by `/doc-catalog`) into the central registry at `~/.claude/service-catalog/`. The registry is then consumable by `/doc-query` for cross-service architecture questions.
+Publishes the current project's `docs/service-info.md` (produced by `/doc-catalog`) into the central registry at `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`. The registry is then consumable by `/doc-query` for cross-service architecture questions.
 
 ## Usage
 
@@ -16,11 +16,11 @@ Run `/doc-publish list` from anywhere to inspect the registry contents.
 
 1. Verifies `docs/service-info.md` exists in the current project.
 2. Detects the service name from the catalog's first `# heading` or, failing that, from `git rev-parse --show-toplevel | xargs basename`.
-3. Copies the catalog to `~/.claude/service-catalog/<service-name>.md`.
+3. Copies the catalog to `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/<service-name>.md`.
 4. Prints the updated registry contents.
 
 ```
-Published: docs/service-info.md → ~/.claude/service-catalog/<service>.md
+Published: docs/service-info.md → ${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/<service>.md
 
 Registry now contains:
   consent-service.md
@@ -32,10 +32,10 @@ Run /doc-query to ask cross-service questions.
 
 ## List mode
 
-Read-only: prints the catalogs in `~/.claude/service-catalog/` with last-modified timestamps. Useful for spotting stale catalogs that may need a refresh in their source project.
+Read-only: prints the catalogs in `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/` with last-modified timestamps. Useful for spotting stale catalogs that may need a refresh in their source project.
 
 ```
-Registered services in /Users/me/.claude/service-catalog:
+Registered services in <registry>/service-catalog:
   consent-service.md                        (last updated May 19 14:32)
   marketing-service.md                      (last updated May 18 09:15)
   leads-service.md                          (last updated May 12 11:48)
@@ -49,7 +49,7 @@ When the registry is empty or does not exist, prints a hint to run `/doc-catalog
 
 ## Registry location
 
-Defaults to `~/.claude/service-catalog/`. Override with `CLAUDE_DOC_HOME` to point at a different folder (e.g., a cloned GitLab repo for team sharing) — the skill writes to `$CLAUDE_DOC_HOME/service-catalog/`. See the bundle README's *Team-shared registry* section for the full migration guide.
+Defaults to `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`. Override with `OPEN_SDD_DOC_HOME` to point at a different folder (e.g., a cloned GitLab repo for team sharing) — the skill writes to `$OPEN_SDD_DOC_HOME/service-catalog/`. See the bundle README's *Team-shared registry* section for the full migration guide.
 
 ## Related Skills
 
