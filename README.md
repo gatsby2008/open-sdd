@@ -81,6 +81,9 @@ UTILITIES:
 
 ## Install
 
+open-sdd is **fully self-contained** — no dependency on `~/.claude/` or any
+external skill registry. Everything lives in this repo.
+
 Registers all 18 `/f-*` commands as native opencode custom commands
 (underlined, tab-completion, no trailing space needed):
 
@@ -96,10 +99,9 @@ Re-run `install.sh` after moving open-sdd or adding new commands.
 In each consumer project where you want to use the pipeline:
 
 1. Install open-sdd globally (see Install above)
-2. Create `.opensdd/service-rules.md` for service-level invariants
-   (copy from `templates/service-rules.md` and tailor it)
 
-The first `/f-start` auto-bootstraps `AGENTS.md` and `.opensdd/` in the project.
+The first `/f-start` auto-bootstraps `AGENTS.md`, `.opensdd/service-rules.md`,
+and `.opensdd/mr-config.json` in the project.
 
 ## One-Time Setup
 
@@ -133,6 +135,19 @@ architecture constraints, historical guarantees.
 `/f-start` reads both `rules.md` (open-sdd global rules) and
 `.opensdd/service-rules.md` (per-project invariants) and compiles them
 into `.specwork/_state/<slug>-rules.json`.
+
+### Doc registry (optional)
+
+open-sdd bundles doc skills (`/doc-adr`, `/doc-catalog`, `/doc-publish`,
+`/doc-query`, `/adr-publish`, `/adr-query`) that publish and query a
+central registry of service catalogs and ADRs. The registry location is
+controlled by:
+
+```bash
+export OPEN_SDD_DOC_HOME=/path/to/shared/registry
+```
+
+Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
 
 ---
 
