@@ -119,7 +119,12 @@ if [ -n "$CHECKED_SHA" ] && [ "$HEAD_SHA" = "$CHECKED_SHA" ]; then
   echo "Skipping pre-push checks — HEAD already validated by f-commit ($HEAD_SHA)."
 else
   echo "Running pre-push checks..."
-  bash "$SCRIPT_DIR/check.sh" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
+  CHECK_SCRIPT="$SCRIPT_DIR/check.sh"
+  if [ -f "./commands/check.sh" ]; then
+    CHECK_SCRIPT="./commands/check.sh"
+    echo "Using project-local commands/check.sh"
+  fi
+  bash "$CHECK_SCRIPT" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
 fi
 echo ""
 

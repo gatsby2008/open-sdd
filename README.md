@@ -122,6 +122,59 @@ Project config (`.opensdd/mr-config.json`, commit this):
 }
 ```
 
+### Validation script (`commands/check.sh`)
+
+`/f-commit` and `/f-mr` run `bash commands/check.sh` as the quality gate
+before committing and pushing. The pipeline treats `exit 0` as clean and
+any non-zero exit as a stop signal.
+
+open-sdd ships a **stack-detecting default** at
+`$OPEN_SDD_ROOT/commands/check.sh`. It inspects the project root and runs
+the standard command for the detected stack:
+
+| Detected file | Command run |
+|---|---|
+| `build.gradle` / `build.gradle.kts` | `./gradlew check` |
+| `pom.xml` | `mvn verify` |
+| `package.json` + `pnpm-lock.yaml` | `pnpm test` |
+| `package.json` + `yarn.lock` | `yarn test` |
+| `package.json` (npm) | `npm test` |
+| `Cargo.toml` | `cargo test` |
+| `pyproject.toml` / `setup.py` / `setup.cfg` | `pytest` |
+| `go.mod` | `go test ./...` |
+
+For most projects this is enough — no setup required.
+
+**Project-local override.** When the framework default is not enough (e.g.
+Spring Boot with a separate `integrationTest` source set, Maven with
+profiles, monorepos that chain multiple commands, lint/format steps not
+wired into the default lifecycle), drop a script at `commands/check.sh` in
+the project root and `/f-commit` and `/f-mr` will prefer it over the
+framework default. A template ships with open-sdd:
+
+```bash
+# from the project root
+mkdir -p commands
+cp "$OPEN_SDD_ROOT/templates/check.sh.example" commands/check.sh
+git add commands/check.sh
+git commit -m "chore: add commands/check.sh for project-specific validation"
+```
+
+What the override *should* do:
+
+- Run the same commands CI runs (unit + integration + lint + format).
+- Exit non-zero on any failure (`set -euo pipefail` at the top handles this).
+- Stay reproducible — no network, no cache reliance, no randomness.
+
+What it *should not* do:
+
+- Talk to remote services (Jira, Slack, deploy endpoints).
+- Mutate working state (no commits, no `git push`, no schema migrations).
+- Run optional/slow workflows that aren't in CI.
+
+**Windows:** the file is bash. Run it through Git Bash or WSL2; the Gradle
+/ Maven / npm CLIs invoked inside work identically from those shells.
+
 ### Service rules (optional but recommended)
 
 Copy `templates/service-rules.md` to `.opensdd/service-rules.md` and

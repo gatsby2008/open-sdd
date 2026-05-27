@@ -68,6 +68,8 @@ Do not create for:
 ## Quality Gates
 
 - `bash commands/check.sh` must pass before committing (`/f-commit`) and again before pushing (`/f-mr`).
+- open-sdd ships a stack-detecting default at `$OPEN_SDD_ROOT/commands/check.sh` (auto-detects Gradle / Maven / npm / pnpm / yarn / pytest / Cargo / Go). The framework runs that script by default — no setup needed for the common case.
+- To override (e.g. Spring Boot with `integrationTest`, Maven with profiles, extra lint steps), drop a project-local `commands/check.sh` in the project root. `/f-commit` and `/f-mr` prefer it over the framework default. Template lives at `$OPEN_SDD_ROOT/templates/check.sh.example`.
 - Failed quality checks block progression — do not commit or push on failure.
 
 ## Command mappings

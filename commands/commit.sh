@@ -77,7 +77,12 @@ fi
 # Only reached when there is something to commit.
 
 echo "Running pre-commit checks..."
-bash "$SCRIPT_DIR/check.sh" || die "Checks failed. Fix issues before committing."
+CHECK_SCRIPT="$SCRIPT_DIR/check.sh"
+if [ -f "./commands/check.sh" ]; then
+  CHECK_SCRIPT="./commands/check.sh"
+  echo "Using project-local commands/check.sh"
+fi
+bash "$CHECK_SCRIPT" || die "Checks failed. Fix issues before committing."
 
 # ---- print context ----------------------------------------------------------
 

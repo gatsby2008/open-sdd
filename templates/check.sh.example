@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Project-local validation script consumed by /f-commit and /f-mr.
+#
+# open-sdd ships a stack-detecting default at $OPEN_SDD_ROOT/commands/check.sh
+# that runs `./gradlew check`, `mvn verify`, `npm test`, `pytest`, `cargo test`,
+# or `go test ./...` depending on the files in the project root.
+#
+# Copy this file to <project-root>/commands/check.sh only when the framework
+# default is not enough — typically when you need stack-specific extensions
+# the auto-detector can't infer, such as:
+#   - Spring Boot with a separate integrationTest source set
+#   - Maven with extra profiles
+#   - Monorepos that need to chain multiple test commands
+#   - Spotless / Checkstyle / lint steps not wired into the default lifecycle
+#
+# /f-commit and /f-mr prefer this file over the framework default when it
+# exists. Treat:
+#   exit 0  → clean, continue (commit or push)
+#   exit !0 → stop, do not commit/push
+#
+# Goal: match what CI runs, so a green run locally implies a green run in CI.
+# Avoid network calls, cache reliance, and randomness — runs should be
+# reproducible.
+#
+# Windows: this script is bash. Run it through Git Bash or WSL2.
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Replace the block below with the explicit commands your project needs.
+# The example below is for a Spring Boot project with an integrationTest
+# source set and Spotless formatting — the case the framework default does
+# not cover.
+# ---------------------------------------------------------------------------
+
+if [ -f "./gradlew" ]; then
+  ./gradlew --no-daemon clean check integrationTest spotlessCheck
+
+elif [ -f "./mvnw" ] || [ -f "./pom.xml" ]; then
+  MVN="./mvnw"; [ -x "$MVN" ] || MVN="mvn"
+  "$MVN" -B -e verify
+
+else
+  echo "commands/check.sh: edit this script to define the project's validation command." >&2
+  exit 2
+fi
