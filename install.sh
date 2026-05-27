@@ -77,10 +77,15 @@ EOF
 done
 echo "doc skills (6) slash commands installed — available as /doc-adr, /doc-catalog, etc."
 
-# ---- set environment variables ----
-echo "export OPEN_SDD_ROOT=\"$OPENSDD_PATH\"" >> ~/.zshrc
-echo "export OPEN_SDD_DOC_HOME=\"\${OPEN_SDD_ROOT:-\$HOME}/.opensdd/registry\"" >> ~/.zshrc
-echo "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME exported to ~/.zshrc"
+# ---- set environment variables (with dedup) ----
+ZSENV="${HOME}/.zshenv"
+touch "$ZSENV"
+for _line in \
+  "export OPEN_SDD_ROOT=\"$OPENSDD_PATH\"" \
+  "export OPEN_SDD_DOC_HOME=\"\${OPEN_SDD_ROOT:-\$HOME}/.opensdd/registry\""; do
+  grep -qxF "$_line" "$ZSENV" || echo "$_line" >> "$ZSENV"
+done
+echo "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME added to ~/.zshenv (deduplicated)"
 
 echo ""
 echo "Re-run this script after moving open-sdd or adding new commands."

@@ -91,14 +91,22 @@ View $(Join-Path $OPENSDD_PATH "skills" "doc" $skillName "SKILL.md") and follow 
 }
 Write-Host "doc skills (6) slash commands installed — available as /doc-adr, /doc-catalog, etc."
 
-# ---- set environment variables -------------------------------------------------
+# ---- set environment variables (with dedup) ------------------------------------
 $profilePath = $PROFILE.CurrentUserAllHosts
 if (-not (Test-Path $profilePath)) {
   New-Item -ItemType File -Path $profilePath -Force | Out-Null
 }
-"`$env:OPEN_SDD_ROOT = '$OPENSDD_PATH'" | Out-File -FilePath $profilePath -Append -Encoding UTF8
-"`$env:OPEN_SDD_DOC_HOME = '`${OPEN_SDD_ROOT:-`$HOME}/.opensdd/registry'" | Out-File -FilePath $profilePath -Append -Encoding UTF8
-Write-Host "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME added to PowerShell profile ($profilePath)"
+$lines = @(
+  "`$env:OPEN_SDD_ROOT = '$OPENSDD_PATH'",
+  "`$env:OPEN_SDD_DOC_HOME = '`${OPEN_SDD_ROOT:-`$HOME}/.opensdd/registry'"
+)
+$existing = Get-Content -Path $profilePath -ErrorAction SilentlyContinue
+foreach ($line in $lines) {
+  if ($existing -notcontains $line) {
+    $line | Out-File -FilePath $profilePath -Append -Encoding UTF8
+  }
+}
+Write-Host "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME added to PowerShell profile ($profilePath, deduplicated)"
 
 Write-Host ""
 Write-Host "Re-run this script after moving open-sdd or adding new commands."
