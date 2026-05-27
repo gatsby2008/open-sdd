@@ -7,15 +7,25 @@ from typing import Optional
 SPECWORK = Path(".specwork")
 
 
-def resolve_slug() -> Optional[str]:
+def _current_branch() -> Optional[str]:
+    """Current git branch, or None if git is unavailable or we're not in a repo.
+    Catches FileNotFoundError so the engine degrades gracefully where git is not
+    installed."""
     import subprocess
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True, text=True, timeout=5
-    )
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, timeout=5
+        )
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return None
     if result.returncode != 0:
         return None
-    branch = result.stdout.strip()
+    return result.stdout.strip() or None
+
+
+def resolve_slug() -> Optional[str]:
+    branch = _current_branch()
     if not branch:
         return None
     state_dir = SPECWORK / "_state"
@@ -112,17 +122,12 @@ def check_required_artifacts(slug: str) -> list[str]:
 
 
 def check_branch_match(slug: str) -> Optional[str]:
-    import subprocess
     state_path = SPECWORK / "_state" / f"{slug}-state.json"
     if not state_path.exists():
         return None
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True, text=True, timeout=5
-    )
-    if result.returncode != 0:
+    current = _current_branch()
+    if not current:
         return None
-    current = result.stdout.strip()
     try:
         state = json.loads(state_path.read_text(encoding="utf-8"))
     except Exception:
