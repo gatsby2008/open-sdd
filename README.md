@@ -42,11 +42,11 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
        └──────┬──────┘
               │  implementation complete
       ┌────────────────┐
-      │ /f-code-review      │ (optional)
+      │ /f-code-review │ (optional)
       └───────┬────────┘
               │
       ┌────────────────┐
-      │   /f-mr        │  → push, create PR
+      │   /f-mr        │  → push, create MR
       └───────┬────────┘
               │
       ┌───────────────┐

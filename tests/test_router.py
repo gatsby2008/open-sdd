@@ -24,11 +24,16 @@ class RouterTestCase(unittest.TestCase):
     def test_high_risk_has_test_pair(self):
         self.assertEqual(
             FLOW_MAP["high-risk"],
-            ["plan", "implement", "test-design", "test-impl", "review", "commit", "mr", "close"])
+            ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"])
+
+    def test_review_is_not_a_tracked_step(self):
+        # code review is an independent command, not a flow step (matches claude-tools)
+        for flow in FLOW_MAP.values():
+            self.assertNotIn("review", flow)
 
     def test_optional_steps(self):
-        self.assertEqual(OPTIONAL_STEPS, {"test-design", "test-impl", "review"})
-        self.assertTrue(is_optional("review"))
+        self.assertEqual(OPTIONAL_STEPS, {"test-design", "test-impl"})
+        self.assertTrue(is_optional("test-impl"))
         self.assertFalse(is_optional("implement"))
 
     def test_bugfix_skips_plan(self):
@@ -44,9 +49,9 @@ class RouterTestCase(unittest.TestCase):
     def test_trivial_skips_implement(self):
         self.assertNotIn("implement", FLOW_MAP["trivial"])
 
-    def test_security_fix_includes_spec_and_review(self):
+    def test_security_fix_includes_spec(self):
         self.assertIn("spec", FLOW_MAP["security_fix"])
-        self.assertIn("review", FLOW_MAP["security_fix"])
+        self.assertNotIn("review", FLOW_MAP["security_fix"])
 
     # --- next_step() ---
 

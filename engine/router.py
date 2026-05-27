@@ -3,18 +3,20 @@ FLOW_MAP: dict[str, list[str]] = {
     "bugfix":       ["spec", "implement", "commit", "mr", "close"],
     "refactor":     ["plan", "implement", "commit", "mr", "close"],
     "chore":        ["implement", "commit", "mr", "close"],
-    "high-risk":    ["plan", "implement", "test-design", "test-impl", "review", "commit", "mr", "close"],
+    "high-risk":    ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"],
     "standard":     ["plan", "implement", "commit", "mr", "close"],
     "focused":      ["implement", "commit", "mr", "close"],
     "trivial":      ["commit", "mr", "close"],
-    "security_fix": ["spec", "implement", "review", "commit", "mr", "close"],
+    "security_fix": ["spec", "implement", "commit", "mr", "close"],
 }
 
 # Steps the developer may skip. The gate lets a later step run while the pipeline
 # sits on one of these, and advancing past a completed step jumps over any that
 # follow. test-impl additionally enforces its own dependency on test-design's
 # artifact (a skipped test-design leaves no artifact, so test-impl refuses).
-OPTIONAL_STEPS: set[str] = {"test-design", "test-impl", "review"}
+# Code review is an independent command, not a tracked flow step (matches
+# claude-tools).
+OPTIONAL_STEPS: set[str] = {"test-design", "test-impl"}
 
 
 def is_optional(step: str) -> bool:
