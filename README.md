@@ -14,7 +14,6 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
           ▼
     ┌─────────────┐
     │  /f-start   │  → pre-flight, create/select branch, write state + source + spec
-    │             │  → triage: classify ticket → path.json (advisory)
     └──────┬──────┘
            │  ◄──── /f-refine    [any time — resolve Open Questions, add scope, add constraints]
            ▼              (warns if plan.md is now stale)
@@ -66,7 +65,6 @@ INDEPENDENT (any branch, any time):
 UTILITIES:
   /f-help              — where am I, what's next
   /f-status            — detailed pipeline progress
-  /f-triage            — classify ticket and recommend pipeline path
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
   /f-resync            — sync artifacts when branch was renamed
@@ -385,7 +383,6 @@ open-sdd/
 │   ├── status.sh
 │   ├── test-design.sh
 │   ├── test-impl.sh
-│   └── triage.sh
 ├── templates/
 │   ├── AGENTS.md                    # For opencode auto-discovery (copy to project root)
 │   ├── CLAUDE.md                    # For Claude Code auto-discovery (copy to project root)
