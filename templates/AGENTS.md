@@ -91,7 +91,7 @@ Do not create for:
 | `/f-code-review --recheck` | `bash $OPEN_SDD_ROOT/commands/code-review.sh --recheck` |
 | `/f-help` | `bash $OPEN_SDD_ROOT/commands/help.sh` |
 | `/f-help overview` | `bash $OPEN_SDD_ROOT/commands/help.sh overview` |
-| `/f-review-address` | `bash $OPEN_SDD_ROOT/commands/review-address.sh` |
+| `/f-mr-address` | `bash $OPEN_SDD_ROOT/commands/mr-address.sh` |
 | `/f-handoff` | `bash $OPEN_SDD_ROOT/commands/handoff.sh` |
 | `/f-mr` | `bash $OPEN_SDD_ROOT/commands/mr.sh` |
 | `/f-close` | `bash $OPEN_SDD_ROOT/commands/close.sh` |

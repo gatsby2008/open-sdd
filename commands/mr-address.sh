@@ -54,11 +54,11 @@ echo ""
 
 REVIEW_DIR=".specwork/_review"
 mkdir -p "$REVIEW_DIR"
-PROGRESS_FILE="${REVIEW_DIR}/${SLUG}-review-address.md"
+PROGRESS_FILE="${REVIEW_DIR}/${SLUG}-mr-address.md"
 
 if [ ! -f "$PROGRESS_FILE" ]; then
   cat > "$PROGRESS_FILE" <<EOF
-# Review Address: ${SLUG}
+# MR Address: ${SLUG}
 
 MR: ${MR_IID:+"!${MR_IID}"}${MR_IID:-"(unknown)"}
 

@@ -33,7 +33,7 @@ strict, deterministic protocols.
 ├── _progress/escalations.md              # Escalation log
 ├── _metrics/<slug>-metrics.json          # Timing data
 ├── _review/<slug>-code-review.md         # Code review report
-├── _review/<slug>-review-address.md      # Review comment resolution
+├── _review/<slug>-mr-address.md          # Review comment resolution
 └── _handoff/<slug>-execution-pack.md     # Handoff contract
 ```
 
@@ -353,9 +353,9 @@ Evaluation triggers (top-to-bottom):
 6. Commits ahead of base → `/mr`
 7. Default: `/plan` (or `/implement` for simple changes)
 
-### /review-address
+### /mr-address
 
-Work through MR review comments one thread at a time. Tracks progress in `.specwork/_review/<slug>-review-address.md`.
+Work through MR review comments one thread at a time. Tracks progress in `.specwork/_review/<slug>-mr-address.md`.
 
 1. Detect branch, slug, and MR context from state
 2. Check `glab` availability for auto-mode; fall back to manual paste

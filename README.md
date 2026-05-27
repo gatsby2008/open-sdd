@@ -33,12 +33,12 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
        complexity assessment
                │
        ┌───────┴──────────┐
-  low/medium           high/multi-layer
+  low/medium           high-risk (optional, skippable)
        │                   │
        ▼                   ▼
-  /f-commit         /f-test-design  → design test cases
-       │             /f-test-impl   → implement tests
-       │             /f-commit
+  /f-commit         /f-test-design  → design test cases (writes artifact)
+       │             /f-test-impl   → implement tests (needs test-design)
+       │             /f-commit       (or skip the test steps → /f-commit)
        └──────┬──────┘
               │  implementation complete
       ┌────────────────┐
@@ -49,9 +49,9 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
       │   /f-mr        │  → push, create PR
       └───────┬────────┘
               │
-      ┌────────────────────┐
-      │ /f-code-review-address  │  (address review comments)
-      └───────┬────────────┘
+      ┌───────────────┐
+      │ /f-mr-address │  (address review comments)
+      └───────┬───────┘
               │  merged
       ┌──────────────┐
       │  /f-close    │  → clean .specwork/
@@ -205,6 +205,18 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
   - Low/isolated → `/f-commit`
   - High/multi-layer → `/f-test-design`
 
+### /f-test-design (optional — high-risk flow)
+
+- Analyzes the diff, designs test cases, and writes `.specwork/_test/<slug>-test-design.md`
+- Runs **inside an active pipeline** (after `/f-implement`) — not a standalone tool
+- Tracked only in the `high-risk` flow; **skippable** — go straight to `/f-commit`
+
+### /f-test-impl (optional — high-risk flow)
+
+- Implements the test files following the cases from the test-design artifact
+- **Depends on `/f-test-design`**: reads `.specwork/_test/<slug>-test-design.md` and aborts if it is missing
+- Runs **inside an active pipeline**; **skippable** — go straight to `/f-commit`
+
 ### /f-commit (one commit at the end)
 
 - Creates a single commit for all accumulated changes
@@ -222,11 +234,12 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
 
 ### /f-mr
 
-- **Pre-push validation**: runs test suite before push
+- **Empty-MR guards**: aborts if on the default branch, or if the branch has no commits beyond its base
+- **Host detection**: creates the MR on the *project's own* remote — `gh` for GitHub, `glab` for GitLab. Override with `OPEN_SDD_MR_PROVIDER=github|gitlab` (needed for self-hosted GitLab)
+- **Pre-push validation**: runs the test suite before push, but **skips it when HEAD was already validated by `/f-commit`**
   - Tests fail → stops, does not push
-  - Tests pass → continues
 - Builds concise MR title and description from spec + commits
-- Pushes branch and creates PR via `gh` (GitHub CLI)
+- Pushes branch and creates or updates the MR
 - Optional: `--skip-validation` for emergencies
 
 ### /f-handoff (optional)
@@ -236,10 +249,10 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
 - Creates `.specwork/_handoff/<slug>-execution-pack.md` + `.json`
 - Gate: no unresolved Open Questions
 
-### /f-review-address
+### /f-mr-address
 
 - Address unresolved MR comments thread by thread
-- Tracks progress in `.specwork/_review/<slug>-review-address.md`
+- Tracks progress in `.specwork/_review/<slug>-mr-address.md`
 
 ### /f-close
 
@@ -278,13 +291,17 @@ spec has resolved Open Questions worth preserving as ADRs.
 /f-implement    # code + inline tests — low complexity
 /f-implement    # code + inline tests — HIGH → recommends /f-test-design
 
-/f-test-design  # design missing test cases
-/f-test-impl    # implement them
+/f-test-design  # (high-risk, optional) design test cases → writes artifact
+/f-test-impl    # (high-risk, optional) implement them — requires test-design first
 
 /f-commit       # one commit for all accumulated changes
 
-/f-mr           # validates tests, pushes, creates PR
+/f-mr           # validates tests (skips if already validated), pushes, creates MR
 ```
+
+> `/f-test-design` and `/f-test-impl` are optional steps tracked only in the
+> `high-risk` flow. `/f-test-impl` depends on `/f-test-design`'s artifact — run
+> them in order, or skip both straight to `/f-commit`.
 
 **Advantages:**
 - Fast iteration: run `/f-implement` N times without commit overhead
@@ -316,9 +333,10 @@ Transient (`.specwork/`, gitignored):
 | `_spec/<slug>-source.md` | Raw input from Jira (or free text) |
 | `_plan/<slug>-plan.md` | Target files, approach, risks |
 | `_plan/<slug>-plan.json` | Plan metadata (progress, staleness check) |
+| `_test/<slug>-test-design.md` | Designed test cases from `/f-test-design`; consumed by `/f-test-impl` (high-risk flow) |
 | `_progress/escalations.md` | Append-only log of implementation escalations |
 | `_review/<slug>-code-review.md` | Code review report (optional) |
-| `_review/<slug>-review-address.md` | Review comment resolution progress |
+| `_review/<slug>-mr-address.md` | Review comment resolution progress |
 | `_handoff/<slug>-execution-pack.md` | Handoff contract (optional) |
 | `_handoff/<slug>-execution-pack.json` | Handoff metadata (optional) |
 
@@ -364,7 +382,7 @@ open-sdd/
 │   ├── resume.sh
 │   ├── resync.sh
 │   ├── code-review.sh
-│   ├── review-address.sh
+│   ├── mr-address.sh
 │   ├── start.sh
 │   ├── status.sh
 │   ├── test-design.sh

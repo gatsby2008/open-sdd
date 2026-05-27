@@ -54,7 +54,7 @@ Install-Cmd -Name "resume"        -Description "List paused pipelines and restor
 Install-Cmd -Name "refine"        -Description "Refine spec with additional context"
 Install-Cmd -Name "resync"        -Description "Resync artifacts after branch rename"
 Install-Cmd -Name "code-review"   -Description "Stack-aware code quality and security review"
-Install-Cmd -Name "review-address" -Description "Work through MR review comments"
+Install-Cmd -Name "mr-address" -Description "Work through MR review comments"
 Install-Cmd -Name "handoff"       -Description "Package artifacts for another agent"
 Install-Cmd -Name "test-design"   -Description "Design test cases for current changes"
 Install-Cmd -Name "test-impl"     -Description "Implement test files for changed source"

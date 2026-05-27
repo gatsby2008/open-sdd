@@ -410,7 +410,7 @@ repo-root/
 
     _review/
       <slug>-code-review.md
-      <slug>-review-address.md
+      <slug>-mr-address.md
 
     _handoff/
       <slug>-execution-pack.md
@@ -432,7 +432,7 @@ repo-root/
 | `escalations.md` | **WHAT FAILED AND WHAT WAS TRIED** | Append-only retry-exhaustion and blocker log |
 | `metrics.json` | **HOW EFFICIENT WAS THE EXECUTION** | Tokens, duration, files scanned, cost estimates (library ready, not yet wired into commands) |
 | `code-review.md` | **WHAT'S WRONG** | Quality and security findings |
-| `review-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution |
+| `mr-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution |
 | `execution-pack.md` | **WHAT TO EXECUTE** | Handoff contract for multi-model execution |
 
 ---

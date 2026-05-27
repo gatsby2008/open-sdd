@@ -53,7 +53,7 @@ FEATURE PIPELINE
   ./commands/mr.sh
     Generate MR description, push, create/update MR.
 
-  ./commands/review-address.sh
+  ./commands/mr-address.sh
     Work through MR review comments (after /f-mr receives feedback).
 
   ./commands/close.sh
@@ -226,7 +226,7 @@ pipeline_steps=(
   "/f-test-impl (optional)"
   "/f-code-review (optional)"
   "/f-mr"
-  "/f-review-address"
+  "/f-mr-address"
   "/f-close"
 )
 
@@ -282,7 +282,7 @@ for step in "${pipeline_steps[@]}"; do
         echo "○  $name"
       fi
       ;;
-    "/f-review-address")
+    "/f-mr-address")
       echo "○  $name"
       ;;
     "/f-close")

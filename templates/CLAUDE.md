@@ -23,7 +23,7 @@ open-sdd is at `~/team/Yield/open-sdd/`.
 | `/f-code-review --recheck` | Re-review comparing against previous report |
 | `/f-help` | Show pipeline state and next step |
 | `/f-help overview` | Full pipeline reference |
-| `/f-review-address` | Address MR review comments one by one |
+| `/f-mr-address` | Address MR review comments one by one |
 | `/f-handoff` | Generate execution pack for another agent/model |
 | `/f-mr` | Push + create MR on GitHub |
 | `/f-close` | Delete `.specwork/`, optionally delete branch |

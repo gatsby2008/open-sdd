@@ -36,7 +36,7 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 
 | Command | What it does |
 |---------|--------------|
-| **`/f-review-address`** | Work through MR review comments one thread at a time with minimal guidance per thread. Progress tracked in `.specwork/_review/`. |
+| **`/f-mr-address`** | Work through MR review comments one thread at a time with minimal guidance per thread. Progress tracked in `.specwork/_review/`. |
 | **`/f-close`** | Wipe `.specwork/` after MR merge. Verifies MR status before deleting unmerged work. |
 
 ## Context Switching & Utilities
