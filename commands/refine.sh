@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
+ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 source "$LIB_DIR/gates.sh"
 
@@ -227,6 +228,11 @@ OQ format: flip \`- [ ] **#N**\` → \`- [x] **#N** — resolved: <answer>\`
 New OQ: \`- [ ] **#N** <question>\`  (N = next available number)
 
 After integrating, write the updated spec back to $SPEC_FILE.
+
+After writing the spec, bump spec_write_timestamp so downstream
+staleness checks (./commands/implement.sh) detect the refine:
+
+  PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli bump-spec-ts $SLUG
 
 INSTRUCTIONS
 

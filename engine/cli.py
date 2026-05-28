@@ -9,6 +9,7 @@ Will become the backend for commands/*.sh wrappers.
 """
 import json
 import sys
+import time
 from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
@@ -29,6 +30,7 @@ COMMANDS = [
     "implement-check", "implement-done", "implement-plan",
     "resolve-slug", "detect-stack",
     "current-step", "expected-step", "advance-step", "set-step",
+    "bump-spec-ts",
 ]
 
 
@@ -441,6 +443,21 @@ def cmd_set_step(args: list[str]) -> int:
     return 0
 
 
+def cmd_bump_spec_ts(args: list[str]) -> int:
+    slug = args[0] if args else resolve_slug()
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    state = load_pipeline_state(slug)
+    if not state:
+        print(f"NO_STATE for slug={slug}", file=sys.stderr)
+        return 1
+    state.spec_write_timestamp = int(time.time())
+    save_pipeline_state(state)
+    print(state.spec_write_timestamp)
+    return 0
+
+
 def main() -> int:
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
         print(f"Usage: python3 -m engine.cli <{'|'.join(COMMANDS)}> [args...]")
@@ -464,6 +481,7 @@ def main() -> int:
         "expected-step": cmd_expected_step,
         "advance-step": cmd_advance_step,
         "set-step": cmd_set_step,
+        "bump-spec-ts": cmd_bump_spec_ts,
     }
 
     handler = dispatch.get(command)

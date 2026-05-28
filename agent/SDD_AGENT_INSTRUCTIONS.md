@@ -280,6 +280,9 @@ Refine an existing spec by feeding additional context. Incremental — spec evol
    - NEVER invent class names
 6. Update `implementation-cache.json` (append-only, deduped)
 7. NEVER delete or modify `plan.md` — only warn if stale
+8. After writing the spec, bump `spec_write_timestamp` in state.json
+   (`engine.cli bump-spec-ts <slug>`) so `/implement`'s staleness gate
+   detects the refine
 
 ### /resync
 

@@ -13,6 +13,7 @@ from engine.cli import (
     cmd_advance_step,
     cmd_set_step,
     cmd_precheck,
+    cmd_bump_spec_ts,
 )
 
 SPECWORK = Path(".specwork")
@@ -356,6 +357,27 @@ class StepCommandsTestCase(unittest.TestCase):
     def test_precheck_fresh_rejects_when_already_initialized(self):
         self._write_state("s")
         self.assertEqual(cmd_precheck(["--fresh"]), 1)
+
+    def test_bump_spec_ts_updates_state(self):
+        import time
+        self._write_state("s")
+        state_path = SPECWORK / "_state" / "s-state.json"
+        d = json.loads(state_path.read_text())
+        d["spec_write_timestamp"] = 1
+        state_path.write_text(json.dumps(d))
+
+        before = int(time.time())
+        rc = cmd_bump_spec_ts(["s"])
+        after = int(time.time())
+
+        self.assertEqual(rc, 0)
+        d = json.loads(state_path.read_text())
+        self.assertGreaterEqual(d["spec_write_timestamp"], before)
+        self.assertLessEqual(d["spec_write_timestamp"], after)
+
+    def test_bump_spec_ts_rejects_unknown_slug(self):
+        rc = cmd_bump_spec_ts(["nonexistent"])
+        self.assertEqual(rc, 1)
 
     def test_expected_step_wrong_suggests_next(self):
         import io
