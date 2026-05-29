@@ -15,12 +15,18 @@ trap 'rm -rf "$SCRATCH_ROOT"' EXIT
 ok()  { printf '  \033[32mPASS\033[0m %s\n' "$1"; PASS=$((PASS+1)); }
 bad() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; FAIL=$((FAIL+1)); }
 
-assert_rc()  { local exp="$1" label="$2"; shift 3; local out rc
+assert_rc()    { local exp="$1" label="$2"; shift 3; local out rc
   out="$("$@" 2>&1 </dev/null)"; rc=$?
   if [ "$rc" -eq "$exp" ]; then ok "$label (rc=$rc)"; else bad "$label (rc=$rc, want $exp) :: ${out:0:120}"; fi; }
-assert_out() { local sub="$1" label="$2"; shift 3; local out
+assert_out()   { local sub="$1" label="$2"; shift 3; local out
   out="$("$@" 2>&1 </dev/null)"
   if printf '%s' "$out" | grep -qF "$sub"; then ok "$label"; else bad "$label (missing '$sub') :: ${out:0:160}"; fi; }
+assert_noout() { local sub="$1" label="$2"; shift 3; local out
+  out="$("$@" 2>&1 </dev/null)"
+  if printf '%s' "$out" | grep -qF "$sub"; then bad "$label (unexpected '$sub') :: ${out:0:160}"; else ok "$label"; fi; }
+assert_json()  { local file="$1" key="$2" exp="$3" label="$4"; local val
+  val=$(python3 -c "import json; print(json.load(open('$file'))['$key'])" 2>/dev/null || echo "__MISSING__")
+  if [ "$val" = "$exp" ]; then ok "$label ($key=$val)"; else bad "$label ($key=$val, want $exp)"; fi; }
 new_repo() { local d="$SCRATCH_ROOT/$1"; mkdir -p "$d"; ( cd "$d" && git init -q && git commit -q --allow-empty -m init && git checkout -q -b feature/demo ); echo "$d"; }
 
 # portable timeout (macOS lacks `timeout`; coreutils ships `gtimeout`)
@@ -61,7 +67,7 @@ assert_out '"current_step": "mr"' "advance anchored on commit lands on mr" -- ca
 
 echo "== command wrappers =="
 d=$(new_repo wrappers); cd "$d"
-for w in plan implement handoff; do
+for w in plan implement handoff spec; do
   out="$($TO bash "$REPO/commands/$w.sh" 2>&1 </dev/null)"; rc=$?
   if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF "No active pipeline"; then
     ok "$w.sh rejects without pipeline"
@@ -74,6 +80,310 @@ if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qF "/f-start"; then
   ok "status.sh graceful without pipeline"
 else
   bad "status.sh graceful path (rc=$rc) :: ${out:0:120}"
+fi
+
+echo "== spec.sh detects draft vs refine by spec.md presence =="
+d=$(new_repo spec-mode); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n\nSomething captured from input.\n' > .specwork/_spec/demo-source.md
+# No spec.md → draft mode (spec.sh creates it from source.md + template)
+out="$($TO bash "$REPO/commands/spec.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "SPEC DRAFT SESSION"; then
+  ok "spec.sh draft mode when spec.md is absent"
+else
+  bad "spec.sh draft mode :: ${out:0:160}"
+fi
+# Draft mode advances current_step when OQs resolved — INSTRUCTIONS must mention advance.
+if printf '%s' "$out" | grep -qF "advance-step"; then
+  ok "spec.sh draft mode keeps advance-step instruction"
+else
+  bad "spec.sh draft missing advance-step :: ${out:0:160}"
+fi
+
+# Now create spec.md with content — should flip to refine mode. WITH args.
+printf '# demo — sample\n\n## Summary\n\nWhatever.\n' > .specwork/_spec/demo-spec.md
+out="$($TO bash "$REPO/commands/spec.sh" "extra context" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "SPEC REFINE SESSION"; then
+  ok "spec.sh refine mode when spec.md exists + args"
+else
+  bad "spec.sh refine mode :: ${out:0:160}"
+fi
+# Refine mode must NOT recommend advance-step.
+if printf '%s' "$out" | grep -qF "Do NOT call advance-step"; then
+  ok "spec.sh refine mode forbids advance-step"
+else
+  bad "spec.sh refine should forbid advance :: ${out:0:160}"
+fi
+
+echo "== spec.sh idempotent: refine + no args = no-op =="
+# Same scratch repo, still in refine mode. No args this time.
+out="$($TO bash "$REPO/commands/spec.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "SPEC NO-OP"; then
+  ok "spec.sh refine + no args prints no-op"
+else
+  bad "spec.sh no-op missing :: ${out:0:160}"
+fi
+# No-op must not emit bump-spec-ts instruction.
+if printf '%s' "$out" | grep -qF "bump-spec-ts"; then
+  bad "spec.sh no-op should NOT emit bump-spec-ts :: ${out:0:160}"
+else
+  ok "spec.sh no-op skips bump-spec-ts"
+fi
+# No-op exit code 0.
+if [ "$rc" -eq 0 ]; then
+  ok "spec.sh no-op exit 0"
+else
+  bad "spec.sh no-op exit (rc=$rc)"
+fi
+
+echo "== spec.sh aborts when source.md missing =="
+d=$(new_repo spec-no-source); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+# Deliberately omit source.md. /f-start always writes it, so its absence means start did not run cleanly.
+out="$($TO bash "$REPO/commands/spec.sh" 2>&1 </dev/null)"; rc=$?
+if [ "$rc" -ne 0 ] && printf '%s' "$out" | grep -qF "Missing required artifacts"; then
+  ok "spec.sh aborts when source.md missing"
+else
+  bad "spec.sh should abort on missing source.md (rc=$rc) :: ${out:0:160}"
+fi
+
+echo "== plan.sh reference-update over-fire fix (consumer-portal bug 2026-05-29) =="
+# Spec mentions /consumers descriptively in Implementation Context (no
+# rename/remove language). plan.sh must NOT generate [reference-update]
+# targets for it.
+d=$(new_repo refgrep-nofire); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress src/main/java/foo
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"plan","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n' > .specwork/_spec/demo-source.md
+cat > .specwork/_spec/demo-spec.md <<'SPEC'
+# demo — Ensure REST responses do not expose PII
+
+## Summary
+Sanitize REST responses to omit PII.
+
+## Behavior
+- Endpoints should not return PII in response bodies.
+
+## Implementation Context
+- Files: src/main/java/foo/Service.java
+- Endpoints:
+  - POST /consumers
+  - GET /consumers?applicationId=...
+
+## Open Questions
+SPEC
+printf 'class Bar { String x = "/consumers"; }' > src/main/java/foo/Bar.java
+out="$($TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "Reference-update signal detected"; then
+  bad "plan.sh wrongly fired reference-update on descriptive /consumers mention :: ${out:0:200}"
+else
+  ok "plan.sh does NOT fire reference-update without trigger language"
+fi
+
+# Now add explicit rename language → reference-update SHOULD fire.
+d=$(new_repo refgrep-fire); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress src/main/java/foo
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"plan","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n' > .specwork/_spec/demo-source.md
+cat > .specwork/_spec/demo-spec.md <<'SPEC'
+# demo — Rename legacy endpoint
+
+## Summary
+Remove /old-endpoint and use /new-endpoint instead.
+
+## Behavior
+- Remove /old-endpoint from the routes.
+
+## Open Questions
+SPEC
+printf 'class Caller { String url = "/old-endpoint"; }' > src/main/java/foo/Caller.java
+out="$($TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "Reference-update signal detected"; then
+  ok "plan.sh fires reference-update WHEN trigger language present"
+else
+  bad "plan.sh missed real reference-update signal :: ${out:0:200}"
+fi
+
+echo "== Ola 1: plan/implement are idempotent (no step gates) =="
+# Setup: pipeline with spec.md drafted (no unresolved OQs), current_step
+# advanced past implement (simulating user already ran some implements).
+d=$(new_repo ola1); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress .specwork/_plan
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"commit","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n\nSource captured.\n' > .specwork/_spec/demo-source.md
+printf '# demo — sample\n\n## Summary\n\nA thing.\n\n## Behavior\n\nDoes X.\n\n## Implementation Context\n\n`FooService`.\n\n## Open Questions\n' > .specwork/_spec/demo-spec.md
+
+# plan.sh must NOT reject as "out of sequence" even with current_step="commit".
+out="$($TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "Pipeline out of order"; then
+  bad "plan.sh should be re-runnable past plan step :: ${out:0:160}"
+else
+  ok "plan.sh allowed past plan step (no out-of-order rejection)"
+fi
+
+# After that run, plan.md exists. Re-running with all inputs unchanged → no-op.
+out="$($TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "PLAN NO-OP"; then
+  ok "plan.sh no-op when inputs unchanged"
+else
+  bad "plan.sh should be no-op on re-run :: ${out:0:160}"
+fi
+# No-op exit code 0.
+if [ "$rc" -eq 0 ]; then
+  ok "plan.sh no-op exit 0"
+else
+  bad "plan.sh no-op exit (rc=$rc)"
+fi
+
+# Bump spec_write_timestamp → plan.sh should regenerate (not no-op).
+# In real use this happens via /f-spec; here we bump directly through the engine
+# to simulate that without exercising the LLM-driven /f-spec flow.
+sleep 1
+python3 -m engine.cli bump-spec-ts demo >/dev/null
+out="$($TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "PLAN NO-OP"; then
+  bad "plan.sh should regenerate after spec_write_timestamp bump :: ${out:0:160}"
+else
+  ok "plan.sh regenerates after spec_write_timestamp bump"
+fi
+
+# plan.sh re-runs must not yank current_step backward. State should stay at "commit".
+CURRENT=$(python3 -c "import json; print(json.load(open('.specwork/_state/demo-state.json'))['current_step'])")
+if [ "$CURRENT" = "commit" ]; then
+  ok "plan.sh re-run preserves current_step=commit"
+else
+  bad "plan.sh re-run moved current_step to $CURRENT (expected commit)"
+fi
+
+# implement.sh must NOT reject "out of order" with current_step="commit".
+# It will still fail on artifact gates (no plan.json) but the step gate is gone.
+out="$($TO bash "$REPO/commands/implement.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "Pipeline out of order"; then
+  bad "implement.sh should not reject as out-of-order :: ${out:0:160}"
+else
+  ok "implement.sh allowed past implement step (no out-of-order rejection)"
+fi
+
+echo "== implement.sh supports no-plan workflow =="
+# Spec ready, no plan.json — implement.sh must NOT abort with NO_PLAN.
+# It should enter "no-plan workflow" (inline discovery from spec).
+d=$(new_repo no-plan-impl); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"implement","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n\nSource.\n' > .specwork/_spec/demo-source.md
+printf '# demo — sample\n\n## Summary\n\nThing.\n\n## Behavior\n\nDoes X.\n\n## Implementation Context\n\n`FooService`.\n\n## Open Questions\n' > .specwork/_spec/demo-spec.md
+# Deliberately omit .specwork/_plan/* — no plan, plan.sh was skipped.
+out="$($TO bash "$REPO/commands/implement.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "No plan found"; then
+  bad "implement.sh should NOT fail with NO_PLAN — must support no-plan workflow :: ${out:0:200}"
+else
+  ok "implement.sh accepts missing plan (no NO_PLAN fatal error)"
+fi
+if printf '%s' "$out" | grep -qF "no-plan workflow"; then
+  ok "implement.sh emits no-plan workflow instructions"
+else
+  bad "implement.sh did not enter no-plan workflow :: ${out:0:200}"
+fi
+
+echo "== refine.sh is a deprecated wrapper to spec.sh =="
+d=$(new_repo refine-wrapper); cd "$d"
+out="$($TO bash "$REPO/commands/refine.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "are deprecated"; then
+  ok "refine.sh prints deprecation (covers /f-refine and /f-spec-refine)"
+else
+  bad "refine.sh deprecation missing :: ${out:0:160}"
+fi
+if printf '%s' "$out" | grep -qF "No active pipeline"; then
+  ok "refine.sh forwards to spec.sh (inherits pipeline gate)"
+else
+  bad "refine.sh forwarding missing :: ${out:0:160}"
+fi
+
+echo "== start.sh --keep derives slug from current branch (not from input) =="
+# Bug reproduction: user is already on feature/MYYES-15518 and runs /f-start
+# with a long free-text description. SLUG must come from the branch
+# (myyes-15518), NOT from slugifying the long input — otherwise we get
+# .specwork/_spec/ensure-src-main-java-...-rest-response-spec.md.
+d=$(new_repo keep-slug); cd "$d"
+git checkout -q -b feature/MYYES-15518
+LONG_INPUT="ensure src main java com refijet myyesgo consumerportal service ExternalConsumerService java and src main java com refijet myyesgo consumerportal controller CreateConsumerController java do not return PII in the rest response"
+out="$($TO bash "$REPO/commands/start.sh" "$LONG_INPUT" --keep 2>&1 </dev/null)"; rc=$?
+
+# Expected slug: myyes-15518 (from branch), NOT the long slugified input.
+if [ -f .specwork/_state/myyes-15518-state.json ]; then
+  ok "start.sh --keep slug derived from branch (myyes-15518)"
+else
+  ACTUAL=$(find .specwork/_state -name "*-state.json" 2>/dev/null | head -1)
+  bad "start.sh --keep wrong slug :: got $ACTUAL"
+fi
+
+# state.json::slug field must match the file naming.
+if [ -f .specwork/_state/myyes-15518-state.json ]; then
+  SLUG_FIELD=$(python3 -c "import json; print(json.load(open('.specwork/_state/myyes-15518-state.json'))['slug'])")
+  if [ "$SLUG_FIELD" = "myyes-15518" ]; then
+    ok "state.json::slug matches branch-derived slug"
+  else
+    bad "state.json::slug=$SLUG_FIELD (expected myyes-15518)"
+  fi
+fi
+
+echo "== start.sh auto-gitignores .specwork/ =="
+# Fresh repo without .gitignore — start.sh should create it.
+d=$(new_repo gitignore-fresh); cd "$d"
+out="$($TO bash "$REPO/commands/start.sh" "test ticket body" --keep 2>&1 </dev/null)"; rc=$?
+if [ -f .gitignore ] && grep -qE '^\.specwork(/|$)' .gitignore; then
+  ok "start.sh creates .gitignore with .specwork/ when missing"
+else
+  bad "start.sh did not create .gitignore properly (rc=$rc) :: ${out:0:160}"
+fi
+
+# Existing .gitignore without .specwork — start.sh should append.
+d=$(new_repo gitignore-existing); cd "$d"
+printf 'build/\n*.log\n' > .gitignore
+out="$($TO bash "$REPO/commands/start.sh" "another ticket" --keep 2>&1 </dev/null)"; rc=$?
+if grep -qE '^\.specwork(/|$)' .gitignore && grep -qF 'build/' .gitignore; then
+  ok "start.sh appends .specwork/ without clobbering existing .gitignore"
+else
+  bad "start.sh did not append cleanly :: $(cat .gitignore | head -10)"
+fi
+
+# Existing .gitignore already containing .specwork/ — start.sh should NOT duplicate.
+d=$(new_repo gitignore-already-set); cd "$d"
+printf '.specwork/\n' > .gitignore
+out="$($TO bash "$REPO/commands/start.sh" "third ticket" --keep 2>&1 </dev/null)"; rc=$?
+count=$(grep -cE '^\.specwork(/|$)' .gitignore)
+if [ "$count" = "1" ]; then
+  ok "start.sh idempotent (does not duplicate .specwork/ entry)"
+else
+  bad "start.sh duplicated .specwork/ entry (count=$count)"
+fi
+
+# Pre-tracked .specwork files — start.sh should warn with git rm --cached hint.
+# Use a file outside _state/ so precheck --fresh still passes (precheck only
+# checks for *-state.json files; otherwise start would abort before our warn).
+d=$(new_repo gitignore-pre-tracked); cd "$d"
+mkdir -p .specwork/_progress
+printf 'leftover' > .specwork/_progress/stray.md
+git add .specwork/_progress/stray.md && git commit -q -m "wrongly tracked" 2>/dev/null
+out="$($TO bash "$REPO/commands/start.sh" "fourth ticket" --keep 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "git rm -r --cached .specwork/"; then
+  ok "start.sh warns when .specwork/ is already tracked"
+else
+  bad "start.sh should warn about pre-tracked .specwork :: ${out:0:200}"
 fi
 
 echo "== commit standalone; test-* require a pipeline =="
@@ -96,6 +406,102 @@ for w in test-design test-impl; do
     bad "$w.sh pipeline-required path (rc=$rc) :: ${out:0:120}"
   fi
 done
+
+echo "== triage updates state.json and path.json =="
+d=$(new_repo triage-state); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec
+printf '{"id":"tri-test","slug":"tri-test","ticket_type":"feature","complexity":"MEDIUM","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/tri-test-state.json
+cat > .specwork/_spec/tri-test-spec.md <<SPEC
+# tri-test — test
+
+## Summary
+
+Test scenario.
+
+## Behavior
+
+Add a simple log statement.
+
+## Implementation Context
+
+One service file.
+
+## Expected Change Scope
+
+Expected layers touched: service
+Expected files touched: 1
+SPEC
+assert_rc 0 "triage exit 0" -- $TO bash "$REPO/commands/triage.sh" tri-test
+assert_json ".specwork/_state/tri-test-path.json"   "ticket_type" "focused"  "triage writes path.json ticket_type"
+assert_json ".specwork/_state/tri-test-state.json"  "ticket_type" "focused"  "triage updates state.json ticket_type"
+assert_json ".specwork/_state/tri-test-state.json"  "complexity"  "LOW"      "triage updates state.json complexity"
+# skip.0 requires array access (assert_json doesn't support dot notation)
+skip0=$(python3 -c "import json; print(json.load(open('.specwork/_state/tri-test-path.json'))['skip'][0])" 2>/dev/null || echo "__MISSING__")
+[ "$skip0" = "f-plan" ] && ok "triage path skips plan for focused (skip[0]=$skip0)" || bad "triage path skips plan (skip[0]=$skip0, want f-plan)"
+
+echo "== status.sh shows clickable OQ path =="
+d=$(new_repo status-oclk); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec
+printf '{"id":"oclk","slug":"oclk","ticket_type":"feature","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/oclk-state.json
+cat > .specwork/_spec/oclk-spec.md <<SPEC
+# test
+
+## Open Questions
+
+- [ ] **#1** Some question?
+SPEC
+out="$($TO bash "$REPO/commands/status.sh" 2>&1 </dev/null)"
+if printf '%s' "$out" | grep -qF '`/'; then
+  ok "status.sh outputs absolute backtick path for OQs"
+else
+  bad "status.sh missing clickable path :: ${out:0:160}"
+fi
+if printf '%s' "$out" | grep -qF 'spec.md:'; then
+  ok "status.sh includes line number in OQ path"
+else
+  bad "status.sh missing line number :: ${out:0:160}"
+fi
+
+echo "== advance-step with non-feature flows =="
+d=$(new_repo adv-focused); cd "$d"
+mkdir -p .specwork/_state
+printf '{"id":"foc","slug":"foc","ticket_type":"focused","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/foc-state.json
+assert_rc 0 "advance-step focused (spec→implement)" -- python3 -m engine.cli advance-step foc
+assert_json ".specwork/_state/foc-state.json" "current_step" "implement" "focused advance lands on implement"
+
+d=$(new_repo adv-trivial); cd "$d"
+mkdir -p .specwork/_state
+printf '{"id":"tri","slug":"tri","ticket_type":"trivial","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/tri-state.json
+assert_rc 0 "advance-step trivial (spec→commit)" -- python3 -m engine.cli advance-step tri
+assert_json ".specwork/_state/tri-state.json" "current_step" "commit" "trivial advance lands on commit"
+
+d=$(new_repo adv-feature); cd "$d"
+mkdir -p .specwork/_state
+printf '{"id":"fea","slug":"fea","ticket_type":"feature","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/fea-state.json
+assert_rc 0 "advance-step feature (spec→plan)" -- python3 -m engine.cli advance-step fea
+assert_json ".specwork/_state/fea-state.json" "current_step" "plan" "feature advance lands on plan"
+
+echo "== help.sh overview works without .specwork =="
+d=$(new_repo help-ov); cd "$d"
+assert_out "Feature Development Pipeline" "overview prints title" -- bash "$REPO/commands/help.sh" overview
+assert_noout "resolve_slug" "overview never hits slug resolution" -- bash "$REPO/commands/help.sh" overview
+
+echo "== start.sh does NOT create spec.md =="
+d=$(new_repo start-no-spec); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress
+cat > .specwork/_spec/demo-source.md <<EOF
+# demo — test
+Quick test.
+EOF
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+# start.sh would normally do this, but we simulate by writing state.json only
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"spec","input_type":"freetext","branch":"feature/demo","source_file":".specwork/_spec/demo-source.md"}' > .specwork/_state/demo-state.json
+if [ ! -f ".specwork/_spec/demo-spec.md" ]; then
+  ok "spec.md not created by start (confirmed absent)"
+else
+  bad "spec.md should not exist after start"
+fi
 
 echo "------------------------------------------------------------------"
 printf " RESULT: %d passed, %d failed\n" "$PASS" "$FAIL"

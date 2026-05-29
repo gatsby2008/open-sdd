@@ -6,8 +6,8 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 
 | Command | What it does |
 |---------|--------------|
-| **`/f-start <ticket-or-text>`** | Initialize pipeline: fetch Jira (or free-text), create/select branch, write `.specwork/` state + source + spec. Always run first. |
-| **`/f-spec-refine [files \| jira X \| paste \| "text"]`** | Refine an existing spec in-place — resolve Open Questions, add context, expand scope. Never edit spec by hand; use this. Warns if plan becomes stale. |
+| **`/f-start <ticket-or-text>`** | Initialize pipeline: fetch Jira (or free-text), create/select branch, write `.specwork/` state + `source.md`. **Does NOT create `spec.md`** — that is `/f-spec`'s job. Always run first. |
+| **`/f-spec [files \| jira X \| paste \| "text"]`** | Drafts the spec the first time (when `spec.md` has no sections) and refines it on subsequent calls. Idempotent; always bumps `spec_write_timestamp`. Warns if plan becomes stale. Replaces deprecated `/f-spec-refine` (wrapper still forwards here). |
 
 ## Plan & Implement
 

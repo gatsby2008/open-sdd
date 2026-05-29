@@ -25,19 +25,11 @@ echo "Slug: $SLUG"
 
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 
-# ---- pipeline step gate ----------------------------------------------------
-
-# Skip step gate for --done subcommand (it's a sub-operation, not a step)
-if [ "${1:-}" != "--done" ]; then
-  STEP_RESULT=$(engine expected-step implement "$SLUG" 2>&1) || {
-    case "$STEP_RESULT" in
-      NO_STATE*) die "Pipeline state missing. Run ./commands/start.sh first." ;;
-      WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step implement' to override." ;;
-      STEP_NOT_IN_FLOW*) die "Step 'implement' not in flow for current ticket_type: $STEP_RESULT" ;;
-      *) die "Step gate failed: $STEP_RESULT" ;;
-    esac
-  }
-fi
+# /f-implement is re-runnable. No step gate. The artifact gates below
+# (implement-check: spec exists, no unresolved OQs, plan not stale) enforce
+# the real preconditions; current_step is just a UX hint. Calling /f-implement
+# again after a /f-commit (to add more steps) or after a /f-spec refresh
+# (which bumps spec_write_ts and triggers staleness gate) is fine.
 
 # ---- pre-flight gates via engine -------------------------------------------
 
@@ -51,10 +43,6 @@ GATES_RESULT=$(engine implement-check "$SLUG" 2>&1) || {
       echo "Cannot implement — unresolved Open Questions in spec."
       echo "$GATES_RESULT"
       echo "Resolve them first, then re-run."
-      exit 1
-      ;;
-    *NO_PLAN*)
-      echo "No plan found. Run ./commands/plan.sh first."
       exit 1
       ;;
     *PLAN_STALE*)
@@ -100,12 +88,16 @@ for t in data['targets']:
         print(f'{p}|{c}|{g}')
 ")
 
+NO_PLAN_MODE=false
 if [ ${#TARGETS[@]} -eq 0 ]; then
-  echo "No target files in plan. Nothing to implement."
-  exit 0
+  # No plan present (or plan exists but has no targets). Switch to no-plan
+  # workflow: the LLM does inline discovery from the spec instead of following
+  # a target table. Common path for small/obvious changes that skipped /f-plan.
+  NO_PLAN_MODE=true
+  echo "No plan present — entering no-plan workflow (inline discovery from spec)."
+else
+  echo "Plan has ${#TARGETS[@]} target files."
 fi
-
-echo "Plan has ${#TARGETS[@]} target files."
 
 # ---- instructions for the LLM -----------------------------------------------
 
@@ -137,7 +129,27 @@ fi
 
 # ---- display spec and plan (non-done path) ----------------------------------
 
-cat <<INSTRUCTIONS
+if [ "$NO_PLAN_MODE" = "true" ]; then
+  cat <<INSTRUCTIONS
+
+===================================================
+ IMPLEMENTATION SESSION (no-plan workflow)
+===================================================
+
+You have loaded the Spec-Driven Development pipeline's implement step.
+There is no plan.json — discover target files inline from the spec.
+
+SPEC:    $SPEC_FILE
+STATE:   .specwork/_state/${SLUG}-state.json
+CACHE:   .specwork/_state/${SLUG}-implementation-cache.json
+STACK:   $(engine detect-stack)
+SLUG:    $SLUG
+
+===================================================
+
+INSTRUCTIONS
+else
+  cat <<INSTRUCTIONS
 
 ===================================================
  IMPLEMENTATION SESSION
@@ -158,6 +170,7 @@ Resuming at target #$((CURRENT_INDEX + 1)) of ${#TARGETS[@]}.
 ===================================================
 
 INSTRUCTIONS
+fi
 
 echo "====== SPEC ======"
 cat "$SPEC_FILE"
@@ -181,31 +194,50 @@ PY
 fi
 
 echo ""
-fmt_bold "Target files to modify:"
 
-for i in "${!TARGETS[@]}"; do
-  IFS='|' read -r path change _ <<< "${TARGETS[$i]}"
-  if [ "$i" -lt "$CURRENT_INDEX" ]; then
-    echo "  [$((i+1))] $path  — $change  [DONE]"
-  else
-    echo "  [$((i+1))] $path  — $change"
-  fi
-done
+if [ "$NO_PLAN_MODE" = "true" ]; then
+  fmt_bold "Instructions (no-plan workflow)"
+  echo ""
+  echo "1. Read the spec above end-to-end, especially ## Implementation Context"
+  echo "   and ## Behavior."
+  echo "2. Identify target files by following symbols, paths, and class names"
+  echo "   referenced in the spec. Use targeted grep/find on src/ — do NOT scan"
+  echo "   the whole repo."
+  echo "3. Implement one focused change at a time. Read only the sections you need."
+  echo "4. Add/update tests for every changed behavior."
+  echo "5. When the spec's acceptance criteria are met, commit with:"
+  echo "     ./commands/commit.sh"
+  echo ""
+  echo "If discovery surfaces enough complexity to warrant a tracked plan,"
+  echo "exit and run ./commands/plan.sh instead, then re-run ./commands/implement.sh."
+  echo ""
+else
+  fmt_bold "Target files to modify:"
 
-echo ""
-fmt_bold "Instructions"
-echo ""
-echo "1. Read each target file above."
-echo "2. For each file, implement the change described."
-echo "3. After implementing each file, run:"
-echo "     ./commands/implement.sh --done N"
-echo "4. When all files are done, commit with:"
-echo "     ./commands/commit.sh"
-echo ""
+  for i in "${!TARGETS[@]}"; do
+    IFS='|' read -r path change _ <<< "${TARGETS[$i]}"
+    if [ "$i" -lt "$CURRENT_INDEX" ]; then
+      echo "  [$((i+1))] $path  — $change  [DONE]"
+    else
+      echo "  [$((i+1))] $path  — $change"
+    fi
+  done
+
+  echo ""
+  fmt_bold "Instructions"
+  echo ""
+  echo "1. Read each target file above."
+  echo "2. For each file, implement the change described."
+  echo "3. After implementing each file, run:"
+  echo "     ./commands/implement.sh --done N"
+  echo "4. When all files are done, commit with:"
+  echo "     ./commands/commit.sh"
+  echo ""
+fi
 
 # ---- show source context for first remaining target -------------------------
 
-if [ "$CURRENT_INDEX" -lt "${#TARGETS[@]}" ]; then
+if [ "$NO_PLAN_MODE" = "false" ] && [ "$CURRENT_INDEX" -lt "${#TARGETS[@]}" ]; then
   IFS='|' read -r first_path first_change _ <<< "${TARGETS[$CURRENT_INDEX]}"
   echo ""
   fmt_bold "=== First target: $first_path ==="

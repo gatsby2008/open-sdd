@@ -27,10 +27,13 @@ FEATURE PIPELINE
 
   ./commands/start.sh <ticket-or-text>
     Initialize the pipeline, create/select the working branch,
-    and write .specwork metadata plus spec.
+    and write .specwork metadata plus source.md. Does NOT create
+    spec.md — that is /f-spec's job.
 
-  ./commands/refine.sh <context>
-    [any time] Feed extra context into the existing spec.
+  ./commands/spec.sh [files | jira <ticket> | free text]
+    Draft the spec (first call) or refine it (subsequent calls).
+    Idempotent; bumps spec_write_timestamp on every write.
+    Replaces the deprecated ./commands/refine.sh.
 
   ./commands/plan.sh
     Discover target files and write an implementation plan (optional).

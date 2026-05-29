@@ -13,13 +13,17 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
           │
           ▼
     ┌─────────────┐
-    │  /f-start   │  → pre-flight, create/select branch, write state + source + spec
+    │  /f-start   │  → pre-flight, create/select branch, write state + source.md (no spec.md yet)
     └──────┬──────┘
-           │  ◄──── /f-refine    [any time — resolve Open Questions, add scope, add constraints]
+           ▼
+    ┌─────────────┐
+    │  /f-spec    │  → draft (first call) or refine (subsequent calls) the spec
+    └──────┬──────┘     idempotent; bumps spec_write_timestamp every write
+           │  ◄──── re-run any time to add context, resolve Open Questions, expand scope
            ▼              (warns if plan.md is now stale)
     ┌─────────────┐
     │  /f-plan    │  (optional) → discover target files, draft plan, seed cache
-    └──────┬──────┘  ◄──── re-run after /f-refine to clear staleness
+    └──────┬──────┘  ◄──── re-run after /f-spec to clear staleness
            │
            ▼
     ┌──────────────────────────────────┐
@@ -68,19 +72,20 @@ UTILITIES:
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
   /f-resync            — sync artifacts when branch was renamed
-  /f-refine            — refine spec with additional context
+  /f-spec              — draft / refine spec with additional context
+                         (replaces deprecated /f-refine)
 ```
 
 > **Open Questions** are unresolved markdown checkboxes (`- [ ]`) in `spec.md`
 > (and optionally `plan.md`) that block `/f-implement` until answered.
-> `/f-refine` is the canonical way to resolve them.
+> `/f-spec` is the canonical way to draft them initially and to resolve them later.
 
 ## Install
 
 open-sdd is **fully self-contained** — no dependency on `~/.claude/` or any
 external skill registry. Everything lives in this repo.
 
-Registers all 18 `/f-*` commands as native opencode custom commands
+Registers all 19 `/f-*` commands as native opencode custom commands
 (underlined, tab-completion, no trailing space needed):
 
 ```bash
@@ -110,6 +115,21 @@ export JIRA_TOKEN="your-atlassian-api-token"
 ```
 
 Without Jira credentials, `/f-start` falls back to free-text input.
+
+### `.specwork/` is gitignored
+
+`.specwork/` is **transient runtime state** — spec drafts, plan, cache, escalation
+log — and must never be committed. The permanent artifacts are the commits, the
+published spec (`docs/specs/<slug>-spec.md`, if `/f-mr` publishes it), and any
+ADRs.
+
+`/f-start` enforces this automatically: on first run in a project it appends
+`.specwork/` to `.gitignore` (or creates `.gitignore` if missing). If files were
+already tracked from a prior setup, it warns with the exact `git rm --cached`
+command to untrack them.
+
+`.opensdd/` (the per-project config directory — `mr-config.json`,
+`service-rules.md`) **is** committed.
 
 ### MR config
 
@@ -207,22 +227,28 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
 - Can start from any branch
 - Offers a new working branch based on current HEAD, or stay on current branch
 - Writes `.specwork/_state/<slug>-state.json`, `_spec/<slug>-source.md`,
-  `_spec/<slug>-spec.md`, `_state/<slug>-rules.json`,
-  `_state/<slug>-implementation-cache.json`
-- Resolve `## Open Questions` before implementing
-- Next: `/f-implement`
+  `_state/<slug>-rules.json`, `_state/<slug>-implementation-cache.json`
+- Does **NOT** create `spec.md` — that is `/f-spec`'s job, kept separate
+  so each command owns one artifact
+- Leaves `current_step="spec"` — does not auto-advance
+- Next: `/f-spec`
 
-### /f-refine \<files | jira \<ticket\> | paste | free text\>
+### /f-spec \<files | jira \<ticket\> | paste | free text\>
 
-- Refines the existing spec in place — resolves Open Questions, expands
+- Single command for both the first draft and every subsequent refine
+- **Draft mode** (`spec.md` does not exist yet): synthesizes the first
+  full spec from `source.md` + `templates/spec.md` + any extra context
+- **Refine mode** (`spec.md` already exists): integrates new
+  context into the existing spec — resolves Open Questions, expands
   `## Implementation Context`, appends to `## Safe Constraints`,
   adjusts `## Expected Change Scope`
 - Mixed input: files + Jira ticket + free text in a single call
+- **Always bumps `spec_write_timestamp`** so downstream gates see the change
 - **Warns** when `plan.md` is older than the new spec or when the working
   tree has uncommitted changes
 - Never deletes user content, never touches `source.md` / `rules.json`,
   never modifies git state
-- Use any time after `/f-start`
+- Replaces the deprecated `/f-refine` (wrapper still works, forwards here)
 
 ### /f-plan *(optional)*
 
@@ -234,7 +260,7 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
   Risks, and Open Questions
 - Seeds `.specwork/_state/<slug>-implementation-cache.json`
 - **Gate**: blocks if spec has unresolved Open Questions
-- **Staleness**: after `/f-refine` or manual spec edit, the plan goes
+- **Staleness**: after `/f-spec` or manual spec edit, the plan goes
   stale (`spec.md` newer than `plan.md`). Re-run `/f-plan` or delete
   `plan.md` to fall back to inline discovery
 - **When to use**: medium-to-large features (3+ files), refactors with
@@ -418,20 +444,21 @@ open-sdd/
 │   ├── gates.sh                     # Validation gates
 │   ├── metrics.sh                   # Timing & token metrics (opt-in)
 │   └── jira.sh                      # Jira REST client via curl
-├── commands/                        # 19 pipeline commands
+├── commands/                        # 20 pipeline commands
 │   ├── check.sh
+│   ├── code-review.sh
 │   ├── commit.sh
 │   ├── handoff.sh
 │   ├── help.sh
 │   ├── implement.sh
+│   ├── mr-address.sh
 │   ├── mr.sh
 │   ├── pause.sh
 │   ├── plan.sh
-│   ├── refine.sh
+│   ├── refine.sh                    # Deprecated — wrapper to spec.sh
 │   ├── resume.sh
 │   ├── resync.sh
-│   ├── code-review.sh
-│   ├── mr-address.sh
+│   ├── spec.sh                      # Draft / refine spec
 │   ├── start.sh
 │   ├── status.sh
 │   ├── test-design.sh

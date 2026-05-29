@@ -35,16 +35,10 @@ engine precheck >/dev/null 2>&1 \
 SLUG=$(resolve_slug) || die "Could not resolve slug from current branch."
 echo "Slug: $SLUG"
 
-# ---- step 1.5: pipeline step gate -------------------------------------------
-
-STEP_RESULT=$(engine expected-step plan "$SLUG" 2>&1) || {
-  case "$STEP_RESULT" in
-    NO_STATE*) die "Pipeline state missing. Run ./commands/start.sh first." ;;
-    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step plan' to override." ;;
-    STEP_NOT_IN_FLOW*) die "Step 'plan' not in flow for current ticket_type: $STEP_RESULT" ;;
-    *) die "Step gate failed: $STEP_RESULT" ;;
-  esac
-}
+# /f-plan is idempotent — no step gate. Re-invocation is allowed at any time
+# (e.g. after /f-spec adds context mid-implement). Artifact gates below
+# (check_required_artifacts, check_open_questions) enforce the real
+# preconditions; current_step is just a UX hint, not a hard gate.
 
 # ---- step 2: check required artifacts ---------------------------------------
 
@@ -60,6 +54,45 @@ if ! check_open_questions "$SLUG"; then
   echo "Cannot plan — unresolved Open Questions in spec."
   echo "Resolve them first, then re-run ./commands/plan.sh"
   exit 1
+fi
+
+# ---- step 3.5: no-op when plan is already fresh -----------------------------
+
+# Idempotency: if plan.md exists and is newer than spec_write_timestamp
+# (the canonical "spec changed" marker bumped by /f-spec), there is nothing
+# to regenerate. We compare against the state.json timestamp — NOT against
+# rules.json or cache.json mtimes — because plan.sh itself writes cache.json
+# as a side effect, which would falsely invalidate the no-op on every re-run.
+# Force regeneration: run /f-spec <args> (bumps ts) or delete plan.md.
+PLAN_FILE=".specwork/_plan/${SLUG}-plan.md"
+
+if [ -f "$PLAN_FILE" ]; then
+  PLAN_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+  SPEC_TS=$(python3 -c "
+import json, sys
+from pathlib import Path
+p = Path('.specwork/_state/${SLUG}-state.json')
+print(json.loads(p.read_text(encoding='utf-8')).get('spec_write_timestamp', 0) if p.exists() else 0)
+" 2>/dev/null || echo "0")
+  if [ "$PLAN_MTIME" != "0" ] && [ "$SPEC_TS" != "0" ] && [ "$PLAN_MTIME" -ge "$SPEC_TS" ]; then
+    echo ""
+    echo "==================================================="
+    echo " PLAN NO-OP"
+    echo "==================================================="
+    echo ""
+    echo "plan.md is up to date — spec_write_timestamp has not been bumped"
+    echo "since the plan was written."
+    echo "  Plan:        $PLAN_FILE  (mtime=$PLAN_MTIME)"
+    echo "  Spec write:  state.json::spec_write_timestamp=$SPEC_TS"
+    echo ""
+    echo "To force a regeneration, either:"
+    echo "  - run ./commands/spec.sh <args> to bump spec_write_timestamp, or"
+    echo "  - delete the plan: rm $PLAN_FILE"
+    echo ""
+    echo "Next:"
+    echo "  ./commands/implement.sh"
+    exit 0
+  fi
 fi
 
 # ---- step 4: detect stack ---------------------------------------------------
@@ -183,16 +216,16 @@ resolve_test_path() {
     java)
       find src/test src/intTest src/integrationTest -type f \( \
         -name "${class_name}Test.java" -o -name "${class_name}IT.java" \
-        -o -name "${class_name}Tests.java" \) 2>/dev/null | head -1
+        -o -name "${class_name}Tests.java" \) 2>/dev/null | head -1 || true
       ;;
     node)
       local test_result
-      test_result=$(find . -path "*/__tests__/*" -o -path "*/test/*" -o -path "*/tests/*" 2>/dev/null | head -1)
+      test_result=$(find . -path "*/__tests__/*" -o -path "*/test/*" -o -path "*/tests/*" 2>/dev/null | head -1 || true)
       if [ -z "$test_result" ]; then
         test_result=$(find . -type f \( \
           -name "${class_name}.test.ts" -o -name "${class_name}.spec.ts" \
           -o -name "${class_name}.test.tsx" -o -name "${class_name}.spec.tsx" \
-          -o -name "${class_name}.test.js" -o -name "${class_name}.spec.js" \) 2>/dev/null | head -1)
+          -o -name "${class_name}.test.js" -o -name "${class_name}.spec.js" \) 2>/dev/null | head -1 || true)
       fi
       echo "$test_result"
       ;;
@@ -201,38 +234,40 @@ resolve_test_path() {
 
 # -- 6d: reference grep detection ---------------------------------------------
 
-detect_reference_grep() {
-  local spec_file="$1"
-  python3 - <<'PY' "$spec_file"
+# Trigger AND extract in one pass, **scoped to lines that carry rename/remove
+# language**. A spec that merely mentions `/consumers` in Implementation
+# Context (without intending to rename or remove it) must NOT produce
+# [reference-update] targets — that was the bug consumer-portal hit
+# 2026-05-29 where every file referencing /consumers got flagged.
+#
+# Mirrors claude-tools/lib/f-plan.py:reference_grep. Symbols extracted:
+# - backticked tokens  `Foo`, `OrderService`
+# - /-prefixed paths   /api/v1/x, /consumers
+extract_reference_targets() {
+  python3 - "$1" <<'PY'
 import re, sys
 from pathlib import Path
 text = Path(sys.argv[1]).read_text(encoding="utf-8")
-patterns = [
-    r'(?i)\b(remove|delete|drop|retire)\b(?:\s+\S+){0,4}\s+(endpoint|route|path|constant|field|method|class)\b',
-    r'(?i)\b(rename|change|migrate|move)\b(?:\s+\S+){1,5}\s+to\s+\S+',
-    r'(?i)\breplac[ei][sd]?\s+\S+\s+with\s+\S+',
-    r'(?i)\b(old|previous|legacy)\s+(endpoint|path|url|route|constant|name|method|class)\b',
-    r'\B/[a-zA-Z][\w\-/{}]*\b',
-]
-sys.exit(0 if any(re.search(p, text) for p in patterns) else 1)
+trigger = re.compile(
+    r'\b(renam\w*|remov\w*|delet\w*|deprecat\w*|replac\w*|migrat\w*|drop|retire|legacy)\b',
+    re.IGNORECASE,
+)
+symbols = set()
+for line in text.splitlines():
+    if not trigger.search(line):
+        continue
+    symbols.update(re.findall(r'`([^`]+)`', line))
+    symbols.update(re.findall(r'/[a-zA-Z][\w\-/{}]*', line))
+# Only emit candidates that look like real symbols
+candidates = sorted(s for s in symbols if len(s) >= 3 and ' ' not in s)
+for s in candidates:
+    print(s)
 PY
-  return $?
 }
 
-if detect_reference_grep "$SPEC_FILE"; then
-  echo "Reference-update signal detected in spec."
-  # Extract URL-like paths from spec for grep
-  REFERENCE_PATHS=$(python3 - "$SPEC_FILE" <<'PY'
-import re, sys
-from pathlib import Path
-text = Path(sys.argv[1]).read_text(encoding="utf-8")
-# Find /-prefixed path literals
-paths = re.findall(r'\B/[a-zA-Z][\w\-/{}]*', text)
-for p in sorted(set(paths)):
-    if len(p) > 3:  # skip short fragments
-        print(p)
-PY
-)
+REFERENCE_PATHS=$(extract_reference_targets "$SPEC_FILE")
+if [ -n "$REFERENCE_PATHS" ]; then
+  echo "Reference-update signal detected in spec (symbols scoped to trigger lines)."
   for old_path in $REFERENCE_PATHS; do
     [ -z "$old_path" ] && continue
     hits=
@@ -292,10 +327,10 @@ for candidate in $CANDIDATES; do
     found_file=""
     case "$STACK" in
       java)
-        found_file=$(find src -name "${candidate}.java" 2>/dev/null | head -1)
+        found_file=$(find src -name "${candidate}.java" 2>/dev/null | head -1 || true)
         ;;
       node)
-        found_file=$(find src -name "${candidate}.ts" -o -name "${candidate}.tsx" -o -name "${candidate}.js" 2>/dev/null | head -1)
+        found_file=$(find src -name "${candidate}.ts" -o -name "${candidate}.tsx" -o -name "${candidate}.js" 2>/dev/null | head -1 || true)
         ;;
     esac
     if [ -n "$found_file" ]; then
@@ -535,8 +570,19 @@ if [ -n "$RISK_HITS" ] && [ "$RISK_HITS" != "{}" ]; then
   echo "  ⚠ Risk signals detected — see plan for details."
 fi
 
-# advance pipeline state: plan → implement
-engine advance-step "$SLUG" plan >/dev/null 2>&1 || true
+# advance pipeline state: plan → implement, but only on the natural transition.
+# If current_step has already moved past plan (user re-ran /f-plan after some
+# /f-implement steps), leave it alone — re-runs must not yank the state
+# machine backward or forward unexpectedly.
+CURRENT_STEP=$(python3 -c "
+import json, sys
+from pathlib import Path
+p = Path('.specwork/_state/${SLUG}-state.json')
+print(json.loads(p.read_text(encoding='utf-8')).get('current_step','') if p.exists() else '')
+" 2>/dev/null || echo "")
+if [ "$CURRENT_STEP" = "spec" ] || [ "$CURRENT_STEP" = "plan" ]; then
+  engine advance-step "$SLUG" plan >/dev/null 2>&1 || true
+fi
 
 echo ""
 echo "Next:"

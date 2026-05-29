@@ -239,7 +239,7 @@ The pipeline supports two workflows:
 
 ```text
 /f-start <detailed-text>
-/f-spec-refine <additional-context>
+/f-spec <additional-context>
 /f-plan (optional)
 /f-implement
 ```
@@ -513,8 +513,8 @@ Execution remains bounded.
 Primary pipeline references:
 
 * Full protocol: [`agent/SDD_AGENT_INSTRUCTIONS.md`](../../agent/SDD_AGENT_INSTRUCTIONS.md)
-* Spec generation: [`/f-start`](../../commands/start.sh)
-* Spec refinement: [`/f-spec-refine`](../../commands/refine.sh)
+* Pipeline init: [`/f-start`](../../commands/start.sh) (writes source.md only; spec.md is created by /f-spec)
+* Spec draft + refine: [`/f-spec`](../../commands/spec.sh) (`/f-spec-refine` still aliases here via `commands/refine.sh`)
 * Implementation plan: [`/f-plan`](../../commands/plan.sh)
 * Implementation: [`/f-implement`](../../commands/implement.sh)
 * Commit: [`/f-commit`](../../commands/commit.sh)
