@@ -51,9 +51,14 @@ install_cmd "mr-address" "Work through MR review comments"
 install_cmd "handoff"       "Package artifacts for another agent"
 install_cmd "test-design"   "Design test cases for current changes"
 install_cmd "test-impl"     "Implement test files for changed source"
-install_cmd "triage"        "Classify ticket complexity from spec and recommend pipeline path"
+# NOTE: triage is intentionally NOT registered as a /f-* command. It is an
+# internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
+# agent/SDD_AGENT_INSTRUCTIONS.md ("Do NOT run triage here").
 
-echo "open-sdd: 19 commands installed to $CMD_DIR"
+# Remove commands deregistered in newer versions (clean up stale installs).
+rm -f "${CMD_DIR}/f-triage.md"
+
+echo "open-sdd: 18 commands installed to $CMD_DIR"
 echo ""
 
 # Generate AGENTS.md with resolved OPEN_SDD_ROOT path

@@ -7,7 +7,7 @@ STATE_FILE=".specwork/_state/${SLUG}-state.json"
 OUT_FILE=".specwork/_state/${SLUG}-path.json"
 
 if [ -z "$SLUG" ] || [ ! -f "$SPEC_FILE" ]; then
-  echo "Usage: bash commands/triage.sh <slug>"
+  echo "Usage: ./commands/triage.sh <slug>  (internal — run by /f-spec, not a user command)"
   echo "Requires: .specwork/_spec/<slug>-spec.md"
   exit 1
 fi

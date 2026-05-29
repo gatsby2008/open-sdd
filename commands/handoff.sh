@@ -14,7 +14,7 @@ fmt_bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 # ---- step 0: pipeline precondition gate -------------------------------------
 
 PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli precheck >/dev/null 2>&1 \
-  || die "No active pipeline (.specwork/ missing or uninitialized). Run ./commands/start.sh first."
+  || die "No active pipeline (.specwork/ missing or uninitialized). Run /f-start first."
 
 # ---- step 1: resolve slug ---------------------------------------------------
 
@@ -27,7 +27,7 @@ fi
 
 if [ -z "$SLUG" ]; then
   die "Could not resolve slug.
-Usage: ./commands/handoff.sh [slug]"
+Usage: /f-handoff [slug]"
 fi
 
 echo "Slug: $SLUG"
@@ -59,7 +59,7 @@ Required:
   .specwork/_state/<slug>-rules.json
   .specwork/_spec/<slug>-spec.md
 
-Run ./commands/start.sh first."
+Run /f-start first."
 fi
 
 # ---- step 3: Open Questions gate --------------------------------------------
@@ -169,7 +169,7 @@ PYEOF
     echo "Worktree diverges from plan — pack not generated."
     echo "$FRESHNESS" | grep -v "DIVERGE" || true
     echo ""
-    die "Run ./commands/plan.sh to regenerate, then re-run ./commands/handoff.sh."
+    die "Run /f-plan to regenerate, then re-run /f-handoff."
   fi
 fi
 

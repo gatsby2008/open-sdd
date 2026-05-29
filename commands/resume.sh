@@ -18,23 +18,38 @@ STASHES=$(git stash list --format="%gd %s" 2>/dev/null | grep "f-pause:" || true
 if [ -z "$STASHES" ]; then
   die "No paused pipeline branches found.
 
-To pause a pipeline branch, run ./commands/pause.sh while on the branch that
+To pause a pipeline branch, run /f-pause while on the branch that
 owns the current .specwork state."
 fi
 
 # ---- step 2: parse stashes into array ---------------------------------------
 
+declare -A SEEN_BRANCHES
+declare -A DUP_REFS_FOR
 STASH_REFS=()
 STASH_BRANCHES=()
+DUP_COUNT=0
 
 while IFS= read -r line; do
   ref=${line%% *}
   branch=${line#*f-pause: }
-  STASH_REFS+=("$ref")
-  STASH_BRANCHES+=("$branch")
+  if [[ -z "${SEEN_BRANCHES[$branch]:-}" ]]; then
+    SEEN_BRANCHES[$branch]=1
+    STASH_REFS+=("$ref")
+    STASH_BRANCHES+=("$branch")
+    DUP_REFS_FOR[$branch]=""
+  else
+    DUP_COUNT=$((DUP_COUNT + 1))
+    DUP_REFS_FOR[$branch]="${DUP_REFS_FOR[$branch]:-} $ref"
+  fi
 done <<< "$STASHES"
 
 TOTAL=${#STASH_REFS[@]}
+
+if [ "$DUP_COUNT" -gt 0 ]; then
+  echo "  ($DUP_COUNT older stash${DUP_COUNT:+es} for the same branch${DUP_COUNT:+es} — using the most recent only)" >&2
+  echo "" >&2
+fi
 
 # ---- step 3: detect non-pipeline stashes ------------------------------------
 
@@ -53,7 +68,7 @@ done
 
 if [ "$OTHER_COUNT" -gt 0 ]; then
   echo ""
-  echo "  ($OTHER_COUNT other stash${OTHER_COUNT: +es} exist but have no pipeline context — use 'git stash list' to see them)"
+  echo "  ($OTHER_COUNT other stash${OTHER_COUNT:+es} exist but have no pipeline context — use 'git stash list' to see them)"
 fi
 
 echo ""
@@ -84,7 +99,7 @@ TREE=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 if [ "$TREE" -gt 0 ]; then
   die "Cannot resume while the current working tree has changes.
 
-Commit, stash, or discard them first, then run ./commands/resume.sh again."
+Commit, stash, or discard them first, then run /f-resume again."
 fi
 
 # ---- step 6: switch to branch and pop stash ---------------------------------
@@ -99,8 +114,27 @@ git switch "$SELECTED_BRANCH" 2>/dev/null || git switch -c "$SELECTED_BRANCH" 2>
 fmt_bold "Restoring work from stash ..."
 git stash pop "$SELECTED_REF"
 
+# /f-pause force-adds the gitignored .specwork/ into the stash so the pipeline
+# state survives. On pop, git restores those files to the INDEX (staged) because
+# they don't exist in HEAD — so .specwork/ comes back staged, which must never
+# happen (it's transient, gitignored state). Unstage it: the files stay in the
+# working tree and return to their proper ignored status.
+if [ -d ".specwork" ]; then
+  git reset -q -- .specwork/ 2>/dev/null || true
+fi
+
+# ---- step 7: drop stale duplicate stashes for the resumed branch ----------
+
+dups="${DUP_REFS_FOR[$SELECTED_BRANCH]:-}"
+if [ -n "$dups" ]; then
+  for ref in $dups; do
+    echo "  Dropping stale duplicate stash $ref ..."
+    git stash drop "$ref" 2>/dev/null || true
+  done
+fi
+
 echo ""
 echo "Resumed $SELECTED_BRANCH."
 echo ""
-echo "Run ./commands/status.sh to see where you left off."
-echo "Run ./commands/implement.sh to continue."
+echo "Run /f-status to see where you left off."
+echo "Run /f-implement to continue."

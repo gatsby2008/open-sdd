@@ -22,7 +22,7 @@ STATE_FILE=""
 
 if [ -z "$SLUG" ] || [ ! -f "$STATE_FILE" ]; then
   die "No active pipeline state found for this branch.
-Run ./commands/start.sh first or switch to the branch that owns .specwork/."
+Run /f-start first or switch to the branch that owns .specwork/."
 fi
 
 echo "Branch: $BRANCH"
@@ -63,4 +63,4 @@ echo ""
 echo "Paused $BRANCH → stash saved."
 echo ""
 echo "You can now switch to any branch you need."
-echo "Resume later with: ./commands/resume.sh"
+echo "Resume later with: /f-resume"

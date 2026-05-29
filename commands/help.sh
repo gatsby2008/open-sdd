@@ -25,44 +25,44 @@ SETUP (once per project)
 
 FEATURE PIPELINE
 
-  ./commands/start.sh <ticket-or-text>
+  /f-start <ticket-or-text>
     Initialize the pipeline, create/select the working branch,
     and write .specwork metadata plus source.md. Does NOT create
     spec.md — that is /f-spec's job.
 
-  ./commands/spec.sh [files | jira <ticket> | free text]
+  /f-spec [files | jira <ticket> | free text]
     Draft the spec (first call) or refine it (subsequent calls).
     Idempotent; bumps spec_write_timestamp on every write.
-    Replaces the deprecated ./commands/refine.sh.
+    Replaces the deprecated /f-refine.
 
-  ./commands/plan.sh
+  /f-plan
     Discover target files and write an implementation plan (optional).
 
-  ./commands/implement.sh
+  /f-implement
     Implement the next piece with inline tests.
 
-  ./commands/commit.sh
+  /f-commit
     Stage changes, propose a semantic commit message, confirm.
 
-  ./commands/test-design.sh
+  /f-test-design
     [optional] Design test cases for the current changes.
 
-  ./commands/test-impl.sh
+  /f-test-impl
     [optional] Implement test files from the design.
 
-  ./commands/code-review.sh
+  /f-code-review
     [optional] Stack-aware code quality and security review.
 
-  ./commands/mr.sh
+  /f-mr
     Generate MR description, push, create/update MR.
 
-  ./commands/mr-address.sh
+  /f-mr-address
     Work through MR review comments (after /f-mr receives feedback).
 
-  ./commands/close.sh
+  /f-close
     Delete .specwork/ after merge.
 
-  ./commands/handoff.sh
+  /f-handoff
     [optional] Package spec + rules + context into an execution pack
     for another agent/model.
 
@@ -70,11 +70,11 @@ FEATURE PIPELINE
 
 UTILITIES
 
-  ./commands/status.sh     Full pipeline status.
-  ./commands/help.sh       This. Shows contextual next step or overview.
-  ./commands/pause.sh      Stash all work (including .specwork/) to switch context.
-  ./commands/resume.sh     List paused branches and restore one.
-  ./commands/resync.sh     Resync artifacts after branch rename.
+  /f-status     Full pipeline status.
+  /f-help       This. Shows contextual next step or overview.
+  /f-pause      Stash all work (including .specwork/) to switch context.
+  /f-resume     List paused branches and restore one.
+  /f-resync     Resync artifacts after branch rename.
 
 ─────────────────────────────────────────────────────────────────
 
@@ -302,7 +302,7 @@ echo "Next step:"
 echo ""
 
 if [ "$STATE_LABEL" = "setup" ]; then
-  echo "  ./commands/start.sh <ticket-or-text>"
+  echo "  /f-start <ticket-or-text>"
   echo ""
   echo "  Initialize the pipeline. No SDD state exists yet."
 elif [ "$STATE_LABEL" = "blocked" ] && ! $BRANCH_MATCHES; then
@@ -324,28 +324,28 @@ elif [ "$STATE_LABEL" = "blocked" ] && [ "$SPEC_OQS_OPEN" -gt 0 ]; then
   SPEC_PATH="\`${ABS_SPEC}:${OQ_LINE}\`"
   echo "  Resolve Open Questions in ${SPEC_PATH}"
   echo ""
-  echo "  Then run ./commands/plan.sh or ./commands/implement.sh"
+  echo "  Then run /f-plan or /f-implement"
 elif [ "$STATE_LABEL" = "blocked" ] && [ "$PLAN_OQS_OPEN" -gt 0 ]; then
   ABS_PLAN="$(cd "$(dirname "$PLAN_FILE")" && pwd)/$(basename "$PLAN_FILE")"
   OQ_LINE=$(grep -n "^## Open Questions" "$PLAN_FILE" | head -1 | cut -d: -f1 || echo "")
   PLAN_PATH="\`${ABS_PLAN}:${OQ_LINE}\`"
   echo "  Resolve Open Questions in ${PLAN_PATH}"
   echo ""
-  echo "  Then run ./commands/plan.sh"
+  echo "  Then run /f-plan"
 elif $TREE_DIRTY; then
-  echo "  ./commands/implement.sh"
+  echo "  /f-implement"
   echo ""
   echo "  Working tree has uncommitted changes. Continue implementing."
 elif $COMMITS_AHEAD; then
-  echo "  ./commands/mr.sh"
+  echo "  /f-mr"
   echo ""
   echo "  Branch is clean and has commits ahead of base. Open the MR."
 elif [ -f "$PLAN_FILE" ]; then
-  echo "  ./commands/implement.sh"
+  echo "  /f-implement"
   echo ""
   echo "  Plan is ready. Start implementing."
 else
-  echo "  ./commands/plan.sh (or ./commands/implement.sh for simple changes)"
+  echo "  /f-plan (or /f-implement for simple changes)"
   echo ""
   echo "  Pipeline initialized. Discover target files or start implementing directly."
 fi

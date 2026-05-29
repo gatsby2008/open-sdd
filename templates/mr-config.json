@@ -1,4 +1,15 @@
 {
-  "target_branch": "main",
-  "merge_strategy": "squash"
+  "_comment": "Lives at .opensdd/mr-config.json (created by /f-start) and edited per project. Used by /f-mr to assign reviewers and decide merge strategy. This file is local to each developer — /f-start gitignores .opensdd/, so it is NOT committed. Each developer sets their own reviewers/target_branch.",
+
+  "reviewers": ["gitlab-username-1", "gitlab-username-2"],
+
+  "target_branch": "development",
+
+  "merge_strategy": "squash",
+
+  "_field_docs": {
+    "reviewers": "GitLab usernames (NOT display names or email addresses). Validated against the GitLab API when glab is available; passed through unverified in manual mode. The MR author is auto-excluded.",
+    "target_branch": "Branch the MR will target. Defaults to 'development' if absent.",
+    "merge_strategy": "'squash' (default) — collapses all branch commits into one; 'merge' — preserves full commit history; 'rebase' — rebases onto target. Squash is performed locally before push so the MR shows a single commit even when glab isn't used."
+  }
 }

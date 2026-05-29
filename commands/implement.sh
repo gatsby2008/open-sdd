@@ -15,7 +15,7 @@ fmt_bold()  { printf '\033[1m%s\033[0m\n' "$1"; }
 # ---- step 0: pipeline precondition gate -------------------------------------
 
 engine precheck >/dev/null 2>&1 \
-  || die "No active pipeline (.specwork/ missing or uninitialized). Run ./commands/start.sh first."
+  || die "No active pipeline (.specwork/ missing or uninitialized). Run /f-start first."
 
 # ---- load context -----------------------------------------------------------
 
@@ -35,7 +35,7 @@ SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 GATES_RESULT=$(engine implement-check "$SLUG" 2>&1) || {
   case "$GATES_RESULT" in
     *MISSING*)
-      die "Missing artifacts. Run ./commands/start.sh then ./commands/plan.sh."
+      die "Missing artifacts. Run /f-start then /f-plan."
       ;;
     *UNRESOLVED_OQS*)
       echo ""
@@ -47,9 +47,9 @@ GATES_RESULT=$(engine implement-check "$SLUG" 2>&1) || {
     *PLAN_STALE*)
       echo ""
       echo "Plan is stale — spec was modified after plan was created."
-      echo "Run ./commands/plan.sh to regenerate."
+      echo "Run /f-plan to regenerate."
       echo ""
-      echo "  y) Re-run plan.sh now"
+      echo "  y) Re-run /f-plan now"
       echo "  n) Proceed with stale plan (not recommended)"
       echo "  q) Quit"
       read -r choice
@@ -116,10 +116,10 @@ if [ "${1:-}" = "--done" ]; then
   if [ "$STATUS" = "ALL_DONE" ]; then
     echo ""
     echo "All targets implemented!"
-    echo "Next: ./commands/test-impl.sh (or skip to ./commands/commit.sh)"
+    echo "Next: /f-test-impl (or skip to /f-commit)"
   else
     echo "$REMAINING target(s) remaining."
-    echo "Continue with: ./commands/implement.sh"
+    echo "Continue with: /f-implement"
   fi
   exit 0
 fi

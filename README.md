@@ -85,7 +85,7 @@ UTILITIES:
 open-sdd is **fully self-contained** — no dependency on `~/.claude/` or any
 external skill registry. Everything lives in this repo.
 
-Registers all 19 `/f-*` commands as native opencode custom commands
+Registers all 18 `/f-*` commands as native opencode custom commands
 (underlined, tab-completion, no trailing space needed):
 
 ```bash

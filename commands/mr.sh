@@ -68,7 +68,7 @@ fi
 AHEAD=$(git rev-list --count "$BASE_REF..HEAD" 2>/dev/null || echo 0)
 if [ "$AHEAD" -eq 0 ]; then
   echo "No commits on '$BRANCH' beyond '$BASE_REF' — nothing to open an MR for."
-  echo "Commit your work first (./commands/commit.sh)."
+  echo "Commit your work first (/f-commit)."
   exit 1
 fi
 
@@ -283,4 +283,4 @@ fi
 echo ""
 echo "Next steps:"
 echo "  - Review the MR at $MR_URL"
-echo "  - After merge, run: ./commands/close.sh"
+echo "  - After merge, run: /f-close"

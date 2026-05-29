@@ -21,19 +21,19 @@ engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 # ---- step 0: pipeline precondition ------------------------------------------
 
 engine precheck >/dev/null 2>&1 \
-  || die "No active pipeline (.specwork/ missing or uninitialized). Run ./commands/start.sh first."
+  || die "No active pipeline (.specwork/ missing or uninitialized). Run /f-start first."
 
 # ---- step 1: resolve slug ---------------------------------------------------
 
 SLUG=$(resolve_slug 2>/dev/null || echo "")
-[ -n "$SLUG" ] || die "Could not resolve slug from current branch. Run ./commands/start.sh first."
+[ -n "$SLUG" ] || die "Could not resolve slug from current branch. Run /f-start first."
 
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 SOURCE_FILE=".specwork/_spec/${SLUG}-source.md"
 CACHE_FILE=".specwork/_state/${SLUG}-implementation-cache.json"
 
-[ -f "$STATE_FILE" ] || die "Missing state file: $STATE_FILE. Run ./commands/start.sh first."
+[ -f "$STATE_FILE" ] || die "Missing state file: $STATE_FILE. Run /f-start first."
 
 echo "Slug: $SLUG"
 
@@ -65,19 +65,19 @@ if [ "$MODE" = "refine" ] && [ "$ARGC" -eq 0 ]; then
   echo "spec.md is already drafted ($SPEC_FILE)."
   echo "No arguments passed — nothing to refine, nothing changed."
   echo ""
-  echo "To refine, pass context as arguments:"
-  echo "  ./commands/spec.sh <file> [<file> ...]"
-  echo "  ./commands/spec.sh jira <TICKET>"
-  echo "  ./commands/spec.sh \"free text\""
-  echo "  ./commands/spec.sh <file> jira <TICKET> \"and more\""
+  echo "To refine the spec, pass additional context:"
+  echo "  /f-spec <file> [<file> ...]        — add file context"
+  echo "  /f-spec jira <TICKET>              — add Jira ticket context"
+  echo "  /f-spec \"free text\"                — add free text"
+  echo "  /f-spec <file> jira <TICKET> \"...\" — combine sources"
   echo ""
   TICKET_TYPE=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('ticket_type',''))" 2>/dev/null || echo "")
   echo "Next:"
   if [ "$TICKET_TYPE" = "high-risk" ] || [ "$TICKET_TYPE" = "standard" ]; then
-    echo "  ./commands/plan.sh        (required — discover target files)"
+    echo "  /f-plan        (required — discover target files)"
   else
-    echo "  ./commands/plan.sh        (discover target files)"
-    echo "  ./commands/implement.sh   (start implementing directly)"
+    echo "  /f-plan        (discover target files)"
+    echo "  /f-implement   (start implementing directly)"
   fi
   exit 0
 fi
@@ -91,7 +91,7 @@ done
 
 if [ -n "$MISSING" ]; then
   die "Missing required artifacts (all written by /f-start):
-${MISSING}Run ./commands/start.sh first."
+${MISSING}Run /f-start first."
 fi
 
 # ---- step 4: collect input context ------------------------------------------
@@ -162,11 +162,11 @@ if [ "$MODE" = "refine" ]; then
     if ! engine implement-check "$SLUG" >/dev/null 2>&1; then
       # Use a more focused staleness check — implement-check also fails on OQs.
       # We only want to warn about plan staleness here, so re-check via gates.
-      PLAN_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+      PLAN_MTIME=$(stat -c %Y "$PLAN_FILE" 2>/dev/null || stat -f %m "$PLAN_FILE" 2>/dev/null || echo "0")
       SPEC_TS=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['spec_write_timestamp'])" 2>/dev/null || echo "0")
       if [ "$PLAN_MTIME" != "0" ] && [ "$SPEC_TS" != "0" ] && [ "$PLAN_MTIME" -lt "$SPEC_TS" ]; then
         WARNINGS+="⚠  .specwork/_plan/${SLUG}-plan.md is older than the spec"$'\n'
-        WARNINGS+="    Run ./commands/plan.sh to regenerate (it is idempotent)."$'\n'
+        WARNINGS+="    Run /f-plan to regenerate (it is idempotent)."$'\n'
       fi
     fi
   fi

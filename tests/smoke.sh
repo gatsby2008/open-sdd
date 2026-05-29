@@ -27,7 +27,10 @@ assert_noout() { local sub="$1" label="$2"; shift 3; local out
 assert_json()  { local file="$1" key="$2" exp="$3" label="$4"; local val
   val=$(python3 -c "import json; print(json.load(open('$file'))['$key'])" 2>/dev/null || echo "__MISSING__")
   if [ "$val" = "$exp" ]; then ok "$label ($key=$val)"; else bad "$label ($key=$val, want $exp)"; fi; }
-new_repo() { local d="$SCRATCH_ROOT/$1"; mkdir -p "$d"; ( cd "$d" && git init -q && git commit -q --allow-empty -m init && git checkout -q -b feature/demo ); echo "$d"; }
+# Set a repo-local git identity so the initial commit works on runners/machines
+# that have no global git user configured (otherwise the branch never gets born,
+# slug resolution falls back to "HEAD", and most branch-dependent tests fail).
+new_repo() { local d="$SCRATCH_ROOT/$1"; mkdir -p "$d"; ( cd "$d" && git init -q && git config user.email "smoke@open-sdd.test" && git config user.name "open-sdd smoke" && git commit -q --allow-empty -m init && git checkout -q -b feature/demo ); echo "$d"; }
 
 # portable timeout (macOS lacks `timeout`; coreutils ships `gtimeout`)
 if command -v timeout >/dev/null 2>&1; then TO="timeout 15"
@@ -184,6 +187,108 @@ if printf '%s' "$out" | grep -qF "Reference-update signal detected"; then
   ok "plan.sh fires reference-update WHEN trigger language present"
 else
   bad "plan.sh missed real reference-update signal :: ${out:0:200}"
+fi
+
+echo "== plan.sh reference-update guards (MYYES-15518 56-target blow-up) =="
+# Guard 1+2: a "Do NOT remove ... @Size" line lives under ## Safe Constraints AND
+# is negated. It must NOT seed @Size / phoneNumber reference-update targets, even
+# though those symbols appear in many source files. A legit non-negated removal
+# line ("Remove the duplicate @AssertTrue") still fires.
+d=$(new_repo refgrep-safe-constraints); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress src/main/java/foo
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"plan","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n' > .specwork/_spec/demo-source.md
+cat > .specwork/_spec/demo-spec.md <<'SPEC'
+# demo — Fix duplicate annotation
+
+## Summary
+Fix a duplicate validation annotation.
+
+## Behavior
+- Remove the duplicate `@AssertTrue` on `Thing`.
+
+## Safe Constraints
+### Unsafe
+- Do NOT remove or modify the `@Size` constraint on `phoneNumber`.
+
+## Open Questions
+SPEC
+for i in 1 2 3 4 5; do printf '@Size class F%s { String phoneNumber; }' "$i" > "src/main/java/foo/F$i.java"; done
+printf '@AssertTrue class Thing {}' > src/main/java/foo/Thing.java
+out="$($TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "references @Size"; then
+  bad "plan.sh extracted @Size from a Safe Constraints / negated line :: ${out:0:200}"
+else
+  ok "plan.sh skips @Size (Safe Constraints + negation guards)"
+fi
+if printf '%s' "$out" | grep -qF "references phoneNumber"; then
+  bad "plan.sh extracted phoneNumber from a Safe Constraints / negated line :: ${out:0:200}"
+else
+  ok "plan.sh skips phoneNumber (Safe Constraints + negation guards)"
+fi
+if printf '%s' "$out" | grep -qF "references @AssertTrue"; then
+  ok "plan.sh still fires reference-update for the legit non-negated removal"
+else
+  bad "plan.sh dropped the legit @AssertTrue reference-update :: ${out:0:200}"
+fi
+
+# Guard 3: a non-negated removal of a generic token that matches more files than
+# OPEN_SDD_REF_HIT_CAP is skipped with a warning (cap lowered to 2 for the test).
+d=$(new_repo refgrep-hitcap); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_progress src/main/java/foo
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","current_step":"plan","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '{}' > .specwork/_state/demo-rules.json
+printf '{}' > .specwork/_state/demo-implementation-cache.json
+printf '# demo — sample\n' > .specwork/_spec/demo-source.md
+cat > .specwork/_spec/demo-spec.md <<'SPEC'
+# demo — Remove a field
+
+## Summary
+Drop a widely-used field.
+
+## Behavior
+- Remove `widgetField` from all DTOs.
+
+## Open Questions
+SPEC
+for i in 1 2 3; do printf 'class G%s { String widgetField; }' "$i" > "src/main/java/foo/G$i.java"; done
+out="$(OPEN_SDD_REF_HIT_CAP=2 $TO bash "$REPO/commands/plan.sh" 2>&1 </dev/null)"; rc=$?
+if printf '%s' "$out" | grep -qF "too generic, skipping"; then
+  ok "plan.sh hit-cap skips a generic token matching > cap files"
+else
+  bad "plan.sh should warn + skip over-cap token :: ${out:0:200}"
+fi
+if printf '%s' "$out" | grep -qF "references widgetField"; then
+  bad "plan.sh added reference-update targets for an over-cap token :: ${out:0:200}"
+else
+  ok "plan.sh adds no reference-update targets for the over-cap token"
+fi
+
+echo "== pause/resume: .specwork/ must NOT come back staged (resume staging bug) =="
+# /f-pause force-adds gitignored .specwork/ into the stash; a plain `git stash
+# pop` restores those new files to the index (staged). /f-resume must unstage
+# .specwork/ so transient pipeline state never gets committed.
+d=$(new_repo pause-resume); cd "$d"
+printf '.specwork/\n' > .gitignore
+git add .gitignore && git commit -qm "add gitignore" >/dev/null 2>&1
+mkdir -p .specwork/_state .specwork/_spec src
+printf '{"id":"demo","slug":"demo","ticket_type":"feature","branch":"feature/demo","spec_write_timestamp":1000}' > .specwork/_state/demo-state.json
+printf '# demo\n' > .specwork/_spec/demo-spec.md
+printf 'class A {}\n' > src/A.java
+$TO bash "$REPO/commands/pause.sh" >/dev/null 2>&1 </dev/null
+printf 'y\n' | $TO bash "$REPO/commands/resume.sh" >/dev/null 2>&1
+staged_specwork="$(git diff --cached --name-only 2>/dev/null | grep '^\.specwork/' || true)"
+if [ -z "$staged_specwork" ]; then
+  ok "resume leaves .specwork/ unstaged"
+else
+  bad "resume staged .specwork/ files :: ${staged_specwork//$'\n'/, }"
+fi
+if [ -f .specwork/_state/demo-state.json ]; then
+  ok "resume restored .specwork/ into the working tree"
+else
+  bad "resume lost .specwork/ files"
 fi
 
 echo "== Ola 1: plan/implement are idempotent (no step gates) =="
@@ -356,6 +461,66 @@ if printf '%s' "$out" | grep -qF "git rm -r --cached .specwork/"; then
   ok "start.sh warns when .specwork/ is already tracked"
 else
   bad "start.sh should warn about pre-tracked .specwork :: ${out:0:200}"
+fi
+
+echo "== start.sh also gitignores AGENTS.md and .opensdd/ =="
+# AGENTS.md is generated with a machine-specific path; .opensdd/ is per-developer
+# pipeline config. Neither belongs in version control, so start.sh ignores both.
+d=$(new_repo gitignore-agents-opensdd); cd "$d"
+out="$($TO bash "$REPO/commands/start.sh" "agents opensdd body" --keep 2>&1 </dev/null)"; rc=$?
+if grep -qE '^AGENTS\.md$' .gitignore; then
+  ok "start.sh gitignores AGENTS.md"
+else
+  bad "start.sh did not gitignore AGENTS.md :: $(head -20 .gitignore)"
+fi
+if grep -qE '^\.opensdd(/|$)' .gitignore; then
+  ok "start.sh gitignores .opensdd/"
+else
+  bad "start.sh did not gitignore .opensdd/ :: $(head -20 .gitignore)"
+fi
+
+# Pre-seeded entries — start.sh must NOT duplicate them (idempotent).
+d=$(new_repo gitignore-agents-opensdd-set); cd "$d"
+printf 'AGENTS.md\n.opensdd/\n' > .gitignore
+out="$($TO bash "$REPO/commands/start.sh" "already set body" --keep 2>&1 </dev/null)"; rc=$?
+ac=$(grep -cE '^AGENTS\.md$' .gitignore); oc=$(grep -cE '^\.opensdd(/|$)' .gitignore)
+if [ "$ac" = "1" ] && [ "$oc" = "1" ]; then
+  ok "start.sh idempotent for AGENTS.md and .opensdd/ (no duplicates)"
+else
+  bad "start.sh duplicated entries (AGENTS.md=$ac .opensdd=$oc)"
+fi
+
+echo "== start.sh preserves free text in source.md (regression) =="
+# Plain free-text input must land in the source body, not an empty file.
+d=$(new_repo freetext-source); cd "$d"
+out="$($TO bash "$REPO/commands/start.sh" "add email validation to signup" --keep 2>&1 </dev/null)"; rc=$?
+SRC=".specwork/_spec/demo-source.md"
+if [ -f "$SRC" ] && grep -qF "add email validation to signup" "$SRC"; then
+  ok "start.sh writes free text into source.md body"
+else
+  bad "start.sh lost free text in source.md :: $([ -f "$SRC" ] && cat "$SRC" || echo MISSING)"
+fi
+
+echo "== start.sh keeps free text when ticket given but Jira unavailable (regression) =="
+# Reproduces the reported bug: '/f-start IR-94 <free text>' with Jira not
+# configured must still capture the free text, with the ticket id as title, and
+# keep the ticket recorded in state.json. JIRA_* are cleared so jira_is_configured
+# is deterministically false regardless of the runner's environment.
+d=$(new_repo ticket-plus-freetext); cd "$d"
+out="$(env -u JIRA_BASE_URL -u JIRA_URL -u JIRA_TOKEN -u JIRA_USER $TO bash "$REPO/commands/start.sh" IR-94 "replace personUuid with key" --keep 2>&1 </dev/null)"; rc=$?
+SRC=".specwork/_spec/demo-source.md"
+if [ -f "$SRC" ] && grep -qF "replace personUuid with key" "$SRC"; then
+  ok "start.sh keeps free text in source.md when ticket given + Jira unavailable"
+else
+  bad "start.sh dropped free text (ticket + no Jira) :: $([ -f "$SRC" ] && cat "$SRC" || echo MISSING)"
+fi
+if [ -f .specwork/_state/demo-state.json ]; then
+  TICK=$(python3 -c "import json; print(json.load(open('.specwork/_state/demo-state.json')).get('ticket'))" 2>/dev/null)
+  if [ "$TICK" = "IR-94" ]; then
+    ok "state.json keeps ticket=IR-94 when Jira unavailable"
+  else
+    bad "state.json ticket=$TICK (expected IR-94)"
+  fi
 fi
 
 echo "== commit standalone; test-* require a pipeline =="

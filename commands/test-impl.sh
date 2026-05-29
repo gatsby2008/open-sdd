@@ -39,14 +39,14 @@ if [ "$DRY_RUN" = "true" ]; then
     echo "Slug: $SLUG"
   fi
 else
-  [ -n "$SLUG" ] || die "No pipeline found. Run ./commands/start.sh first — test-impl runs inside a pipeline."
-  [ -f ".specwork/_state/${SLUG}-state.json" ] || die "No pipeline state for '$SLUG'. Run ./commands/start.sh first."
+  [ -n "$SLUG" ] || die "No pipeline found. Run /f-start first — test-impl runs inside a pipeline."
+  [ -f ".specwork/_state/${SLUG}-state.json" ] || die "No pipeline state for '$SLUG'. Run /f-start first."
   SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
   echo "Slug: $SLUG"
 
   # ---- dependency: test-design must have run (R1) -------------------------
   TEST_DESIGN_FILE=".specwork/_test/${SLUG}-test-design.md"
-  [ -f "$TEST_DESIGN_FILE" ] || die "test-impl depends on test-design — run ./commands/test-design.sh first (missing $TEST_DESIGN_FILE)."
+  [ -f "$TEST_DESIGN_FILE" ] || die "test-impl depends on test-design — run /f-test-design first (missing $TEST_DESIGN_FILE)."
 
   # Artifact-only gate: test-design must exist. No step machine.
 fi
@@ -58,7 +58,7 @@ CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT 2>/dev/null || true)
 if [ -z "$CHANGED_FILES" ]; then
   echo ""
   echo "No implementation changes detected on this branch."
-  echo "Run ./commands/implement.sh first, then re-run ./commands/test-impl.sh."
+  echo "Run /f-implement first, then re-run /f-test-impl."
   exit 1
 fi
 

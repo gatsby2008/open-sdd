@@ -32,8 +32,8 @@ fi
 
 if [ $# -gt 1 ]; then
   die "Usage:
-  ./commands/resync.sh                          Sync pipeline with current branch (no git ops).
-  ./commands/resync.sh feature/IR-70-foo        Rename branch then sync (atomic)."
+  /f-resync                          Sync pipeline with current branch (no git ops).
+  /f-resync feature/IR-70-foo        Rename branch then sync (atomic)."
 fi
 
 ATOMIC=false
@@ -122,7 +122,7 @@ OLD_SLUG=$(basename "$OLD_STATE" | sed -E 's/-state\.json$//')
 # Collision check
 if [ "$OLD_SLUG" != "$NEW_SLUG" ] && [ -f ".specwork/_state/${NEW_SLUG}-state.json" ]; then
   die "Refusing to resync — a different pipeline already exists at slug '${NEW_SLUG}'.
-Run ./commands/close.sh on one of them first, or pick a different branch name."
+Run /f-close on one of them first, or pick a different branch name."
 fi
 
 # ---- step 6: rename files ---------------------------------------------------
@@ -225,7 +225,7 @@ fi
 echo ""
 echo "Next:"
 echo "  - source_title in state.json still reflects the original input."
-echo "    Edit it manually or rerun ./commands/start.sh if you want it to match the new ticket."
+echo "    Edit it manually or rerun /f-start if you want it to match the new ticket."
 echo "  - If the old branch was pushed to origin, push the new branch and delete the old:"
 echo "      git push -u origin HEAD"
 echo "      git push origin --delete <old-branch>"

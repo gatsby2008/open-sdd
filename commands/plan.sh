@@ -28,7 +28,7 @@ die() { echo "$*" >&2; exit 1; }
 # ---- step 0: pipeline precondition gate -------------------------------------
 
 engine precheck >/dev/null 2>&1 \
-  || die "No active pipeline (.specwork/ missing or uninitialized). Run ./commands/start.sh first."
+  || die "No active pipeline (.specwork/ missing or uninitialized). Run /f-start first."
 
 # ---- step 1: resolve slug ---------------------------------------------------
 
@@ -41,7 +41,7 @@ echo "Slug: $SLUG"
 
 # ---- step 2: check required artifacts ---------------------------------------
 
-check_required_artifacts "$SLUG" || die "Required artifacts missing. Run ./commands/start.sh first."
+check_required_artifacts "$SLUG" || die "Required artifacts missing. Run /f-start first."
 
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 CACHE_FILE=".specwork/_state/${SLUG}-implementation-cache.json"
@@ -51,7 +51,7 @@ CACHE_FILE=".specwork/_state/${SLUG}-implementation-cache.json"
 if ! check_open_questions "$SLUG"; then
   echo ""
   echo "Cannot plan — unresolved Open Questions in spec."
-  echo "Resolve them first, then re-run ./commands/plan.sh"
+  echo "Resolve them first, then re-run /f-plan"
   exit 1
 fi
 
@@ -66,7 +66,10 @@ fi
 PLAN_FILE=".specwork/_plan/${SLUG}-plan.md"
 
 if [ -f "$PLAN_FILE" ]; then
-  PLAN_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+  # GNU stat (-c) first, then BSD (-f): on Linux `stat -f` means --file-system
+  # and does NOT fail cleanly, so a BSD-first probe captures filesystem text
+  # instead of the mtime. GNU-first works on both platforms.
+  PLAN_MTIME=$(stat -c %Y "$PLAN_FILE" 2>/dev/null || stat -f %m "$PLAN_FILE" 2>/dev/null || echo "0")
   SPEC_TS=$(python3 -c "
 import json, sys
 from pathlib import Path
@@ -85,11 +88,11 @@ print(json.loads(p.read_text(encoding='utf-8')).get('spec_write_timestamp', 0) i
     echo "  Spec write:  state.json::spec_write_timestamp=$SPEC_TS"
     echo ""
     echo "To force a regeneration, either:"
-    echo "  - run ./commands/spec.sh <args> to bump spec_write_timestamp, or"
+    echo "  - run /f-spec <args> to bump spec_write_timestamp, or"
     echo "  - delete the plan: rm $PLAN_FILE"
     echo ""
     echo "Next:"
-    echo "  ./commands/implement.sh"
+    echo "  /f-implement"
     exit 0
   fi
 fi
@@ -239,7 +242,19 @@ resolve_test_path() {
 # [reference-update] targets — that was the bug consumer-portal hit
 # 2026-05-29 where every file referencing /consumers got flagged.
 #
-# Mirrors claude-tools/lib/f-plan.py:reference_grep. Symbols extracted:
+# Three guards against over-matching (the MYYES-15518 56-target blow-up, where
+# a 2-3 file spec produced 53 false-positive reference-update targets):
+#   1. Skip the "## Safe Constraints" section entirely — it documents what to
+#      PRESERVE, so its symbols are never rename/removal targets. (The blow-up's
+#      "Do NOT remove or modify the `@Size` constraint on `phoneNumber`" line
+#      lived here and seeded both `@Size` and `phoneNumber`.)
+#   2. Skip negated lines anywhere ("Do NOT remove ...", "keep ... unchanged"):
+#      the trigger word is present but the intent is the opposite.
+#   3. (in the loop below) cap hits per symbol via OPEN_SDD_REF_HIT_CAP — a
+#      token matching more files than the cap is a generic field name /
+#      annotation, not a targeted rename.
+#
+# Symbols extracted:
 # - backticked tokens  `Foo`, `OrderService`
 # - /-prefixed paths   /api/v1/x, /consumers
 extract_reference_targets() {
@@ -251,9 +266,25 @@ trigger = re.compile(
     r'\b(renam\w*|remov\w*|delet\w*|deprecat\w*|replac\w*|migrat\w*|drop|retire|legacy)\b',
     re.IGNORECASE,
 )
+# Guard 2: preserving / negating language. The trigger word is present but the
+# line says NOT to touch the symbol ("Do NOT remove the `@Size` constraint").
+negation = re.compile(
+    r"\b(?:not|never|without|keep|keeps|keeping|kept|preserv\w*|retain\w*|"
+    r"maintain\w*|unchanged|untouched|intact)\b|n't",
+    re.IGNORECASE,
+)
 symbols = set()
+in_safe_constraints = False  # Guard 1: skip the whole Safe Constraints section
 for line in text.splitlines():
+    heading = re.match(r'^\s*##\s+(.*)', line)
+    if heading:
+        in_safe_constraints = heading.group(1).strip().lower().startswith("safe constraints")
+        continue
+    if in_safe_constraints:
+        continue
     if not trigger.search(line):
+        continue
+    if negation.search(line):
         continue
     symbols.update(re.findall(r'`([^`]+)`', line))
     symbols.update(re.findall(r'/[a-zA-Z][\w\-/{}]*', line))
@@ -263,6 +294,11 @@ for s in candidates:
     print(s)
 PY
 }
+
+# Guard 3: per-symbol hit cap. A real rename/removal touches a handful of files;
+# a generic token (field name, annotation) matches dozens. Tunable for projects
+# with genuinely broad renames.
+REF_HIT_CAP="${OPEN_SDD_REF_HIT_CAP:-8}"
 
 REFERENCE_PATHS=$(extract_reference_targets "$SPEC_FILE")
 if [ -n "$REFERENCE_PATHS" ]; then
@@ -281,6 +317,13 @@ if [ -n "$REFERENCE_PATHS" ]; then
         hits=$(grep -rlF "$old_path" src/ 2>/dev/null || true)
         ;;
     esac
+    # Guard 3: drop tokens that match more files than the cap.
+    hit_count=$(printf '%s' "$hits" | grep -c . || true)
+    if [ "$hit_count" -gt "$REF_HIT_CAP" ]; then
+      echo "  ⚠ '$old_path' matches $hit_count files (> $REF_HIT_CAP) — too generic, skipping reference-update targets."
+      echo "    If this rename/removal is intentional and broad, add the affected files to the plan manually."
+      continue
+    fi
     while IFS= read -r hit; do
       [ -z "$hit" ] && continue
       already=false
@@ -572,5 +615,5 @@ fi
 echo ""
 echo "Next:"
 echo "  Review the plan, then run:"
-echo "    ./commands/implement.sh"
+echo "    /f-implement"
 echo "============================================================"

@@ -23,8 +23,8 @@ fmt_dim()   { printf '\033[2m%s\033[0m\n' "$1"; }
 
 # ---- resolve context (pipeline required) ------------------------------------
 
-SLUG=$(resolve_slug) || die "No pipeline found. Run ./commands/start.sh first — test-design runs inside a pipeline."
-[ -f ".specwork/_state/${SLUG}-state.json" ] || die "No pipeline state for '$SLUG'. Run ./commands/start.sh first."
+SLUG=$(resolve_slug) || die "No pipeline found. Run /f-start first — test-design runs inside a pipeline."
+[ -f ".specwork/_state/${SLUG}-state.json" ] || die "No pipeline state for '$SLUG'. Run /f-start first."
 STACK=$(detect_stack)
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 echo "Stack: $STACK"
@@ -41,7 +41,7 @@ CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT 2>/dev/null || true)
 if [ -z "$CHANGED_FILES" ]; then
   echo ""
   echo "No implementation changes detected on this branch."
-  echo "Run ./commands/implement.sh first, then re-run ./commands/test-design.sh."
+  echo "Run /f-implement first, then re-run /f-test-design."
   exit 1
 fi
 
