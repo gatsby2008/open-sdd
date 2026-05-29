@@ -25,11 +25,10 @@ echo "Slug: $SLUG"
 
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 
-# /f-implement is re-runnable. No step gate. The artifact gates below
-# (implement-check: spec exists, no unresolved OQs, plan not stale) enforce
-# the real preconditions; current_step is just a UX hint. Calling /f-implement
-# again after a /f-commit (to add more steps) or after a /f-spec refresh
-# (which bumps spec_write_ts and triggers staleness gate) is fine.
+# /f-implement is re-runnable. Artifact gates below (implement-check: spec
+# exists, no unresolved OQs, plan not stale) are the only preconditions.
+# Calling /f-implement again after /f-commit (to add more steps) or after
+# /f-spec refresh (bumps spec_write_ts → triggers staleness gate) is fine.
 
 # ---- pre-flight gates via engine -------------------------------------------
 
@@ -115,8 +114,6 @@ if [ "${1:-}" = "--done" ]; then
 
   echo "Target #$TARGET_NUM marked done."
   if [ "$STATUS" = "ALL_DONE" ]; then
-    # advance pipeline state: implement → test
-    engine advance-step "$SLUG" >/dev/null 2>&1 || true
     echo ""
     echo "All targets implemented!"
     echo "Next: ./commands/test-impl.sh (or skip to ./commands/commit.sh)"

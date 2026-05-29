@@ -35,10 +35,9 @@ engine precheck >/dev/null 2>&1 \
 SLUG=$(resolve_slug) || die "Could not resolve slug from current branch."
 echo "Slug: $SLUG"
 
-# /f-plan is idempotent — no step gate. Re-invocation is allowed at any time
-# (e.g. after /f-spec adds context mid-implement). Artifact gates below
-# (check_required_artifacts, check_open_questions) enforce the real
-# preconditions; current_step is just a UX hint, not a hard gate.
+# /f-plan is idempotent. Re-invocation allowed at any time (e.g. after
+# /f-spec adds context mid-implement). Artifact gates below enforce the
+# real preconditions — no step machine to coordinate with.
 
 # ---- step 2: check required artifacts ---------------------------------------
 
@@ -568,20 +567,6 @@ if [ ${#CONSISTENCY_ISSUES[@]} -gt 0 ]; then
 fi
 if [ -n "$RISK_HITS" ] && [ "$RISK_HITS" != "{}" ]; then
   echo "  ⚠ Risk signals detected — see plan for details."
-fi
-
-# advance pipeline state: plan → implement, but only on the natural transition.
-# If current_step has already moved past plan (user re-ran /f-plan after some
-# /f-implement steps), leave it alone — re-runs must not yank the state
-# machine backward or forward unexpectedly.
-CURRENT_STEP=$(python3 -c "
-import json, sys
-from pathlib import Path
-p = Path('.specwork/_state/${SLUG}-state.json')
-print(json.loads(p.read_text(encoding='utf-8')).get('current_step','') if p.exists() else '')
-" 2>/dev/null || echo "")
-if [ "$CURRENT_STEP" = "spec" ] || [ "$CURRENT_STEP" = "plan" ]; then
-  engine advance-step "$SLUG" plan >/dev/null 2>&1 || true
 fi
 
 echo ""

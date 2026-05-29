@@ -27,7 +27,6 @@ fi
 SLUG=$(resolve_slug) || SLUG=""
 SPEC_FILE=""
 TEST_DESIGN_FILE=""
-TRACKED=false   # true when test-impl is a tracked step in the current flow
 STACK=$(detect_stack)
 echo "Stack: $STACK"
 
@@ -49,17 +48,7 @@ else
   TEST_DESIGN_FILE=".specwork/_test/${SLUG}-test-design.md"
   [ -f "$TEST_DESIGN_FILE" ] || die "test-impl depends on test-design — run ./commands/test-design.sh first (missing $TEST_DESIGN_FILE)."
 
-  # ---- pipeline step gate -------------------------------------------------
-  if STEP_RESULT=$(engine expected-step test-impl "$SLUG" 2>&1); then
-    TRACKED=true
-  else
-    case "$STEP_RESULT" in
-      STEP_NOT_IN_FLOW*) echo "Note: test-impl is not a tracked step in this flow — running as an optional aid." ;;
-      WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine set-step test-impl' to override." ;;
-      NO_STATE*) die "No pipeline state for '$SLUG'. Run ./commands/start.sh first." ;;
-      *) die "Step gate failed: $STEP_RESULT" ;;
-    esac
-  fi
+  # Artifact-only gate: test-design must exist. No step machine.
 fi
 
 # ---- detect changed source files --------------------------------------------
@@ -215,7 +204,3 @@ if [ "$DRY_RUN" = "false" ] && [ -n "$TEST_DESIGN_FILE" ] && [ -f "$TEST_DESIGN_
   echo "============================================"
 fi
 
-# advance the pipeline only when test-impl is a tracked step in this flow
-if [ "$DRY_RUN" = "false" ] && [ "$TRACKED" = "true" ]; then
-  engine advance-step "$SLUG" test-impl >/dev/null 2>&1 || true
-fi

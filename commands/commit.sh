@@ -30,16 +30,8 @@ SLUG=$(resolve_slug) || die "Could not resolve slug."
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 
-# ---- pipeline step gate ----------------------------------------------------
-
-STEP_RESULT=$(engine expected-step commit "$SLUG" 2>&1) || {
-  case "$STEP_RESULT" in
-    NO_STATE*) : ;;  # no pipeline → standalone (git-only / vibe-coding) mode
-    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step commit' to override." ;;
-    STEP_NOT_IN_FLOW*) die "Step 'commit' not in flow for current ticket_type: $STEP_RESULT" ;;
-    *) die "Step gate failed: $STEP_RESULT" ;;
-  esac
-}
+# /f-commit is artifact-driven and re-runnable. No step gate. Standalone
+# (git-only / vibe-coding) mode is allowed when no pipeline state exists.
 
 # ---- check for changes (before running the quality gate) --------------------
 # Detect / stage changes first so a no-op commit exits immediately instead of
@@ -170,8 +162,4 @@ fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
     echo "State updated with commit $LAST_COMMIT"
   fi
-
-  # advance pipeline state: commit → mr. Anchor on "commit" so a commit reached
-  # by skipping optional steps (test-design/test-impl/review) still lands on mr.
-  engine advance-step "$SLUG" commit >/dev/null 2>&1 || true
 fi

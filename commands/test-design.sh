@@ -14,7 +14,6 @@ source "$LIB_DIR/gates.sh"
 SLUG=""
 STACK=""
 SPEC_FILE=""
-TRACKED=false   # true when test-design is a tracked step in the current flow
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -31,18 +30,9 @@ SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 echo "Stack: $STACK"
 echo "Slug: $SLUG"
 
-# ---- pipeline step gate -----------------------------------------------------
-
-if STEP_RESULT=$(engine expected-step test-design "$SLUG" 2>&1); then
-  TRACKED=true
-else
-  case "$STEP_RESULT" in
-    STEP_NOT_IN_FLOW*) echo "Note: test-design is not a tracked step in this flow — running as an optional aid." ;;
-    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine set-step test-design' to override." ;;
-    NO_STATE*) die "No pipeline state for '$SLUG'. Run ./commands/start.sh first." ;;
-    *) die "Step gate failed: $STEP_RESULT" ;;
-  esac
-fi
+# Artifact gates only — /f-test-design is re-runnable. It is an optional
+# step regardless of flow; the spec/diff are the inputs and the design file
+# is the output.
 
 # ---- detect changed files ---------------------------------------------------
 
@@ -192,8 +182,3 @@ cat <<INSTRUCTIONS
 Next: run ./commands/test-impl.sh to implement the test files,
 or skip straight to ./commands/commit.sh (test-impl is optional).
 INSTRUCTIONS
-
-# advance the pipeline only when test-design is a tracked step in this flow
-if [ "$TRACKED" = "true" ]; then
-  engine advance-step "$SLUG" test-design >/dev/null 2>&1 || true
-fi

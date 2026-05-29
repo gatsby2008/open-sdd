@@ -230,7 +230,7 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
   `_state/<slug>-rules.json`, `_state/<slug>-implementation-cache.json`
 - Does **NOT** create `spec.md` — that is `/f-spec`'s job, kept separate
   so each command owns one artifact
-- Leaves `current_step="spec"` — does not auto-advance
+- No state machine — each downstream command checks its own artifact preconditions
 - Next: `/f-spec`
 
 ### /f-spec \<files | jira \<ticket\> | paste | free text\>

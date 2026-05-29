@@ -111,31 +111,14 @@ if [ -n "$RECENT" ]; then
   echo "$RECENT" | while IFS= read -r line; do echo "  $line"; done
 fi
 
-# ---- read flow state (from state.json) ---------------------------------------
+# ---- read ticket_type (from triage; used to bias recommendation) ------------
 
-FLOW_STEP=""
 TICKET_TYPE=""
-STATE_FLOW=""
 if [ -f "$STATE_FILE" ]; then
-  PY_SCRIPT=$(mktemp)
-  cat > "$PY_SCRIPT" <<'PYEOF'
-import json, sys
-from pathlib import Path
-d = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-print(d.get("current_step", ""))
-print(d.get("ticket_type", ""))
-PYEOF
-  { read -r FLOW_STEP; read -r TICKET_TYPE; } < <(python3 "$PY_SCRIPT" "$STATE_FILE" 2>/dev/null || printf "\n\n")
-  rm -f "$PY_SCRIPT"
+  TICKET_TYPE=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('ticket_type',''))" 2>/dev/null || echo "")
   : "${TICKET_TYPE:=feature}"
-  STATE_FLOW="$TICKET_TYPE"
-fi
-
-# ---- show flow header (so user sees where they are) -------------------------
-
-if [ -n "$FLOW_STEP" ]; then
   echo ""
-  echo "Step:   ${FLOW_STEP} (${STATE_FLOW})"
+  echo "Flow:   ${TICKET_TYPE}"
 fi
 
 # ---- Check for ADR warnings -------------------------------------------------
@@ -146,43 +129,62 @@ if [ -d "docs/adr" ]; then
   [ "$ADR_UNCOMMITTED" -gt 0 ] && ADR_WARN="true"
 fi
 
-# ---- Next step determination (flow-aware) -----------------------------------
+# ---- Next step determination (artifact-driven) ------------------------------
+#
+# Decision tree based on which artifacts exist + git state. No current_step:
+# the pipeline derives "what's next" from the file graph, not a state machine.
+#
+#   .specwork/ missing           → /f-start
+#   no spec.md                   → /f-spec  (drafting)
+#   spec.md has open OQs         → resolve_oqs
+#   no plan.md AND ticket needs plan (high-risk/standard) → /f-plan
+#   no plan.md AND ticket can skip plan                   → /f-implement
+#   plan.md stale (spec ts > plan mtime)                  → /f-plan (refresh)
+#   plan.md has open OQs                                  → resolve_oqs
+#   working tree dirty + staged                           → /f-commit
+#   working tree dirty + unstaged                         → /f-implement
+#   working tree clean + commits ahead of base            → /f-mr
+#   otherwise                                             → /f-implement
 
 NEXT=""
+
+PLAN_STALE=false
+if [ -f "$PLAN_FILE" ] && [ -f "$STATE_FILE" ]; then
+  P_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+  S_TS=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('spec_write_timestamp',0))" 2>/dev/null || echo "0")
+  if [ "$P_MTIME" != "0" ] && [ "$S_TS" != "0" ] && [ "$P_MTIME" -lt "$S_TS" ]; then
+    PLAN_STALE=true
+  fi
+fi
 
 if [ ! -f "$STATE_FILE" ]; then
   NEXT="/f-start"
 elif [ ! -f "$SPEC_FILE" ]; then
-  NEXT="/f-start"
+  NEXT="/f-spec"
 elif [ "${spec_open:-0}" -gt 0 ] || [ "${plan_open:-0}" -gt 0 ]; then
   NEXT="resolve_oqs"
+elif [ ! -f "$PLAN_FILE" ]; then
+  if [ "$TICKET_TYPE" = "high-risk" ] || [ "$TICKET_TYPE" = "standard" ]; then
+    NEXT="/f-plan"
+  else
+    NEXT="/f-implement"
+  fi
+elif [ "$PLAN_STALE" = "true" ]; then
+  NEXT="/f-plan (refresh — spec is newer)"
 elif [ "$GIT_TREE" -gt 0 ]; then
   STAGED=$(git diff --cached --stat 2>/dev/null | wc -l | tr -d ' ')
   if [ "$STAGED" -gt 0 ]; then
     NEXT="/f-commit"
-  elif [ "$FLOW_STEP" = "plan" ]; then
-    NEXT="/f-plan"
-  elif [ "$FLOW_STEP" = "implement" ]; then
-    NEXT="/f-implement"
-  elif [ "$FLOW_STEP" = "test-design" ]; then
-    NEXT="/f-test-design"
-  elif [ "$FLOW_STEP" = "test-impl" ]; then
-    NEXT="/f-test-impl"
   else
-    # fallback: step not tracked or still on spec/close
-    if [ "$TICKET_TYPE" = "high-risk" ] || [ "$TICKET_TYPE" = "standard" ] || [ "$FLOW_STEP" = "spec" ]; then
-      NEXT="/f-plan"
-    else
-      NEXT="/f-implement"
-    fi
+    NEXT="/f-implement"
   fi
-elif [ -f "$PLAN_FILE" ]; then
-  NEXT="/f-mr"
-fi
-
-# default when no condition matched
-if [ -z "$NEXT" ]; then
-  NEXT="/f-plan (recommended, can skip)"
+else
+  COMMITS_AHEAD=$(git log --oneline "${BRANCH}" ^"$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo origin/main)" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+  if [ "$COMMITS_AHEAD" -gt 0 ]; then
+    NEXT="/f-mr"
+  else
+    NEXT="/f-implement"
+  fi
 fi
 
 # ---- print next step ---------------------------------------------------------

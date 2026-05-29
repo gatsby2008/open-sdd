@@ -5,7 +5,6 @@ from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Optional
 
-from engine import router
 from engine.persistence import SPECWORK
 
 
@@ -17,10 +16,6 @@ class PipelineState:
     complexity: str = "MEDIUM"
     branch: str = ""
     base_branch: str = ""
-    current_step: str = "start"
-    step_index: int = 0
-    retries: int = 0
-    max_retries: int = 2
     spec_file: str = ""
     plan_file: str = ""
     source_file: str = ""
@@ -65,15 +60,8 @@ class PipelineState:
     def path_path(self) -> Path:
         return SPECWORK / "_state" / f"{self.slug}-path.json"
 
-    def next_step(self) -> str:
-        return router.next_step(self.ticket_type, self.current_step, self.retries, self.max_retries)
-
-    def should_retry(self) -> bool:
-        return self.retries < self.max_retries
-
     def escalate(self, reason: str):
-        self.escalations.append({"reason": reason, "attempts": self.retries})
-        self.retries = self.max_retries
+        self.escalations.append({"reason": reason, "attempts": 0})
 
     def to_dict(self) -> dict:
         d = asdict(self)

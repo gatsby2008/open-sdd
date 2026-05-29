@@ -54,9 +54,8 @@ echo "Mode: $MODE"
 # ---- step 2.5: no-op path (refine without args is idempotent) ---------------
 
 # In refine mode with no arguments there is nothing to integrate — exit cleanly
-# without bumping spec_write_timestamp, without printing INSTRUCTIONS, and
-# without touching current_step. /f-spec called twice in a row should be a
-# no-op the second time.
+# without bumping spec_write_timestamp and without printing INSTRUCTIONS.
+# /f-spec called twice in a row should be a no-op the second time.
 if [ "$MODE" = "refine" ] && [ "$ARGC" -eq 0 ]; then
   echo ""
   echo "==================================================="
@@ -72,29 +71,8 @@ if [ "$MODE" = "refine" ] && [ "$ARGC" -eq 0 ]; then
   echo "  ./commands/spec.sh \"free text\""
   echo "  ./commands/spec.sh <file> jira <TICKET> \"and more\""
   echo ""
-  # Check if all OQs are resolved but step is still "spec" — suggest advance
-  CURRENT_STEP=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('current_step',''))" 2>/dev/null || echo "")
-  if [ "$CURRENT_STEP" = "spec" ]; then
-    OQ_OPEN=$(python3 -c "
-import re, sys
-from pathlib import Path
-t = Path('$SPEC_FILE').read_text(encoding='utf-8')
-m = re.search(r'(?ms)^## Open Questions\b(.*?)(?=^## |\Z)', t)
-print(len(re.findall(r'^\s*-\s*\[\s\]', m.group(1), re.MULTILINE)) if m else '0')
-" 2>/dev/null || echo "?")
-    if [ "$OQ_OPEN" = "0" ]; then
-      echo ""
-      echo "All Open Questions are resolved but the pipeline is still at step 'spec'."
-      echo "Advance the pipeline to move to the next step:"
-      echo ""
-      echo "  PYTHONPATH=\"$ENGINE_ROOT\" python3 -m engine.cli advance-step $SLUG"
-      echo ""
-      echo "Then re-run this command for updated next-step recommendations."
-    fi
-  fi
-
   TICKET_TYPE=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('ticket_type',''))" 2>/dev/null || echo "")
-  echo "Next from the current pipeline position:"
+  echo "Next:"
   if [ "$TICKET_TYPE" = "high-risk" ] || [ "$TICKET_TYPE" = "standard" ]; then
     echo "  ./commands/plan.sh        (required — discover target files)"
   else
@@ -350,13 +328,8 @@ creates spec.md, triage has nothing to classify):
 Print the triage result (type, complexity, path, reason). The path is
 advisory — the developer can override at any step.
 
-If every Open Question is now resolved, advance the pipeline (this is
-the only place /f-spec advances current_step — refine calls never do):
-
-  PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli advance-step $SLUG
-
-Otherwise stay on the spec step and re-run ./commands/spec.sh with
-more context to resolve the remaining Open Questions.
+If Open Questions remain, re-run ./commands/spec.sh with more context to
+resolve them before continuing.
 
 Next:
   /f-plan       (recommended for 3+ files)
@@ -364,16 +337,14 @@ Next:
 
 INSTRUCTIONS
 else
-  # Refine mode + args. Do NOT advance current_step — the spec change does
-  # not move the pipeline forward; it just invalidates downstream artifacts,
-  # which gates pick up via spec_write_timestamp.
+  # Refine mode + args. Spec changes are detected downstream via
+  # spec_write_timestamp (artifact-driven gates), no state machine to update.
   PLAN_EXISTS=false
   [ -f ".specwork/_plan/${SLUG}-plan.md" ] && PLAN_EXISTS=true
 
   cat <<INSTRUCTIONS
-Do NOT call advance-step in refine mode — the spec change does not move
-the pipeline forward. Downstream gates detect the bump above via
-spec_write_timestamp and will block until either:
+Downstream gates detect the bump above via spec_write_timestamp and will
+block until either:
   - plan.md is refreshed (./commands/plan.sh, idempotent), or
   - plan.md is removed and /f-implement falls back to inline discovery.
 

@@ -26,16 +26,8 @@ STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 PLAN_JSON_FILE=".specwork/_plan/${SLUG}-plan.json"
 
-# ---- pipeline step gate ----------------------------------------------------
-
-STEP_RESULT=$(engine expected-step mr "$SLUG" 2>&1) || {
-  case "$STEP_RESULT" in
-    NO_STATE*) : ;;  # no pipeline → standalone (git-only) mode, generate from git history
-    WRONG_STEP*) die "Pipeline out of order: $STEP_RESULT — run the expected step or 'engine.cli set-step mr' to override." ;;
-    STEP_NOT_IN_FLOW*) die "Step 'mr' not in flow for current ticket_type: $STEP_RESULT" ;;
-    *) die "Step gate failed: $STEP_RESULT" ;;
-  esac
-}
+# /f-mr is artifact-driven and re-runnable. Standalone (git-only) mode allowed
+# when no pipeline state exists — MR description is generated from git history.
 
 # ---- pre-flight -------------------------------------------------------------
 
@@ -287,9 +279,6 @@ if [ -f "$SPEC_FILE" ]; then
     echo "to capture those decisions as ADRs in docs/adr/ before the MR is merged."
   fi
 fi
-
-# advance pipeline state: mr → close
-engine advance-step "$SLUG" mr >/dev/null 2>&1 || true
 
 echo ""
 echo "Next steps:"
