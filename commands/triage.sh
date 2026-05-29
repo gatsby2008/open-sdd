@@ -3,6 +3,7 @@ set -euo pipefail
 
 SLUG="${1:-}"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
+STATE_FILE=".specwork/_state/${SLUG}-state.json"
 OUT_FILE=".specwork/_state/${SLUG}-path.json"
 
 if [ -z "$SLUG" ] || [ ! -f "$SPEC_FILE" ]; then
@@ -13,13 +14,14 @@ fi
 
 mkdir -p "$(dirname "$OUT_FILE")"
 
-python3 - "$SPEC_FILE" "$OUT_FILE" "$SLUG" <<'PY'
+python3 - "$SPEC_FILE" "$STATE_FILE" "$OUT_FILE" "$SLUG" <<'PY'
 import json, re, sys
 from pathlib import Path
 
-spec = Path(sys.argv[1]).read_text(encoding="utf-8")
-out  = Path(sys.argv[2])
-slug = sys.argv[3]
+spec       = Path(sys.argv[1]).read_text(encoding="utf-8")
+state      = Path(sys.argv[2])
+out        = Path(sys.argv[3])
+slug       = sys.argv[4]
 
 def section(name, src):
     m = re.search(rf'(?ms)^## {re.escape(name)}\b(.*?)(?=^## |\Z)', src)
@@ -94,6 +96,21 @@ payload = {
     "reason": reason,
 }
 out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+# Update ticket_type and complexity in state.json so the state machine uses
+# the correct flow (focused → no plan, trivial → no spec/plan, etc.).
+if state.exists():
+    try:
+        data = json.loads(state.read_text(encoding="utf-8"))
+        data["ticket_type"] = ticket_type
+        data["complexity"]  = complexity
+        state.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    except Exception:
+        pass  # non-fatal — path.json was already written
+
+# Print triage summary on stderr so the caller gets human-readable output
+# even when stdout is consumed programmatically.
+print(f"Triage: {ticket_type} ({complexity}) — {reason}", file=sys.stderr)
 PY
 
 echo ".specwork/_state/${SLUG}-path.json written" >&2

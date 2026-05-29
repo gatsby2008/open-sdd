@@ -43,7 +43,7 @@ def cmd_precheck(args: list[str]) -> int:
         # f-start gate: refuse to re-init over an already-initialized pipeline.
         if reason is None:
             print("ALREADY_INITIALIZED", file=sys.stderr)
-            print("Pipeline already initialized. Use /f-spec-refine to change the spec, "
+            print("Pipeline already initialized. Use /f-spec to draft or refine the spec, "
                   "or /f-close to start over.", file=sys.stderr)
             return 1
         print("SPECWORK_FRESH")
@@ -230,17 +230,16 @@ def cmd_implement_check(args: list[str]) -> int:
                 print(f"  {l}", file=sys.stderr)
         return 1
 
+    # Plan is optional. /f-implement falls back to inline discovery from the
+    # spec when plan.json is absent (small/obvious changes don't require a
+    # plan). Staleness only applies when a plan exists.
     plan = load_plan(slug)
-    if not plan:
-        print("NO_PLAN", file=sys.stderr)
-        return 1
-
-    if check_plan_staleness(slug):
+    if plan and check_plan_staleness(slug):
         print("PLAN_STALE")
         return 1
 
     print("GATES_PASSED")
-    print(json.dumps({"slug": slug, "target_count": len(plan)}))
+    print(json.dumps({"slug": slug, "target_count": len(plan) if plan else 0}))
     return 0
 
 
@@ -292,7 +291,11 @@ def cmd_implement_plan(args: list[str]) -> int:
         return 1
     plan = load_plan(slug)
     if not plan:
-        print("[]")
+        # No plan → no-plan workflow. Return a well-formed empty payload so
+        # downstream scripts can extract fields without KeyError.
+        print(json.dumps({
+            "targets": [], "resume_index": 0, "resume_target": 0, "total": 0,
+        }))
         return 0
     resume_idx = 0
     for i, t in enumerate(plan):

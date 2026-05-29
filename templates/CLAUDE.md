@@ -6,7 +6,7 @@ open-sdd is at `~/team/Yield/open-sdd/`.
 
 | Chat | Description |
 |------|-------------|
-| `/f-start <text or JIRA-123>` | Create branch + spec scaffold |
+| `/f-start <text or JIRA-123>` | Create branch + write source.md (spec.md is created by /f-spec) |
 | `/f-plan` | Discover files, assess risks, write plan |
 | `/f-implement` | Show spec + plan + first target |
 | `/f-implement --done N` | Mark target N as complete |
@@ -16,7 +16,9 @@ open-sdd is at `~/team/Yield/open-sdd/`.
 | `/f-test-design` | Design test cases for current changes |
 | `/f-test-impl` | Implement test files |
 | `/f-commit` | Stage + semantic commit |
-| `/f-spec-refine <context>` | Add context to spec (files, jira, text) |
+| `/f-spec` | Draft the spec (first call) or refine it (subsequent calls) |
+| `/f-spec <context>` | Same, with extra context (files, jira, text) |
+| `/f-spec-refine <context>` | Deprecated — alias for `/f-spec <context>` |
 | `/f-resync` | Resync pipeline after branch rename |
 | `/f-resync <new-branch>` | Rename branch and resync (atomic) |
 | `/f-code-review` | Quality/security review of current diff |

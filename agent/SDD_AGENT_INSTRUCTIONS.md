@@ -16,7 +16,11 @@ strict, deterministic protocols.
    Never push to `main`/`develop` without confirmation.
 5. **GATES** — Open Questions block progression. Stale plan blocks
    `/implement`. Missing spec blocks everything.
-6. **ONE COMMAND AT A TIME** — After every command, STOP. Present the
+6. **CLICKABLE PATHS** — When displaying a spec/plan path (e.g. for Open
+   Questions), always use an **absolute path wrapped in single backticks**
+   with `:line_number` suffix. This makes the link clickable in most
+   terminals. Example: `` `/abs/path/repo/.specwork/_spec/slug-spec.md:42` ``
+7. **ONE COMMAND AT A TIME** — After every command, STOP. Present the
    result and available next steps. Let the user decide which command to
    run next. Never chain commands automatically.
 
@@ -56,40 +60,34 @@ Initialize the pipeline and create/select a working branch.
    - Custom branch: `bash commands/start.sh <input> --branch <name>`
    - Stay on current: `bash commands/start.sh <input> --keep`
    - Default (suggested): `bash commands/start.sh <input>`
-6. Read the generated `source.md` and the spec scaffold. Draft initial
-   content into the spec based on the input: fill in Summary, Scope
-   (In/Out), Behavior, Implementation Context, Expected Change Scope,
-   Safe Constraints, and at least one Open Question. Keep the spec
-   structure intact.
-7. Run `bash commands/triage.sh <slug>` to classify the ticket. This
-   writes `.specwork/_state/<slug>-path.json` with the recommended
-   pipeline path. Print the classification in the summary:
-   ```
-   Triage:  <ticket_type> (<complexity>)
-   Path:    /<path steps joined by " → ">
-   Why:     <reason>
-   ```
-8. **STOP.** Show the spec file path with the Open Questions line number
-   appended. Use the real absolute path — substitute the actual working
-   directory (run `pwd` if unsure), do NOT print the literal text `$PWD`,
-   which is a shell variable the terminal will not expand here — so it's
-   clickable, e.g. `` Spec: `/abs/path/repo/.specwork/_spec/<slug>-spec.md:43` ``.
-   Do NOT list individual sections or their line numbers. Include the
-   triage info above, plus a note that the recommended path is advisory
-   — the developer can override at any step.
+6. The script writes `source.md` and the state files but **does NOT create
+   `spec.md`**. /start owns source capture; /spec owns spec generation.
+7. **Do NOT run `triage.sh` here.** Triage reads `## Behavior` and
+   `## Implementation Context` from the spec; `spec.md` does not exist
+   yet, so triage has nothing to classify. Triage runs from inside `/spec`
+   after the first draft is written.
+8. **STOP.** Tell the user the pipeline is initialized and recommend
+   `/spec` (or `bash commands/spec.sh`) as the next step. Show the
+   `source.md` path with the absolute working directory substituted in
+   (run `pwd` if unsure), e.g. `` Source: `/abs/path/repo/.specwork/_spec/<slug>-source.md` ``.
    Do NOT continue to `/f-implement` or any next step automatically.
 
 **Script behavior** (`start.sh`):
 1. Fetches Jira via `source lib/jira.sh && jira_write_issue_markdown` when
    configured; otherwise use free text as source
 2. Creates `.specwork/` directories (`_spec/`, `_state/`, `_progress/`)
+2a. Ensures `.specwork/` is in `.gitignore` (appends or creates). Warns if any
+    `.specwork/*` files are already tracked from a prior bad setup, with the
+    exact `git rm --cached` command to untrack them.
 3. Loads rules from `templates/rules.md` + `.opensdd/service-rules.md`, writes `rules.json`
 4. Initializes `implementation-cache.json` with empty arrays
 5. Writes `state.json` with: branch, slug, id, ticket, input_type,
-   spec_write_timestamp (current epoch seconds), base_branch
-6. Drafts `spec.md` from source + rules using spec template
-7. If unresolved Open Questions exist, warns user
-8. Output: branch created, spec path, next step recommendation
+   spec_write_timestamp (current epoch seconds), base_branch,
+   current_step="spec"
+6. **Does NOT create `spec.md`.** That is `/f-spec`'s job — kept separate
+   so each command owns one artifact (start = source, spec = spec, plan
+   = plan, implement = code).
+7. Output: branch created, source.md path, recommend `/f-spec` as next step
 
 ### /plan (optional)
 
@@ -262,27 +260,70 @@ Implement test files for changed source code. Optional — not required in the p
 4. For existing test files, list as UPDATE candidates; for missing ones, list as CREATE
 5. **Hard rule**: generated tests must verify concrete behavior (return values, persistence calls, events, exceptions) — never just nullity or emptiness checks
 
-### /spec-refine <files ... | jira <ticket> | <free text>>
+### /spec [files ... | jira <ticket> | <free text>]
 
-Refine an existing spec by feeding additional context. Incremental — spec evolves in place, source.md and rules.json remain untouched.
+Single command for both drafting the spec for the first time and refining it later. Replaces the deprecated `/spec-refine` (wrapper still forwards here).
 
-1. Resolve slug and verify required artifacts (state, spec, rules, cache)
-2. Parse arguments: existing files → read content; `jira <ticket>` → fetch via jira.sh; rest → free text
-3. Show the current spec and the new context
-4. Detect downstream staleness: plan.md older than spec → warning; dirty tree → warning
-5. Print instructions for integrating the context into the spec:
-   - NEVER delete existing content — only append
-   - NEVER modify `## Summary` or `source.md`
-   - Preserve section order exactly
-   - Resolve OQs: `- [ ]` → `- [x]` with " — resolved: <answer>"
-   - Map files → `## Implementation Context`
-   - Map Jira → `## Behavior`, `## Safe Constraints`, `## Expected Change Scope`
-   - NEVER invent class names
-6. Update `implementation-cache.json` (append-only, deduped)
-7. NEVER delete or modify `plan.md` — only warn if stale
-8. After writing the spec, bump `spec_write_timestamp` in state.json
-   (`engine.cli bump-spec-ts <slug>`) so `/implement`'s staleness gate
-   detects the refine
+**ALWAYS run `bash commands/spec.sh` first** — it handles mode detection (draft vs refine), input parsing, staleness warnings, and prints session context. Do NOT pre-check spec.md presence yourself; let the script auto-detect the mode and print the instructions. The script's output tells you what to do next (draft the spec content, or integrate new context into the existing spec).
+
+Mode is auto-detected by `spec.md` presence: if the file does not exist (start.sh did not create it), `/spec` runs in **draft mode** and creates it from `source.md` + `templates/spec.md`; if the file exists, `/spec` runs in **refine mode** and integrates new context.
+
+**Idempotency contract:** `/spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp`, writing the spec, or touching `current_step`. Calling `/spec` twice in a row with the same input is therefore safe.
+
+After running the script, follow its instructions:
+
+1. **Draft mode**: read `source.md` + `templates/spec.md` as the canonical section structure; synthesize the first full spec, filling every section the source supports and emitting one Open Question for each ambiguity. Use any context the script printed (files, Jira, free text) as additional input.
+2. **Refine mode**: integrate the NEW CONTEXT the script printed into the existing spec sections.
+3. In both modes:
+   - NEVER touch `.specwork/_spec/<slug>-source.md` — it is immutable
+   - Preserve section order from `templates/spec.md` exactly
+   - Open Questions use `- [ ] **#N** <question>` format; refine flips to `- [x]` with " — resolved: <answer>"
+   - In refine mode: NEVER delete user-authored content; resolutions append, they do not remove
+   - NEVER invent class names — use the symbol verbatim or write `[UNKNOWN]`
+4. Map inputs:
+   - Files with classes/endpoints → `## Implementation Context`
+   - Jira ticket body → `## Behavior`, `## Safe Constraints`, `## Expected Change Scope`
+   - Free text answering an OQ (#N) → flip checkbox and append resolution
+   - Free text with a new rule → `## Safe Constraints`
+5. Update `implementation-cache.json` (append-only, deduped)
+6. NEVER delete or modify `plan.md` — only warn if stale
+7. After writing the spec:
+    - Bump `spec_write_timestamp`: `engine.cli bump-spec-ts <slug>`
+    - **Draft mode only**: run `commands/triage.sh <slug>` to classify
+      the ticket and print the result (type, complexity, path, reason).
+      Triage reads `## Behavior` and `## Implementation Context`, so it
+      can only run after the first draft creates the spec body. `/start`
+      does not create spec.md at all, so triage has nothing to read until
+      `/spec` runs in draft mode. Skip triage in refine mode (the ticket
+      was already classified on the first draft).
+    - **Draft mode only**: if all OQs resolved, ALWAYS call advance-step
+      before presenting next steps — do NOT ask the user what to do next
+      first:
+      `engine.cli advance-step <slug>` (spec → plan). Otherwise stay on
+      the spec step and re-run `/spec` with more context.
+    - **Refine mode**: do NOT call `advance-step`. The spec change does
+      not move the pipeline forward — it just invalidates downstream
+      artifacts. `spec_write_timestamp` is enough; `/implement`'s
+      staleness gate will block until `/plan` refreshes `plan.md`.
+    - **Recommend next step**: after advance-step (if it was called),
+      tell the user that `/f-plan` (for 3+ files) or `/f-implement`
+      (small / inline discovery) are the next moves. In refine mode
+      where `plan.md` already exists, flag it as stale and recommend
+      `/f-plan` first.
+
+### Post-resolution flow (all commands)
+
+When a user says all Open Questions are resolved (or you detect it via
+`git diff` / reading the spec), do NOT present choices first. Immediately:
+
+1. Count remaining open OQs in spec and plan:
+   `grep -c '^\s*-\s*\[\s\]' .specwork/_spec/<slug>-spec.md`
+2. If zero open OQs remain, call advance-step BEFORE suggesting next steps:
+   `PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli advance-step <slug>`
+3. If OQs still remain, list them and ask the user for input.
+
+This applies regardless of which command created or modified the spec.
+advance-step is the only way current_step moves forward.
 
 ### /resync
 

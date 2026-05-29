@@ -111,16 +111,43 @@ if [ -n "$RECENT" ]; then
   echo "$RECENT" | while IFS= read -r line; do echo "  $line"; done
 fi
 
-# ---- Next step determination ------------------------------------------------
+# ---- read flow state (from state.json) ---------------------------------------
 
-# Check for ADR warnings
+FLOW_STEP=""
+TICKET_TYPE=""
+STATE_FLOW=""
+if [ -f "$STATE_FILE" ]; then
+  PY_SCRIPT=$(mktemp)
+  cat > "$PY_SCRIPT" <<'PYEOF'
+import json, sys
+from pathlib import Path
+d = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print(d.get("current_step", ""))
+print(d.get("ticket_type", ""))
+PYEOF
+  { read -r FLOW_STEP; read -r TICKET_TYPE; } < <(python3 "$PY_SCRIPT" "$STATE_FILE" 2>/dev/null || printf "\n\n")
+  rm -f "$PY_SCRIPT"
+  : "${TICKET_TYPE:=feature}"
+  STATE_FLOW="$TICKET_TYPE"
+fi
+
+# ---- show flow header (so user sees where they are) -------------------------
+
+if [ -n "$FLOW_STEP" ]; then
+  echo ""
+  echo "Step:   ${FLOW_STEP} (${STATE_FLOW})"
+fi
+
+# ---- Check for ADR warnings -------------------------------------------------
+
 ADR_WARN=""
 if [ -d "docs/adr" ]; then
   ADR_UNCOMMITTED=$(git status --porcelain "docs/adr/" 2>/dev/null | wc -l | tr -d ' ')
   [ "$ADR_UNCOMMITTED" -gt 0 ] && ADR_WARN="true"
 fi
 
-# Evaluate triggers top-to-bottom
+# ---- Next step determination (flow-aware) -----------------------------------
+
 NEXT=""
 
 if [ ! -f "$STATE_FILE" ]; then
@@ -128,29 +155,56 @@ if [ ! -f "$STATE_FILE" ]; then
 elif [ ! -f "$SPEC_FILE" ]; then
   NEXT="/f-start"
 elif [ "${spec_open:-0}" -gt 0 ] || [ "${plan_open:-0}" -gt 0 ]; then
-  NEXT="Resolve Open Questions first"
+  NEXT="resolve_oqs"
 elif [ "$GIT_TREE" -gt 0 ]; then
   STAGED=$(git diff --cached --stat 2>/dev/null | wc -l | tr -d ' ')
   if [ "$STAGED" -gt 0 ]; then
     NEXT="/f-commit"
-  else
+  elif [ "$FLOW_STEP" = "plan" ]; then
+    NEXT="/f-plan"
+  elif [ "$FLOW_STEP" = "implement" ]; then
     NEXT="/f-implement"
+  elif [ "$FLOW_STEP" = "test-design" ]; then
+    NEXT="/f-test-design"
+  elif [ "$FLOW_STEP" = "test-impl" ]; then
+    NEXT="/f-test-impl"
+  else
+    # fallback: step not tracked or still on spec/close
+    if [ "$TICKET_TYPE" = "high-risk" ] || [ "$TICKET_TYPE" = "standard" ] || [ "$FLOW_STEP" = "spec" ]; then
+      NEXT="/f-plan"
+    else
+      NEXT="/f-implement"
+    fi
   fi
 elif [ -f "$PLAN_FILE" ]; then
   NEXT="/f-mr"
 fi
 
+# default when no condition matched
 if [ -z "$NEXT" ]; then
-  echo ""
-  echo "Next:   /f-plan (recommended, can skip)"
-  echo "        /f-implement"
-elif [ "$NEXT" = "Resolve Open Questions first" ]; then
-  echo ""
-  echo "Next:   Resolve Open Questions first"
-else
-  echo ""
-  echo "Next:   $NEXT"
+  NEXT="/f-plan (recommended, can skip)"
 fi
+
+# ---- print next step ---------------------------------------------------------
+
+echo ""
+case "$NEXT" in
+  resolve_oqs)
+    if [ -n "$SPEC_ABS" ] && [ -n "${spec_line:-}" ]; then
+      echo "Next:   Resolve Open Questions at \`${SPEC_ABS}:${spec_line}\`"
+    elif [ -n "$PLAN_ABS" ] && [ -n "${plan_line:-}" ]; then
+      echo "Next:   Resolve Open Questions at \`${PLAN_ABS}:${plan_line}\`"
+    else
+      echo "Next:   Resolve Open Questions first"
+    fi
+    ;;
+  /f-plan|/f-implement|/f-test-design|/f-test-impl|/f-commit|/f-mr|/f-start)
+    echo "Next:   $NEXT"
+    ;;
+  *)
+    echo "Next:   $NEXT"
+    ;;
+esac
 
 # ADR warning
 if [ -n "$ADR_WARN" ]; then

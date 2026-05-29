@@ -24,7 +24,7 @@ ${directive}
 EOF
 }
 
-install_cmd_directive "start" "Initialize SDD pipeline: branch + spec scaffold" "\
+install_cmd_directive "start" "Initialize SDD pipeline: branch + source.md (spec.md is created by /f-spec)" "\
 Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
 
 Ask the user about branch choice using the suggested name (prefixed with 'feature/'), a custom name, or staying on the current branch. Once decided, run:
@@ -33,7 +33,8 @@ ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --branch <name>   # for a custom b
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --keep            # to stay on current
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch
 
-After the script finishes, read the generated source.md and the spec.md scaffold. Draft the initial content into the spec based on the user's input: fill in Summary, Scope (In/Out), Behavior, Implementation Context, Expected Change Scope, Safe Constraints, and at least one Open Question. Keep the spec structure intact. Then run ${OPENSDD_PATH}/commands/triage.sh <slug> to classify the ticket. Print the triage result (type, complexity, path, reason). Format links cleanly so the file path + line number are clickable: put the description separately, e.g. \`path/file.md:42\` — Open Questions section. Do NOT append text directly after the line number (e.g. avoid \`:42 <- OQ\`). Then STOP. Tell the user the spec is drafted. Note that the recommended path is advisory."
+After the script finishes, ${OPENSDD_PATH}/commands/start.sh has written source.md and state files but has NOT created spec.md. Tell the user the pipeline is initialized and recommend ${OPENSDD_PATH}/commands/spec.sh as the next step — /f-spec reads source.md plus templates/spec.md and generates spec.md from scratch (Summary, Scope, Behavior, Implementation Context, Expected Change Scope, Safe Constraints, Open Questions). Do NOT run triage yet — triage classifies the spec body, and spec.md does not exist until /f-spec creates it. Format links cleanly so file paths + line numbers are clickable: put the description separately, e.g. \`path/file.md:42\` — Open Questions section. Do NOT append text directly after the line number. Then STOP."
+install_cmd "spec"          "Draft (first call) or refine (subsequent calls) the spec"
 install_cmd "plan"          "Discover target files and write implementation plan"
 install_cmd "implement"     "Implement next focused change from the spec"
 install_cmd "commit"        "Stage changes and generate semantic commit"
@@ -43,7 +44,7 @@ install_cmd "status"        "Show pipeline state and next recommended step"
 install_cmd "help"          "Show pipeline diagram and contextual next action"
 install_cmd "pause"         "Pause pipeline and stash all work"
 install_cmd "resume"        "List paused pipelines and restore selected one"
-install_cmd "refine"        "Refine spec with additional context"
+install_cmd "refine"        "Deprecated — alias for spec, forwards to ./commands/spec.sh"
 install_cmd "resync"        "Resync artifacts after branch rename"
 install_cmd "code-review"   "Stack-aware code quality and security review"
 install_cmd "mr-address" "Work through MR review comments"
@@ -52,7 +53,7 @@ install_cmd "test-design"   "Design test cases for current changes"
 install_cmd "test-impl"     "Implement test files for changed source"
 install_cmd "triage"        "Classify ticket complexity from spec and recommend pipeline path"
 
-echo "open-sdd: 18 commands installed to $CMD_DIR"
+echo "open-sdd: 19 commands installed to $CMD_DIR"
 echo ""
 
 # Generate AGENTS.md with resolved OPEN_SDD_ROOT path

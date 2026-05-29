@@ -13,6 +13,14 @@ slugify() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
 }
 
+# Strip the conventional prefix (feature/, bugfix/, hotfix/, release/) and
+# slugify what remains. Used whenever the slug must reflect the WORKING BRANCH
+# (--keep, --branch <name>, interactive B/C) rather than the raw input — which
+# could be a long free-text description that would produce an unusable slug.
+slug_from_branch() {
+  slugify "$(echo "$1" | sed 's|^feature/||; s|^bugfix/||; s|^hotfix/||; s|^release/||')"
+}
+
 detect_ticket() {
   local input="$1"
   if [[ "$input" =~ ^[A-Z][A-Z0-9]+-[0-9]+$ ]]; then
@@ -92,7 +100,7 @@ esac
 if ! PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli precheck --fresh >/dev/null 2>&1; then
   echo "✗ Pipeline already active here — not re-initializing." >&2
   echo "  • Next step:       run ./commands/status.sh to see the next pending step" >&2
-  echo "  • Change the spec: run ./commands/refine.sh" >&2
+  echo "  • Change the spec: run ./commands/spec.sh" >&2
   echo "  • Start over:      run ./commands/close.sh first, then start.sh" >&2
   exit 1
 fi
@@ -102,10 +110,11 @@ fi
 if [ "$BRANCH_FLAG" = "branch" ]; then
   BRANCH="$CUSTOM_BRANCH"
   git checkout -b "$BRANCH"
-  SLUG=$(slugify "$(echo "$BRANCH" | sed 's/^feature\///; s/^bugfix\///; s/^hotfix\///; s/^release\///')")
+  SLUG=$(slug_from_branch "$BRANCH")
 elif [ "$BRANCH_FLAG" = "keep" ]; then
   BRANCH="$CURRENT"
-  echo "Staying on $BRANCH."
+  SLUG=$(slug_from_branch "$BRANCH")
+  echo "Staying on $BRANCH (slug: $SLUG)."
 else
   CHOICE="A"
   if [ -t 0 ]; then
@@ -128,11 +137,12 @@ else
       printf "Enter branch name: "
       read -r BRANCH
       git checkout -b "$BRANCH"
-      SLUG=$(slugify "$(echo "$BRANCH" | sed 's/^feature\///; s/^bugfix\///; s/^hotfix\///; s/^release\///')")
+      SLUG=$(slug_from_branch "$BRANCH")
       ;;
     C|c)
       BRANCH="$CURRENT"
-      echo "Staying on $BRANCH."
+      SLUG=$(slug_from_branch "$BRANCH")
+      echo "Staying on $BRANCH (slug: $SLUG)."
       ;;
     *)
       echo "Invalid choice."
@@ -174,6 +184,36 @@ mkdir -p ".specwork/_state"
 mkdir -p ".specwork/_progress"
 mkdir -p ".specwork/_plan"
 
+# ---- ensure .specwork/ is gitignored ----------------------------------------
+
+# .specwork/ is transient runtime state — must never be committed. start.sh
+# guarantees this by appending to (or creating) .gitignore. If files were
+# already tracked from a prior bad setup, warn with the exact untrack command
+# (we cannot run `git rm --cached` automatically — too destructive without
+# the user's intent).
+GITIGNORE=".gitignore"
+if [ -f "$GITIGNORE" ]; then
+  if ! grep -qE '^\.specwork(/|$)' "$GITIGNORE" 2>/dev/null; then
+    printf '\n# open-sdd pipeline state (transient)\n.specwork/\n' >> "$GITIGNORE"
+    echo "Appended '.specwork/' to .gitignore"
+  fi
+else
+  printf '# open-sdd pipeline state (transient)\n.specwork/\n' > "$GITIGNORE"
+  echo "Created .gitignore with '.specwork/' entry"
+fi
+
+# Warn if .specwork files are already tracked from a previous bad setup.
+TRACKED_SPECWORK=$(git ls-files .specwork 2>/dev/null | head -3)
+if [ -n "$TRACKED_SPECWORK" ]; then
+  echo ""
+  echo "⚠  Warning: .specwork/ files are already tracked in git from a prior"
+  echo "   setup. .gitignore alone will not untrack them. To fix:"
+  echo ""
+  echo "     git rm -r --cached .specwork/"
+  echo "     git commit -m 'chore: untrack .specwork/ (pipeline state is transient)'"
+  echo ""
+fi
+
 # ---- fetch source -----------------------------------------------------------
 
 SOURCE_FILE=".specwork/_spec/${SLUG}-source.md"
@@ -201,14 +241,6 @@ fi
 
 if [ -z "${TITLE:-}" ]; then
   TITLE="$INPUT"
-fi
-
-# ---- resolve slug from actual branch (in case B was chosen) -----------------
-
-BRANCH_SLUG=$(echo "$BRANCH" | sed 's/^feature\///; s/^bugfix\///; s/^hotfix\///; s/^release\///')
-if [ "$INPUT_TYPE" = "jira" ] && [[ "$BRANCH_SLUG" =~ ^[A-Za-z]+-[0-9] ]]; then
-  # If the custom branch still has a ticket prefix, re-derive
-  :
 fi
 
 # ---- write state.json -------------------------------------------------------
@@ -292,62 +324,15 @@ cat > ".specwork/_state/${SLUG}-implementation-cache.json" <<ENDJSON
 }
 ENDJSON
 
-# ---- draft spec.md ----------------------------------------------------------
-
-SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
-
-cat > "$SPEC_FILE" <<ENDSPEC
-# ${SLUG} — ${TITLE}
-
-$( [ -n "$TICKET" ] && echo "> Source: ${TICKET}" || echo "> Source: free-text input" )
-
-## Summary
-
-One-sentence description of what this feature does.
-
-## Scope
-
-### In scope
-
-- What the feature will do
-
-### Out of scope
-
-- What the feature will NOT do
-
-## Behavior
-
-Detailed behavioral specification. Each requirement should be testable.
-
-## Implementation Context
-
-Files, classes, endpoints, repositories, and services relevant to this feature.
-
-## Expected Change Scope
-
-Concrete estimate of files and layers touched.
-
-## Safe Constraints
-
-### Safe
-
-- Things the implementation MUST do
-
-### Unsafe
-
-- Things the implementation MUST NOT do
-
-## Open Questions
-
-- [ ] **#1** *Add your first open question here*
-ENDSPEC
-
-echo "Spec written to $SPEC_FILE"
-
-# advance pipeline state: spec → plan
-ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
-engine advance-step "$SLUG" >/dev/null 2>&1 || true
+# /f-start does not create spec.md — that is /f-spec's job. /f-spec reads
+# source.md (written above) plus templates/spec.md and writes spec.md from
+# scratch on the first call, then refines it on subsequent calls.
+#
+# Downstream gates (check_required_artifacts in /f-plan, /f-implement) require
+# spec.md, so they naturally block until /f-spec has run. No extra check needed.
+#
+# current_step stays at "spec"; /f-spec advances to "plan" once the spec is
+# drafted and Open Questions resolved.
 
 echo ""
 echo "============================================================"
@@ -355,14 +340,13 @@ echo "Pipeline initialized."
 echo "  Branch:      $BRANCH"
 echo "  Slug:        $SLUG"
 echo "  State:       .specwork/_state/${SLUG}-state.json"
-echo "  Spec:        $SPEC_FILE"
 echo "  Source:      $SOURCE_FILE"
 echo ""
 echo "Next:"
-echo "  Edit the spec to fill in ## Behavior, ## Implementation Context,"
-echo "  and resolve ## Open Questions."
+echo "  ./commands/spec.sh                         (draft spec.md from source)"
+echo "  ./commands/spec.sh <files|jira ID|text>    (draft with extra context)"
 echo ""
-echo "  Then run:"
+echo "  After the spec is drafted and Open Questions resolved:"
 echo "    /f-plan       (optional — for 3+ files)"
 echo "    /f-implement   (start implementing)"
 echo "============================================================"

@@ -37,11 +37,12 @@ ${OPENSDD_PATH}/commands/start.sh `$ARGUMENTS --branch <name>   # for a custom b
 ${OPENSDD_PATH}/commands/start.sh `$ARGUMENTS --keep            # to stay on current
 ${OPENSDD_PATH}/commands/start.sh `$ARGUMENTS                   # uses suggested branch
 
-After the script finishes, read the generated source.md and the spec.md scaffold. Draft the initial content into the spec based on the user's input: fill in Summary, Scope (In/Out), Behavior, Implementation Context, Expected Change Scope, Safe Constraints, and at least one Open Question. Keep the spec structure intact. Then run ${OPENSDD_PATH}/commands/triage.sh <slug> to classify the ticket. Print the triage result (type, complexity, path, reason). Format links cleanly so the file path + line number are clickable: put the description separately, e.g. `path/file.md:42` — Open Questions section. Do NOT append text directly after the line number (e.g. avoid `:42 <- OQ`). Then STOP. Tell the user the spec is drafted. Note that the recommended path is advisory.
+After the script finishes, ${OPENSDD_PATH}/commands/start.sh has written source.md and state files but has NOT created spec.md. Tell the user the pipeline is initialized and recommend ${OPENSDD_PATH}/commands/spec.sh as the next step — /f-spec reads source.md plus templates/spec.md and generates spec.md from scratch (Summary, Scope, Behavior, Implementation Context, Expected Change Scope, Safe Constraints, Open Questions). Do NOT run triage yet — triage classifies the spec body, and spec.md does not exist until /f-spec creates it. Format links cleanly so file paths + line numbers are clickable: put the description separately, e.g. `path/file.md:42` — Open Questions section. Do NOT append text directly after the line number. Then STOP.
 "@
 
-Install-CmdDirective -Name "start" -Description "Initialize SDD pipeline: branch + spec scaffold" -Directive $startDirective
+Install-CmdDirective -Name "start" -Description "Initialize SDD pipeline: branch + source.md (spec.md is created by /f-spec)" -Directive $startDirective
 
+Install-Cmd -Name "spec"          -Description "Draft (first call) or refine (subsequent calls) the spec"
 Install-Cmd -Name "plan"          -Description "Discover target files and write implementation plan"
 Install-Cmd -Name "implement"     -Description "Implement next focused change from the spec"
 Install-Cmd -Name "commit"        -Description "Stage changes and generate semantic commit"
@@ -51,7 +52,7 @@ Install-Cmd -Name "status"        -Description "Show pipeline state and next rec
 Install-Cmd -Name "help"          -Description "Show pipeline diagram and contextual next action"
 Install-Cmd -Name "pause"         -Description "Pause pipeline and stash all work"
 Install-Cmd -Name "resume"        -Description "List paused pipelines and restore selected one"
-Install-Cmd -Name "refine"        -Description "Refine spec with additional context"
+Install-Cmd -Name "refine"        -Description "Deprecated — alias for spec, forwards to ./commands/spec.sh"
 Install-Cmd -Name "resync"        -Description "Resync artifacts after branch rename"
 Install-Cmd -Name "code-review"   -Description "Stack-aware code quality and security review"
 Install-Cmd -Name "mr-address" -Description "Work through MR review comments"
@@ -60,7 +61,7 @@ Install-Cmd -Name "test-design"   -Description "Design test cases for current ch
 Install-Cmd -Name "test-impl"     -Description "Implement test files for changed source"
 Install-Cmd -Name "triage"        -Description "Classify ticket complexity from spec and recommend pipeline path"
 
-Write-Host "open-sdd: 18 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 19 commands installed to $CMD_DIR"
 Write-Host ""
 
 # Generate AGENTS.md with resolved OPEN_SDD_ROOT path
