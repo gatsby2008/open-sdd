@@ -27,7 +27,10 @@ assert_noout() { local sub="$1" label="$2"; shift 3; local out
 assert_json()  { local file="$1" key="$2" exp="$3" label="$4"; local val
   val=$(python3 -c "import json; print(json.load(open('$file'))['$key'])" 2>/dev/null || echo "__MISSING__")
   if [ "$val" = "$exp" ]; then ok "$label ($key=$val)"; else bad "$label ($key=$val, want $exp)"; fi; }
-new_repo() { local d="$SCRATCH_ROOT/$1"; mkdir -p "$d"; ( cd "$d" && git init -q && git commit -q --allow-empty -m init && git checkout -q -b feature/demo ); echo "$d"; }
+# Set a repo-local git identity so the initial commit works on runners/machines
+# that have no global git user configured (otherwise the branch never gets born,
+# slug resolution falls back to "HEAD", and most branch-dependent tests fail).
+new_repo() { local d="$SCRATCH_ROOT/$1"; mkdir -p "$d"; ( cd "$d" && git init -q && git config user.email "smoke@open-sdd.test" && git config user.name "open-sdd smoke" && git commit -q --allow-empty -m init && git checkout -q -b feature/demo ); echo "$d"; }
 
 # portable timeout (macOS lacks `timeout`; coreutils ships `gtimeout`)
 if command -v timeout >/dev/null 2>&1; then TO="timeout 15"
