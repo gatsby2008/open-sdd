@@ -253,10 +253,6 @@ cat > ".specwork/_state/${SLUG}-state.json" <<ENDJSON
   "id": "${SLUG}",
   "slug": "${SLUG}",
   "ticket_type": "feature",
-  "current_step": "spec",
-  "step_index": 0,
-  "retries": 0,
-  "max_retries": 2,
   "branch": "${BRANCH}",
   "base_branch": "${BASE_BRANCH}",
   "ticket": $( [ -n "$TICKET" ] && echo "\"${TICKET}\"" || echo "null" ),
@@ -329,10 +325,8 @@ ENDJSON
 # scratch on the first call, then refines it on subsequent calls.
 #
 # Downstream gates (check_required_artifacts in /f-plan, /f-implement) require
-# spec.md, so they naturally block until /f-spec has run. No extra check needed.
-#
-# current_step stays at "spec"; /f-spec advances to "plan" once the spec is
-# drafted and Open Questions resolved.
+# spec.md, so they naturally block until /f-spec has run. The pipeline is
+# artifact-driven — no current_step tracking, no state machine.
 
 echo ""
 echo "============================================================"

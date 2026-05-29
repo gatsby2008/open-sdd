@@ -148,7 +148,7 @@ stateDiagram-v2
     Pristine: .specwork/ does not exist
 
     state "Started" as Started
-    Started: _state/state.json\n(current_step=spec)
+    Started: _state/state.json\n(no current_step — artifact-driven)
     Started: _state/rules.json
     Started: _state/implementation-cache.json
     Started: _spec/source.md
@@ -242,12 +242,13 @@ stateDiagram-v2
   runs.
 - `/f-close` wipes the entire `.specwork/`. It keeps: commits, branch, MR,
   published docs.
-- `/f-start` leaves `current_step="spec"` and writes only `source.md` plus
-  state files — it does NOT create `spec.md`. `/f-spec` owns `spec.md`:
-  draft mode (file missing) creates it; refine mode (file exists)
-  integrates new context. `/f-spec` is also the only command that advances
-  `spec → plan`, and only on the first draft when all Open Questions are
-  resolved.
+- `/f-start` writes only `source.md` plus state files — it does NOT
+  create `spec.md`. `/f-spec` owns `spec.md`: draft mode (file missing)
+  creates it; refine mode (file exists) integrates new context.
+- **No state machine.** Each command independently checks artifact
+  preconditions and decides whether to run. There is no `current_step`,
+  no `advance-step`, no `expected-step`. "Next step" is derived from
+  artifact presence + git state (see `status.sh`).
 - The `Planned → Drafted` and `Implementing → Drafted` edges via `/f-spec`
   are the staleness trap: re-running `/f-spec` bumps `spec_write_timestamp`,
   so any existing `plan.md` becomes stale and `/f-implement` will block

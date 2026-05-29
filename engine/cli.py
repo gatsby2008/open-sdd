@@ -19,7 +19,6 @@ from engine.gates import (
     resolve_slug, check_open_questions, check_required_artifacts, check_plan_staleness,
     require_specwork, SPECWORK,
 )
-from engine.router import next_step, FLOW_MAP
 from engine.persistence import load_plan, save_plan, load_cache, save_cache
 
 
@@ -29,9 +28,24 @@ COMMANDS = [
     "precheck", "check", "triage", "status", "pause", "resume", "help",
     "implement-check", "implement-done", "implement-plan",
     "resolve-slug", "detect-stack",
-    "current-step", "expected-step", "advance-step", "set-step",
     "bump-spec-ts",
 ]
+
+
+# Advisory flows per ticket type — used by triage to print the recommended
+# path. NOT enforced (no step machine); each command is independently
+# artifact-gated. Keep this table in sync with /f-help and docs/learning.
+FLOW_MAP: dict[str, list[str]] = {
+    "feature":      ["spec", "plan", "implement", "commit", "mr", "close"],
+    "bugfix":       ["spec", "implement", "commit", "mr", "close"],
+    "refactor":     ["plan", "implement", "commit", "mr", "close"],
+    "chore":        ["implement", "commit", "mr", "close"],
+    "high-risk":    ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"],
+    "standard":     ["plan", "implement", "commit", "mr", "close"],
+    "focused":      ["implement", "commit", "mr", "close"],
+    "trivial":      ["commit", "mr", "close"],
+    "security_fix": ["spec", "implement", "commit", "mr", "close"],
+}
 
 
 def cmd_precheck(args: list[str]) -> int:
@@ -166,10 +180,8 @@ def cmd_status(args: list[str]) -> int:
     print(f"Branch:  {state.branch}")
     print(f"Ticket:  {state.ticket or '(none)'}")
     print(f"Type:    {state.ticket_type}")
-    print(f"Step:    {state.current_step} (index {state.step_index})")
-    print(f"Retries: {state.retries}/{state.max_retries}")
-    next_s = state.next_step()
-    print(f"Next:    {next_s}")
+    print(f"Complexity: {state.complexity}")
+    # Next-step recommendation lives in commands/status.sh (artifact-driven).
     return 0
 
 
@@ -328,124 +340,6 @@ def cmd_resolve_slug(args: list[str]) -> int:
     return 1
 
 
-def cmd_current_step(args: list[str]) -> int:
-    slug = args[0] if args else resolve_slug()
-    if not slug:
-        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
-        return 1
-    state = load_pipeline_state(slug)
-    if not state:
-        print("NO_STATE", file=sys.stderr)
-        return 1
-    print(state.current_step)
-    return 0
-
-
-def cmd_expected_step(args: list[str]) -> int:
-    if len(args) < 1:
-        print("Usage: cli.py expected-step <step> [slug]", file=sys.stderr)
-        return 1
-    expected = args[0]
-    slug = args[1] if len(args) > 1 else resolve_slug()
-    if not slug:
-        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
-        return 1
-    state = load_pipeline_state(slug)
-    if not state:
-        print(f"NO_STATE for slug={slug}", file=sys.stderr)
-        return 1
-    from engine.router import flow_for, is_optional
-    flow = flow_for(state.ticket_type)
-    suggested = state.next_step()
-    if expected not in flow:
-        print(f"STEP_NOT_IN_FLOW step={expected} ticket_type={state.ticket_type} flow={','.join(flow)}", file=sys.stderr)
-        print(f"✗ '{expected}' is not a step in the {state.ticket_type} flow.", file=sys.stderr)
-        print(f"  Run next: {suggested}", file=sys.stderr)
-        return 1
-    if state.current_step == expected:
-        print("ok")
-        return 0
-    # Forward skip: allowed only when every step from the current position up to
-    # (but not including) the requested step is optional. This lets the developer
-    # jump ahead past optional steps (e.g. test-design → commit) without an
-    # override, while still blocking backward moves and skips over required steps.
-    if state.current_step in flow:
-        cur_idx = flow.index(state.current_step)
-        exp_idx = flow.index(expected)
-        if exp_idx > cur_idx and all(is_optional(flow[k]) for k in range(cur_idx, exp_idx)):
-            print("ok")
-            return 0
-    print(f"WRONG_STEP expected={expected} actual={state.current_step} ticket_type={state.ticket_type}", file=sys.stderr)
-    print(f"✗ Out of sequence: '{expected}' is not reachable from the current step.", file=sys.stderr)
-    print(f"  Pipeline is at: {state.current_step} ({state.ticket_type})", file=sys.stderr)
-    print(f"  Run next: {suggested}", file=sys.stderr)
-    return 1
-
-
-def cmd_advance_step(args: list[str]) -> int:
-    # Usage: advance-step [slug] [completed_step]
-    # When completed_step is given, the pipeline advances to the step *after* it,
-    # regardless of where current_step sat. This keeps state correct when a
-    # command was reached by skipping optional steps (e.g. commit run while the
-    # pipeline still pointed at test-design must land on mr, not test-impl).
-    slug = args[0] if args else resolve_slug()
-    if not slug:
-        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
-        return 1
-    completed = args[1] if len(args) > 1 else None
-    state = load_pipeline_state(slug)
-    if not state:
-        print(f"NO_STATE for slug={slug}", file=sys.stderr)
-        return 1
-    if state.current_step == "done":
-        print("done")
-        return 0
-    from engine.router import flow_for
-    flow = flow_for(state.ticket_type)
-    anchor = completed if (completed and completed in flow) else state.current_step
-    if anchor not in flow:
-        state.current_step = flow[0]
-        state.step_index = 0
-    else:
-        next_idx = flow.index(anchor) + 1
-        if next_idx >= len(flow):
-            state.current_step = "done"
-            state.step_index = len(flow)
-        else:
-            state.current_step = flow[next_idx]
-            state.step_index = next_idx
-    state.retries = 0
-    save_pipeline_state(state)
-    print(state.current_step)
-    return 0
-
-
-def cmd_set_step(args: list[str]) -> int:
-    if len(args) < 1:
-        print("Usage: cli.py set-step <step> [slug]", file=sys.stderr)
-        return 1
-    step = args[0]
-    slug = args[1] if len(args) > 1 else resolve_slug()
-    if not slug:
-        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
-        return 1
-    state = load_pipeline_state(slug)
-    if not state:
-        print(f"NO_STATE for slug={slug}", file=sys.stderr)
-        return 1
-    from engine.router import flow_for
-    flow = flow_for(state.ticket_type)
-    if step != "done" and step not in flow:
-        print(f"STEP_NOT_IN_FLOW step={step} ticket_type={state.ticket_type} flow={','.join(flow)}", file=sys.stderr)
-        return 1
-    state.current_step = step
-    state.step_index = flow.index(step) if step in flow else len(flow)
-    state.retries = 0
-    save_pipeline_state(state)
-    print(state.current_step)
-    return 0
-
-
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -480,10 +374,6 @@ def main() -> int:
         "implement-plan": cmd_implement_plan,
         "resolve-slug": cmd_resolve_slug,
         "detect-stack": cmd_detect_stack,
-        "current-step": cmd_current_step,
-        "expected-step": cmd_expected_step,
-        "advance-step": cmd_advance_step,
-        "set-step": cmd_set_step,
         "bump-spec-ts": cmd_bump_spec_ts,
     }
 

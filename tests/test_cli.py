@@ -8,10 +8,6 @@ from unittest.mock import patch
 
 from engine.cli import (
     triage,
-    cmd_current_step,
-    cmd_expected_step,
-    cmd_advance_step,
-    cmd_set_step,
     cmd_precheck,
     cmd_bump_spec_ts,
 )
@@ -246,92 +242,15 @@ class StepCommandsTestCase(unittest.TestCase):
         os.chdir(self._old_cwd)
         self._tmp.cleanup()
 
-    def _write_state(self, slug, current_step="spec", ticket_type="feature"):
+    def _write_state(self, slug, ticket_type="feature"):
         state = {
             "schema_version": 1,
             "slug": slug,
             "ticket_type": ticket_type,
-            "current_step": current_step,
-            "step_index": 0,
-            "retries": 0,
-            "max_retries": 2,
             "branch": f"feature/{slug}",
             "base_branch": "main",
         }
         (SPECWORK / "_state" / f"{slug}-state.json").write_text(json.dumps(state), encoding="utf-8")
-
-    def test_current_step_returns_value(self):
-        self._write_state("s", current_step="plan")
-        rc = cmd_current_step(["s"])
-        self.assertEqual(rc, 0)
-
-    def test_current_step_no_state(self):
-        rc = cmd_current_step(["nonexistent"])
-        self.assertEqual(rc, 1)
-
-    def test_expected_step_matches(self):
-        self._write_state("s", current_step="plan")
-        rc = cmd_expected_step(["plan", "s"])
-        self.assertEqual(rc, 0)
-
-    def test_expected_step_mismatches(self):
-        self._write_state("s", current_step="spec")
-        rc = cmd_expected_step(["implement", "s"])
-        self.assertEqual(rc, 1)
-
-    def test_expected_step_not_in_flow(self):
-        self._write_state("s", current_step="implement", ticket_type="trivial")
-        rc = cmd_expected_step(["plan", "s"])
-        self.assertEqual(rc, 1)
-
-    def test_advance_step_moves_forward(self):
-        self._write_state("s", current_step="spec")
-        cmd_advance_step(["s"])
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "plan")
-
-    def test_advance_step_terminates_at_done(self):
-        self._write_state("s", current_step="close")
-        cmd_advance_step(["s"])
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "done")
-
-    def test_advance_step_done_is_sticky(self):
-        self._write_state("s", current_step="done")
-        rc = cmd_advance_step(["s"])
-        self.assertEqual(rc, 0)
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "done")
-
-    def test_advance_step_resets_retries(self):
-        self._write_state("s", current_step="implement")
-        # bump retries first
-        state_path = SPECWORK / "_state" / "s-state.json"
-        d = json.loads(state_path.read_text())
-        d["retries"] = 2
-        state_path.write_text(json.dumps(d))
-        cmd_advance_step(["s"])
-        d = json.loads(state_path.read_text())
-        self.assertEqual(d["retries"], 0)
-
-    def test_set_step_moves_to_target(self):
-        self._write_state("s", current_step="spec")
-        rc = cmd_set_step(["implement", "s"])
-        self.assertEqual(rc, 0)
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "implement")
-
-    def test_set_step_rejects_unknown_step(self):
-        self._write_state("s", current_step="spec")
-        rc = cmd_set_step(["bogus", "s"])
-        self.assertEqual(rc, 1)
-
-    def test_set_step_accepts_done(self):
-        self._write_state("s", current_step="spec")
-        rc = cmd_set_step(["done", "s"])
-        self.assertEqual(rc, 0)
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "done")
 
     def test_precheck_passes_when_initialized(self):
         self._write_state("s")
@@ -378,64 +297,6 @@ class StepCommandsTestCase(unittest.TestCase):
     def test_bump_spec_ts_rejects_unknown_slug(self):
         rc = cmd_bump_spec_ts(["nonexistent"])
         self.assertEqual(rc, 1)
-
-    def test_expected_step_wrong_suggests_next(self):
-        import io
-        import contextlib
-        self._write_state("s", current_step="implement", ticket_type="feature")
-        err = io.StringIO()
-        with contextlib.redirect_stderr(err):
-            cmd_expected_step(["commit", "s"])
-        out = err.getvalue()
-        self.assertIn("Out of sequence", out)
-        self.assertIn("Run next: implement", out)
-
-    def test_expected_step_allows_skip_over_optional(self):
-        # high-risk at test-design: test-design/test-impl/review are optional,
-        # so commit is reachable by skipping them.
-        self._write_state("s", current_step="test-design", ticket_type="high-risk")
-        self.assertEqual(cmd_expected_step(["commit", "s"]), 0)
-
-    def test_expected_step_allows_optional_next(self):
-        self._write_state("s", current_step="test-design", ticket_type="high-risk")
-        self.assertEqual(cmd_expected_step(["test-impl", "s"]), 0)
-
-    def test_expected_step_blocks_skip_over_required(self):
-        # feature at implement: implement is required, so commit is not reachable.
-        self._write_state("s", current_step="implement", ticket_type="feature")
-        self.assertEqual(cmd_expected_step(["commit", "s"]), 1)
-
-    def test_expected_step_blocks_backward(self):
-        self._write_state("s", current_step="commit", ticket_type="high-risk")
-        self.assertEqual(cmd_expected_step(["test-impl", "s"]), 1)
-
-    def test_advance_anchored_on_completed_step(self):
-        # commit reached by skipping optional steps must still land on mr.
-        self._write_state("s", current_step="test-design", ticket_type="high-risk")
-        self.assertEqual(cmd_advance_step(["s", "commit"]), 0)
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "mr")
-
-    def test_advance_without_anchor_uses_current(self):
-        self._write_state("s", current_step="test-design", ticket_type="high-risk")
-        self.assertEqual(cmd_advance_step(["s"]), 0)
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "test-impl")
-
-    def test_advance_preserves_extra_keys(self):
-        # advance-step saves state; start.sh's extra keys must survive the round-trip.
-        state = {
-            "schema_version": 1, "id": "s", "slug": "s", "ticket_type": "feature",
-            "current_step": "implement", "step_index": 0, "branch": "feature/s",
-            "input_type": "jira", "source_file": ".specwork/_spec/s-source.md",
-        }
-        (SPECWORK / "_state" / "s-state.json").write_text(json.dumps(state), encoding="utf-8")
-        self.assertEqual(cmd_advance_step(["s"]), 0)
-        data = json.loads((SPECWORK / "_state" / "s-state.json").read_text())
-        self.assertEqual(data["current_step"], "commit")        # updated
-        self.assertEqual(data["id"], "s")                        # preserved
-        self.assertEqual(data["input_type"], "jira")             # preserved
-        self.assertEqual(data["source_file"], ".specwork/_spec/s-source.md")
 
 
 if __name__ == "__main__":

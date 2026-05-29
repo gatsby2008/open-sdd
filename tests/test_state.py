@@ -26,9 +26,6 @@ class PipelineStateTestCase(unittest.TestCase):
             ticket_type="feature",
             branch="feature/test-feature",
             base_branch="main",
-            current_step="implement",
-            retries=0,
-            max_retries=2,
         )
         defaults.update(overrides)
         return PipelineState(**defaults)
@@ -37,9 +34,6 @@ class PipelineStateTestCase(unittest.TestCase):
         s = PipelineState(slug="my-slug")
         self.assertEqual(s.slug, "my-slug")
         self.assertEqual(s.ticket_type, "feature")
-        self.assertEqual(s.current_step, "start")
-        self.assertEqual(s.retries, 0)
-        self.assertEqual(s.max_retries, 2)
         self.assertEqual(s.escalations, [])
 
     def test_properties_return_correct_paths(self):
@@ -52,27 +46,11 @@ class PipelineStateTestCase(unittest.TestCase):
         self.assertTrue(str(s.cache_path).endswith("_state/my-feature-implementation-cache.json"))
         self.assertTrue(str(s.source_path).endswith("_spec/my-feature-source.md"))
 
-    def test_should_retry_under_limit(self):
-        s = self._make_state(retries=0)
-        self.assertTrue(s.should_retry())
-
-        s.retries = 1
-        self.assertTrue(s.should_retry())
-
-    def test_should_not_retry_at_limit(self):
-        s = self._make_state(retries=2)
-        self.assertFalse(s.should_retry())
-
-        s.retries = 3
-        self.assertFalse(s.should_retry())
-
-    def test_escalate_forces_max_retries_and_records_reason(self):
-        s = self._make_state(retries=1)
+    def test_escalate_appends_reason(self):
+        s = self._make_state()
         s.escalate("Database migration detected, needs human review")
-        self.assertEqual(s.retries, s.max_retries)
         self.assertEqual(len(s.escalations), 1)
         self.assertEqual(s.escalations[0]["reason"], "Database migration detected, needs human review")
-        self.assertEqual(s.escalations[0]["attempts"], 1)
 
     def test_escalate_appends_multiple(self):
         s = self._make_state()
@@ -86,16 +64,16 @@ class PipelineStateTestCase(unittest.TestCase):
         self.assertNotIn("cache", d)
         self.assertEqual(d["slug"], "test-feature")
 
-    def test_from_dict_restores_cache(self):
+    def test_from_dict_preserves_extras(self):
+        # Forward-compat: unknown keys (e.g. legacy current_step) ride along in
+        # state.extra so save→load round-trips don't lose data. Drop only known
+        # noise like "cache".
         d = {
             "slug": "test-feature",
             "ticket": "PROJ-123",
             "ticket_type": "feature",
             "branch": "feature/test-feature",
             "base_branch": "main",
-            "current_step": "implement",
-            "retries": 1,
-            "max_retries": 3,
             "spec_file": "",
             "plan_file": "",
             "source_file": "",
@@ -104,13 +82,14 @@ class PipelineStateTestCase(unittest.TestCase):
             "metrics_mode": "none",
             "schema_version": 1,
             "spec_write_timestamp": 0,
-            "step_index": 0,
             "escalations": [],
+            # Legacy keys from pre-strip state.json — should be preserved in extra.
+            "current_step": "implement",
+            "step_index": 2,
         }
         s = PipelineState.from_dict(d)
         self.assertEqual(s.slug, "test-feature")
-        self.assertEqual(s.max_retries, 3)
-        self.assertEqual(s.retries, 1)
+        self.assertEqual(s.extra.get("current_step"), "implement")
 
     def test_from_dict_drops_stray_cache_key(self):
         # a legacy "cache" key on disk must be dropped, not leaked into extra and
@@ -136,16 +115,6 @@ class PipelineStateTestCase(unittest.TestCase):
     def test_load_pipeline_state_returns_none_for_missing(self):
         result = load_pipeline_state("nonexistent")
         self.assertIsNone(result)
-
-    def test_next_step_delegates_to_router(self):
-        s = self._make_state(ticket_type="feature", current_step="implement", retries=2)
-        next_s = s.next_step()
-        self.assertEqual(next_s, "commit")
-
-    def test_next_step_retries_when_under_limit(self):
-        s = self._make_state(ticket_type="feature", current_step="implement", retries=1)
-        next_s = s.next_step()
-        self.assertEqual(next_s, "implement")
 
 
 if __name__ == "__main__":

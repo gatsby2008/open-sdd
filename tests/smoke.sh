@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Self-contained smoke test for THIS repo (open-sdd).
 # Exercises the non-interactive cases: precheck (+--fresh), the `check` command,
-# step-tracking (out-of-sequence + advance + schema preservation), and the
-# command wrappers' precondition gates. Runs each scenario in an isolated scratch
-# git repo. References nothing outside this repo.
+# spec/plan/implement idempotency, the reference-update fix, /f-spec draft/refine
+# modes, and the command wrappers' precondition gates. Runs each scenario in an
+# isolated scratch git repo. References nothing outside this repo.
 set -uo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # tests -> repo root
@@ -51,20 +51,6 @@ assert_out "already initialized" "--fresh refusal message" -- python3 -m engine.
 echo "== check bug fixed =="
 assert_out "MISSING" "check command reachable" -- python3 -m engine.cli check demo
 
-echo "== step-tracking =="
-assert_out "Out of sequence" "out-of-sequence message" -- python3 -m engine.cli expected-step commit demo
-assert_out "Run next: implement" "suggests next" -- python3 -m engine.cli expected-step commit demo
-python3 -m engine.cli advance-step demo >/dev/null 2>&1
-assert_out '"input_type"' "advance preserves start.sh keys" -- cat .specwork/_state/demo-state.json
-assert_out '"current_step": "commit"' "advance moves implement -> commit (no generic test step)" -- cat .specwork/_state/demo-state.json
-
-echo "== optional-step skip (high-risk) =="
-printf '{"slug":"hr","ticket_type":"high-risk","current_step":"test-design"}' > .specwork/_state/hr-state.json
-assert_rc 0 "commit reachable by skipping optional steps" -- python3 -m engine.cli expected-step commit hr
-assert_rc 1 "backward move blocked" -- python3 -m engine.cli expected-step implement hr
-python3 -m engine.cli advance-step hr commit >/dev/null 2>&1
-assert_out '"current_step": "mr"' "advance anchored on commit lands on mr" -- cat .specwork/_state/hr-state.json
-
 echo "== command wrappers =="
 d=$(new_repo wrappers); cd "$d"
 for w in plan implement handoff spec; do
@@ -96,13 +82,6 @@ if printf '%s' "$out" | grep -qF "SPEC DRAFT SESSION"; then
 else
   bad "spec.sh draft mode :: ${out:0:160}"
 fi
-# Draft mode advances current_step when OQs resolved — INSTRUCTIONS must mention advance.
-if printf '%s' "$out" | grep -qF "advance-step"; then
-  ok "spec.sh draft mode keeps advance-step instruction"
-else
-  bad "spec.sh draft missing advance-step :: ${out:0:160}"
-fi
-
 # Now create spec.md with content — should flip to refine mode. WITH args.
 printf '# demo — sample\n\n## Summary\n\nWhatever.\n' > .specwork/_spec/demo-spec.md
 out="$($TO bash "$REPO/commands/spec.sh" "extra context" 2>&1 </dev/null)"; rc=$?
@@ -111,13 +90,6 @@ if printf '%s' "$out" | grep -qF "SPEC REFINE SESSION"; then
 else
   bad "spec.sh refine mode :: ${out:0:160}"
 fi
-# Refine mode must NOT recommend advance-step.
-if printf '%s' "$out" | grep -qF "Do NOT call advance-step"; then
-  ok "spec.sh refine mode forbids advance-step"
-else
-  bad "spec.sh refine should forbid advance :: ${out:0:160}"
-fi
-
 echo "== spec.sh idempotent: refine + no args = no-op =="
 # Same scratch repo, still in refine mode. No args this time.
 out="$($TO bash "$REPO/commands/spec.sh" 2>&1 </dev/null)"; rc=$?
@@ -461,25 +433,6 @@ if printf '%s' "$out" | grep -qF 'spec.md:'; then
 else
   bad "status.sh missing line number :: ${out:0:160}"
 fi
-
-echo "== advance-step with non-feature flows =="
-d=$(new_repo adv-focused); cd "$d"
-mkdir -p .specwork/_state
-printf '{"id":"foc","slug":"foc","ticket_type":"focused","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/foc-state.json
-assert_rc 0 "advance-step focused (spec→implement)" -- python3 -m engine.cli advance-step foc
-assert_json ".specwork/_state/foc-state.json" "current_step" "implement" "focused advance lands on implement"
-
-d=$(new_repo adv-trivial); cd "$d"
-mkdir -p .specwork/_state
-printf '{"id":"tri","slug":"tri","ticket_type":"trivial","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/tri-state.json
-assert_rc 0 "advance-step trivial (spec→commit)" -- python3 -m engine.cli advance-step tri
-assert_json ".specwork/_state/tri-state.json" "current_step" "commit" "trivial advance lands on commit"
-
-d=$(new_repo adv-feature); cd "$d"
-mkdir -p .specwork/_state
-printf '{"id":"fea","slug":"fea","ticket_type":"feature","current_step":"spec","input_type":"freetext","branch":"feature/demo","spec_write_timestamp":1}' > .specwork/_state/fea-state.json
-assert_rc 0 "advance-step feature (spec→plan)" -- python3 -m engine.cli advance-step fea
-assert_json ".specwork/_state/fea-state.json" "current_step" "plan" "feature advance lands on plan"
 
 echo "== help.sh overview works without .specwork =="
 d=$(new_repo help-ov); cd "$d"

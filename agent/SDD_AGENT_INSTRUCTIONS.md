@@ -82,8 +82,8 @@ Initialize the pipeline and create/select a working branch.
 3. Loads rules from `templates/rules.md` + `.opensdd/service-rules.md`, writes `rules.json`
 4. Initializes `implementation-cache.json` with empty arrays
 5. Writes `state.json` with: branch, slug, id, ticket, input_type,
-   spec_write_timestamp (current epoch seconds), base_branch,
-   current_step="spec"
+   spec_write_timestamp (current epoch seconds), base_branch.
+   No `current_step` — the pipeline is artifact-driven.
 6. **Does NOT create `spec.md`.** That is `/f-spec`'s job — kept separate
    so each command owns one artifact (start = source, spec = spec, plan
    = plan, implement = code).
@@ -268,7 +268,7 @@ Single command for both drafting the spec for the first time and refining it lat
 
 Mode is auto-detected by `spec.md` presence: if the file does not exist (start.sh did not create it), `/spec` runs in **draft mode** and creates it from `source.md` + `templates/spec.md`; if the file exists, `/spec` runs in **refine mode** and integrates new context.
 
-**Idempotency contract:** `/spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp`, writing the spec, or touching `current_step`. Calling `/spec` twice in a row with the same input is therefore safe.
+**Idempotency contract:** `/spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp` or writing the spec. Calling `/spec` twice in a row with the same input is therefore safe.
 
 After running the script, follow its instructions:
 
@@ -296,20 +296,14 @@ After running the script, follow its instructions:
       does not create spec.md at all, so triage has nothing to read until
       `/spec` runs in draft mode. Skip triage in refine mode (the ticket
       was already classified on the first draft).
-    - **Draft mode only**: if all OQs resolved, ALWAYS call advance-step
-      before presenting next steps — do NOT ask the user what to do next
-      first:
-      `engine.cli advance-step <slug>` (spec → plan). Otherwise stay on
-      the spec step and re-run `/spec` with more context.
-    - **Refine mode**: do NOT call `advance-step`. The spec change does
-      not move the pipeline forward — it just invalidates downstream
-      artifacts. `spec_write_timestamp` is enough; `/implement`'s
-      staleness gate will block until `/plan` refreshes `plan.md`.
-    - **Recommend next step**: after advance-step (if it was called),
-      tell the user that `/f-plan` (for 3+ files) or `/f-implement`
-      (small / inline discovery) are the next moves. In refine mode
-      where `plan.md` already exists, flag it as stale and recommend
-      `/f-plan` first.
+    - **Refine mode**: spec changes don't move the pipeline — they just
+      invalidate downstream artifacts. `spec_write_timestamp` is enough;
+      `/implement`'s staleness gate blocks until `/plan` refreshes `plan.md`.
+    - **Recommend next step** (both modes): if OQs remain, tell the user
+      to resolve them and re-run `/spec`. Otherwise, recommend `/f-plan`
+      (3+ files / high-risk) or `/f-implement` (small / inline discovery).
+      In refine mode where `plan.md` already exists, flag it as stale
+      and recommend `/f-plan` first.
 
 ### Post-resolution flow (all commands)
 
@@ -318,12 +312,13 @@ When a user says all Open Questions are resolved (or you detect it via
 
 1. Count remaining open OQs in spec and plan:
    `grep -c '^\s*-\s*\[\s\]' .specwork/_spec/<slug>-spec.md`
-2. If zero open OQs remain, call advance-step BEFORE suggesting next steps:
-   `PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli advance-step <slug>`
-3. If OQs still remain, list them and ask the user for input.
+2. If OQs still remain, list them and ask the user for input.
+3. Otherwise, recommend the next step (`/f-plan` or `/f-implement`)
+   based on the ticket's `ticket_type` in state.json.
 
-This applies regardless of which command created or modified the spec.
-advance-step is the only way current_step moves forward.
+The pipeline has no state machine — there is no advance-step. Each
+command independently checks artifact preconditions (spec.md exists,
+OQs resolved, plan not stale, etc.) and decides whether to run.
 
 ### /resync
 
