@@ -42,30 +42,43 @@ tree_is_clean() {
 
 BRANCH_FLAG=""
 CUSTOM_BRANCH=""
-INPUT=""
+INPUT=""        # full raw positional input (ticket + free text), for diagnostics
+FIRST_POS=""    # first positional token — used to detect a leading Jira ticket
+DESC=""         # supplementary free text typed after a ticket (or, when there
+                # is no ticket, the whole description)
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep)    BRANCH_FLAG="keep"; shift ;;
     --branch)  BRANCH_FLAG="branch"; shift; CUSTOM_BRANCH="${1:-}"; [ -z "$CUSTOM_BRANCH" ] && { echo "Error: --branch requires a name"; exit 1; }; shift ;;
-    *)         INPUT="$1"; shift ;;
+    *)
+      if [ -z "$FIRST_POS" ]; then
+        FIRST_POS="$1"
+        INPUT="$1"
+      else
+        INPUT="$INPUT $1"
+        DESC="${DESC:+$DESC }$1"
+      fi
+      shift ;;
   esac
 done
 
 [ -z "$INPUT" ] && {
-  echo "Usage: /f-start <TICKET-123|description> [--branch <name>] [--keep]"
+  echo "Usage: /f-start <TICKET-123|description> [extra description] [--branch <name>] [--keep]"
   exit 1
 }
 
-INPUT_TYPE=$(detect_ticket "$INPUT")
+# A leading token like IR-94 is a Jira ticket; everything after it is free-text
+# context (DESC). When the first token is not a ticket, the whole input is DESC.
+INPUT_TYPE=$(detect_ticket "$FIRST_POS")
 if [ "$INPUT_TYPE" = "jira" ]; then
-  SLUG=$(slugify "$INPUT")
-  SUGGESTED_BRANCH="feature/${SLUG}"
-  TICKET="$INPUT"
+  TICKET="$FIRST_POS"
+  SLUG=$(slugify "$TICKET")
 else
-  SLUG=$(slugify "$INPUT" | sed -E 's/^-+//; s/-+$//')
-  SUGGESTED_BRANCH="feature/${SLUG}"
   TICKET=""
+  DESC="$INPUT"
+  SLUG=$(slugify "$INPUT" | sed -E 's/^-+//; s/-+$//')
 fi
+SUGGESTED_BRANCH="feature/${SLUG}"
 
 BASE_BRANCH=""
 CURRENT=$(current_branch)
@@ -184,25 +197,37 @@ mkdir -p ".specwork/_state"
 mkdir -p ".specwork/_progress"
 mkdir -p ".specwork/_plan"
 
-# ---- ensure .specwork/ is gitignored ----------------------------------------
+# ---- ensure transient/generated artifacts are gitignored --------------------
 
-# .specwork/ is transient runtime state — must never be committed. start.sh
-# guarantees this by appending to (or creating) .gitignore. If files were
-# already tracked from a prior bad setup, warn with the exact untrack command
-# (we cannot run `git rm --cached` automatically — too destructive without
-# the user's intent).
+# open-sdd artifacts are local to each developer's machine and must not be
+# committed:
+#   - .specwork/  transient pipeline runtime state
+#   - AGENTS.md   generated from the template with this machine's absolute
+#                 $OPEN_SDD_ROOT baked in
+#   - .opensdd/   per-developer pipeline config (service-rules.md, mr-config.json)
+# start.sh guarantees this by appending to (or creating) .gitignore. If files
+# were already tracked from a prior bad setup, warn with the exact untrack
+# command (we cannot run `git rm --cached` automatically — too destructive
+# without the user's intent).
 GITIGNORE=".gitignore"
-if [ -f "$GITIGNORE" ]; then
-  if ! grep -qE '^\.specwork(/|$)' "$GITIGNORE" 2>/dev/null; then
-    printf '\n# open-sdd pipeline state (transient)\n.specwork/\n' >> "$GITIGNORE"
-    echo "Appended '.specwork/' to .gitignore"
-  fi
-else
-  printf '# open-sdd pipeline state (transient)\n.specwork/\n' > "$GITIGNORE"
-  echo "Created .gitignore with '.specwork/' entry"
+[ -f "$GITIGNORE" ] || : > "$GITIGNORE"
+
+# Append each entry only if it is not already ignored (idempotent).
+if ! grep -qE '^\.specwork(/|$)' "$GITIGNORE" 2>/dev/null; then
+  printf '\n# open-sdd pipeline state (transient)\n.specwork/\n' >> "$GITIGNORE"
+  echo "Appended '.specwork/' to .gitignore"
+fi
+if ! grep -qE '^AGENTS\.md$' "$GITIGNORE" 2>/dev/null; then
+  printf '\n# open-sdd agent instructions (generated, machine-specific paths)\nAGENTS.md\n' >> "$GITIGNORE"
+  echo "Appended 'AGENTS.md' to .gitignore"
+fi
+if ! grep -qE '^\.opensdd(/|$)' "$GITIGNORE" 2>/dev/null; then
+  printf '\n# open-sdd pipeline config (local to each developer)\n.opensdd/\n' >> "$GITIGNORE"
+  echo "Appended '.opensdd/' to .gitignore"
 fi
 
-# Warn if .specwork files are already tracked from a previous bad setup.
+# Warn if any of these are already tracked from a previous bad setup —
+# .gitignore alone will not untrack them.
 TRACKED_SPECWORK=$(git ls-files .specwork 2>/dev/null | head -3)
 if [ -n "$TRACKED_SPECWORK" ]; then
   echo ""
@@ -211,6 +236,30 @@ if [ -n "$TRACKED_SPECWORK" ]; then
   echo ""
   echo "     git rm -r --cached .specwork/"
   echo "     git commit -m 'chore: untrack .specwork/ (pipeline state is transient)'"
+  echo ""
+fi
+
+TRACKED_AGENTS=$(git ls-files AGENTS.md 2>/dev/null)
+if [ -n "$TRACKED_AGENTS" ]; then
+  echo ""
+  echo "⚠  Warning: AGENTS.md is already tracked in git. It is generated and"
+  echo "   contains this machine's absolute open-sdd path — do not commit it."
+  echo "   To untrack while keeping the local file:"
+  echo ""
+  echo "     git rm --cached AGENTS.md"
+  echo "     git commit -m 'chore: untrack AGENTS.md (generated, machine-specific)'"
+  echo ""
+fi
+
+TRACKED_OPENSDD=$(git ls-files .opensdd 2>/dev/null | head -3)
+if [ -n "$TRACKED_OPENSDD" ]; then
+  echo ""
+  echo "⚠  Warning: .opensdd/ files are already tracked in git. Pipeline config"
+  echo "   is local to each developer. .gitignore alone will not untrack them."
+  echo "   To untrack while keeping the local files:"
+  echo ""
+  echo "     git rm -r --cached .opensdd/"
+  echo "     git commit -m 'chore: untrack .opensdd/ (local pipeline config)'"
   echo ""
 fi
 
@@ -223,17 +272,31 @@ if [ "$INPUT_TYPE" = "jira" ] && jira_is_configured; then
   echo "Fetching Jira ticket $TICKET..."
   if jira_write_issue_markdown "$TICKET" "$SOURCE_FILE" 2>/dev/null; then
     echo "Jira data written to $SOURCE_FILE"
+    # Preserve any supplementary free text the user passed alongside the ticket.
+    if [ -n "$DESC" ]; then
+      printf '\n## Additional context (from /f-start)\n\n%s\n' "$DESC" >> "$SOURCE_FILE"
+    fi
     SOURCE_CONTENT=$(cat "$SOURCE_FILE")
     TITLE=$(printf '%s' "$SOURCE_CONTENT" | head -1 | sed 's/^# //')
   else
     echo "Jira fetch failed; falling back to manual source."
+    # Never lose the user's input: keep the ticket id as the title and use the
+    # free-text description (if any) as the body. The ticket reference is kept in
+    # state.json so /f-mr and others can still link it.
+    printf '# %s\n\n%s\n' "$TICKET" "${DESC:-$TICKET}" > "$SOURCE_FILE"
     INPUT_TYPE="freetext"
-    TICKET=""
-    printf '# %s\n\n%s\n' "$INPUT" "$INPUT" > "$SOURCE_FILE"
+    TITLE="$TICKET"
     SOURCE_CONTENT=$(cat "$SOURCE_FILE")
   fi
+elif [ -n "$TICKET" ]; then
+  # Ticket given but Jira is not configured — keep the id as title and the
+  # free text as the body so nothing the user typed is dropped.
+  printf '# %s\n\n%s\n' "$TICKET" "${DESC:-$TICKET}" > "$SOURCE_FILE"
+  INPUT_TYPE="freetext"
+  TITLE="$TICKET"
+  SOURCE_CONTENT=$(cat "$SOURCE_FILE")
 else
-  printf '# %s\n\n%s\n' "$INPUT" "$INPUT" > "$SOURCE_FILE"
+  printf '# %s\n\n%s\n' "$INPUT" "$DESC" > "$SOURCE_FILE"
   SOURCE_CONTENT=$(cat "$SOURCE_FILE")
 fi
 
