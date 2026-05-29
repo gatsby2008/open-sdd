@@ -150,7 +150,7 @@ NEXT=""
 
 PLAN_STALE=false
 if [ -f "$PLAN_FILE" ] && [ -f "$STATE_FILE" ]; then
-  P_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+  P_MTIME=$(stat -c %Y "$PLAN_FILE" 2>/dev/null || stat -f %m "$PLAN_FILE" 2>/dev/null || echo "0")
   S_TS=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('spec_write_timestamp',0))" 2>/dev/null || echo "0")
   if [ "$P_MTIME" != "0" ] && [ "$S_TS" != "0" ] && [ "$P_MTIME" -lt "$S_TS" ]; then
     PLAN_STALE=true

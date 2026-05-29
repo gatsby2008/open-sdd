@@ -66,7 +66,10 @@ fi
 PLAN_FILE=".specwork/_plan/${SLUG}-plan.md"
 
 if [ -f "$PLAN_FILE" ]; then
-  PLAN_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+  # GNU stat (-c) first, then BSD (-f): on Linux `stat -f` means --file-system
+  # and does NOT fail cleanly, so a BSD-first probe captures filesystem text
+  # instead of the mtime. GNU-first works on both platforms.
+  PLAN_MTIME=$(stat -c %Y "$PLAN_FILE" 2>/dev/null || stat -f %m "$PLAN_FILE" 2>/dev/null || echo "0")
   SPEC_TS=$(python3 -c "
 import json, sys
 from pathlib import Path

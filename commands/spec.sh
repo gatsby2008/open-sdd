@@ -162,7 +162,7 @@ if [ "$MODE" = "refine" ]; then
     if ! engine implement-check "$SLUG" >/dev/null 2>&1; then
       # Use a more focused staleness check — implement-check also fails on OQs.
       # We only want to warn about plan staleness here, so re-check via gates.
-      PLAN_MTIME=$(stat -f %m "$PLAN_FILE" 2>/dev/null || stat -c %Y "$PLAN_FILE" 2>/dev/null || echo "0")
+      PLAN_MTIME=$(stat -c %Y "$PLAN_FILE" 2>/dev/null || stat -f %m "$PLAN_FILE" 2>/dev/null || echo "0")
       SPEC_TS=$(python3 -c "import json; print(json.load(open('$STATE_FILE'))['spec_write_timestamp'])" 2>/dev/null || echo "0")
       if [ "$PLAN_MTIME" != "0" ] && [ "$SPEC_TS" != "0" ] && [ "$PLAN_MTIME" -lt "$SPEC_TS" ]; then
         WARNINGS+="⚠  .specwork/_plan/${SLUG}-plan.md is older than the spec"$'\n'
