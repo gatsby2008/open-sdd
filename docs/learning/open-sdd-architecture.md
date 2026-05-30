@@ -121,7 +121,7 @@ Examples:
 
 This is the pipeline's persistent operational memory.
 
-**Compilation**: at `/f-start`, the project's root `AGENTS.md` + `.opensdd/service-rules.md` are compiled into `.specwork/_state/<slug>-rules.json`. Compilation is lossy: regex `(?m)^- (.+)$` captures only top-level bullets, capped at 20. The LLM reads both files directly for full semantics.
+**Compilation**: at `/f-start`, the project's pipeline instructions + `.opensdd/service-rules.md` are compiled into `.specwork/_state/<slug>-rules.json`. Compilation is lossy: regex `(?m)^- (.+)$` captures only top-level bullets, capped at 20. The LLM reads both files directly for full semantics.
 
 ---
 
@@ -140,7 +140,7 @@ The pipeline uses machine-readable state artifacts:
 
 `path.json` is written by `engine triage <slug>` (runs after `/f-spec` first draft, NOT during `/f-start`). It records the recommended pipeline path based on ticket complexity analysis.
 
-These artifacts are the reusable execution source for downstream skills.
+These artifacts are the reusable execution source for downstream commands.
 
 Benefits:
 
@@ -490,23 +490,6 @@ repo-root/
 
 ---
 
-## Key Differences from claude-tools SDD
-
-| Aspect | open-sdd | claude-tools SDD |
-|--------|----------|-----------------|
-| State engine | Python (`engine/`) + thin bash wrappers | Python (`f-start.py`, `f-plan.py`, `gates.py`) |
-| Install | `install.sh` copies commands to opencode | `update.sh` symlinks skills |
-| Rules path | `.opensdd/service-rules.md` | `.claude/service-rules.md` |
-| Artifact extras | `_test/`, `implementation-cache.json` | `context.md`, `execution-pack.json` |
-| Code review | Stack-aware with inline LLM instructions + pack hints | Stack-aware with dedicated reviewer agents + packs |
-| MR creation | GitHub (`gh`) + GitLab (`glab`) auto-detection. Override with `OPEN_SDD_MR_PROVIDER` | GitLab (`glab`) + manual URL fallback |
-| Doc skills | Bundled as `/doc-*` and `/adr-*` commands | Bundled as `doc` skills |
-| Testing | 104 unit tests (`python3 -m unittest discover`) + smoke tests (`tests/smoke.sh`) | No dedicated test suite |
-| Autopilot | `/f-auto` with `SDD_NON_INTERACTIVE=1` | Not available |
-| Vibe coding | 4 standalone commands (`/f-commit`, `/f-mr`, `/f-code-review`, `/f-mr-review`) with no pipeline needed | All commands require pipeline |
-
----
-
 ## System Properties
 
 The system is:
@@ -570,7 +553,7 @@ Execution remains bounded.
 
 Primary pipeline references:
 
-* Full protocol: [`agent/SDD_AGENT_INSTRUCTIONS.md`](../../agent/SDD_AGENT_INSTRUCTIONS.md)
+* Full protocol: [`agent/PIPELINE.md`](../../agent/PIPELINE.md)
 * Pipeline init: [`/f-start`](../../commands/start.sh) (writes source.md only; spec.md is created by /f-spec)
 * Spec draft + refine: [`/f-spec`](../../commands/spec.sh) (`/f-spec-refine` still aliases here via `commands/refine.sh`)
 * Implementation plan: [`/f-plan`](../../commands/plan.sh)

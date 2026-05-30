@@ -470,31 +470,23 @@ else
   bad "start.sh should warn about pre-tracked .specwork :: ${out:0:200}"
 fi
 
-echo "== start.sh also gitignores AGENTS.md and .opensdd/ =="
-# AGENTS.md is generated with a machine-specific path; .opensdd/ is per-developer
-# pipeline config. Neither belongs in version control, so start.sh ignores both.
-d=$(new_repo gitignore-agents-opensdd); cd "$d"
-out="$($TO bash "$REPO/commands/start.sh" "agents opensdd body" --keep 2>&1 </dev/null)"; rc=$?
-if grep -qE '^AGENTS\.md$' .gitignore; then
-  ok "start.sh gitignores AGENTS.md"
-else
-  bad "start.sh did not gitignore AGENTS.md :: $(head -20 .gitignore)"
-fi
+echo "== start.sh also gitignores .opensdd/ =="
+d=$(new_repo gitignore-opensdd); cd "$d"
+out="$($TO bash "$REPO/commands/start.sh" "opensdd body" --keep 2>&1 </dev/null)"; rc=$?
 if grep -qE '^\.opensdd(/|$)' .gitignore; then
   ok "start.sh gitignores .opensdd/"
 else
   bad "start.sh did not gitignore .opensdd/ :: $(head -20 .gitignore)"
 fi
 
-# Pre-seeded entries — start.sh must NOT duplicate them (idempotent).
-d=$(new_repo gitignore-agents-opensdd-set); cd "$d"
-printf 'AGENTS.md\n.opensdd/\n' > .gitignore
+d=$(new_repo gitignore-opensdd-set); cd "$d"
+printf '.opensdd/\n' > .gitignore
 out="$($TO bash "$REPO/commands/start.sh" "already set body" --keep 2>&1 </dev/null)"; rc=$?
-ac=$(grep -cE '^AGENTS\.md$' .gitignore); oc=$(grep -cE '^\.opensdd(/|$)' .gitignore)
-if [ "$ac" = "1" ] && [ "$oc" = "1" ]; then
-  ok "start.sh idempotent for AGENTS.md and .opensdd/ (no duplicates)"
+oc=$(grep -cE '^\.opensdd(/|$)' .gitignore)
+if [ "$oc" = "1" ]; then
+  ok "start.sh idempotent for .opensdd/ (no duplicates)"
 else
-  bad "start.sh duplicated entries (AGENTS.md=$ac .opensdd=$oc)"
+  bad "start.sh duplicated entries (.opensdd=$oc)"
 fi
 
 echo "== start.sh preserves free text in source.md (regression) =="

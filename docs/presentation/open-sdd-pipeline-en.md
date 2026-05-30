@@ -200,7 +200,7 @@ Standalone:
   /f-resync         Sync artifacts after branch rename
   /f-handoff        Package artifacts for another agent
 
-Plus companion skills: /doc-adr, /doc-catalog, /doc-publish, /doc-query
+Plus companion commands: /doc-adr, /doc-catalog, /doc-publish, /doc-query
 ```
 
 ---
@@ -738,13 +738,13 @@ Creates `execution-pack.md` and `execution-pack.json` in `.specwork/_handoff/` w
 <!-- _class: divider -->
 
 # 07
-## Companion skills
+## Companion commands
 
 ---
 
-## Doc / ADR skills
+## Doc / ADR commands
 
-Beyond the pipeline, open-sdd bundles companion skills:
+Beyond the pipeline, open-sdd bundles companion commands:
 
 | Command | What it does |
 |---------|--------------|
@@ -786,22 +786,14 @@ No `.specwork/` required — each detects absence and adapts.
 
 | Tool | Version | Why | Windows | macOS | Linux |
 |------|---------|-----|---------|-------|-------|
-| **[opencode](https://opencode.ai/)** | Latest | Runs the LLM, interprets `/f-*` commands, drives the pipeline | ✅ Desktop app or terminal via WSL2 | ✅ Terminal or desktop app | ✅ Terminal or desktop app |
+| **LLM agent** (Claude, GPT, Gemini, Copilot, etc.) | Latest | Runs the LLM, interprets `/f-*` commands, drives the pipeline | ✅ Desktop app or terminal via WSL2 | ✅ Terminal or desktop app | ✅ Terminal or desktop app |
 | **git** | >= 2.x | All version control operations | ✅ Git Bash or WSL2 | ✅ Built-in or Xcode CLI | ✅ Built-in |
 | **Bash** | >= 4.x | All pipeline scripts (`commands/*.sh`) | ✅ Git Bash or WSL2 | ✅ Built-in | ✅ Built-in |
 | **Python** | >= 3.9 | Engine layer (`engine/`) | ✅ python.org or WSL2 | ✅ Built-in | ✅ Built-in |
 
-**How to install opencode:**
+**How to install the LLM agent:**
 
-```bash
-# macOS / Linux (terminal)
-curl -fsSL https://opencode.ai/install | bash
-
-# Windows: download the desktop app from https://opencode.ai/download
-# or install via WSL2 then run the curl command inside WSL2
-```
-
-Verify: `opencode --version`
+Install your preferred LLM agent (Claude Code, Copilot, GPT, Gemini, etc.) following its own installation instructions.
 
 ---
 
@@ -842,8 +834,7 @@ The pipeline is built on **bash scripts**. On Windows you have two options:
 # 1. Install WSL2 with Ubuntu
 wsl --install
 
-# 2. Inside WSL2, install opencode
-curl -fsSL https://opencode.ai/install | bash
+# 2. Inside WSL2, install your preferred LLM agent
 
 # 3. Clone open-sdd inside WSL2
 git clone <repo-url> ~/team/Yield/open-sdd
@@ -855,10 +846,9 @@ git clone <repo-url> ~/team/Yield/open-sdd
 **Option B — Git Bash:**
 1. Install [Git for Windows](https://git-scm.com/download/win) (comes with Git Bash)
 2. Install [Python for Windows](https://python.org/downloads/) — check "Add Python to PATH"
-3. Install opencode desktop app from [opencode.ai/download](https://opencode.ai/download)
-4. Clone open-sdd: `git clone <repo-url> ~/team/Yield/open-sdd`
-5. Run `install.sh` from **Git Bash** (not CMD or PowerShell)
-6. Use opencode from its integrated terminal (which uses PowerShell) — point it to run commands via Git Bash, or use WSL2 for full compatibility
+3. Clone open-sdd: `git clone <repo-url> ~/team/Yield/open-sdd`
+4. Run `install.sh` from **Git Bash** (not CMD or PowerShell)
+5. Configure your LLM agent to run commands via Git Bash, or use WSL2 for full compatibility
 
 ```bash
 # Git Bash (run as Administrator if needed)
@@ -868,7 +858,7 @@ bash install.sh
 
 **Optional tools (Git Bash):** `winget install GitHub.cli` (gh) · `winget install glab` (GitLab CLI, needed by `/f-mr-review`).
 
-> **Important:** opencode's integrated terminal uses PowerShell by default, which does not understand bash-style clickable paths like `/home/user/file:42`. Either use WSL2 (option A) or configure opencode to launch Git Bash as its shell backend.
+> **Important:** Some LLM agent terminals on Windows use PowerShell by default, which does not understand bash-style clickable paths like `/home/user/file:42`. Either use WSL2 (option A) or configure your agent to launch Git Bash as its shell backend.
 
 **Troubleshooting:**
 
@@ -879,15 +869,14 @@ bash install.sh
 | `install.sh: syntax error` | Run with CMD/PowerShell instead of bash. Use Git Bash. |
 | `glab: command not found` | `winget install glab` (Git Bash) / `sudo apt install glab` (WSL2). Fallback: pass branch names to `/f-mr-review`. |
 | Git operations are slow | Cloned on `/mnt/c/`. Re-clone inside Linux filesystem (`~/team/`). |
-| opencode can't find bash | Point opencode settings to `C:\Program Files\Git\bin\bash.exe` (Git Bash) or use WSL2 terminal. |
+| agent can't find bash | Point your agent's shell setting to `C:\Program Files\Git\bin\bash.exe` (Git Bash) or use WSL2 terminal. |
 
 ---
 
 ## macOS setup
 
 ```bash
-# 1. Install opencode
-curl -fsSL https://opencode.ai/install | bash
+# 1. Install your preferred LLM agent (e.g., Claude Code, GPT, Gemini)
 
 # 2. Clone and install open-sdd
 git clone <repo-url> ~/team/Yield/open-sdd
@@ -908,8 +897,7 @@ echo 'export JIRA_TOKEN="your-atlassian-api-token"' >> ~/.zshrc
 ## Linux setup
 
 ```bash
-# 1. Install opencode
-curl -fsSL https://opencode.ai/install | bash
+# 1. Install your preferred LLM agent (e.g., Claude Code, GPT, Gemini)
 
 # 2. Clone and install open-sdd
 git clone <repo-url> ~/team/Yield/open-sdd
@@ -938,7 +926,6 @@ After installing open-sdd globally, initialize each consumer project:
 - `.opensdd/mr-config.json` — MR target branch and strategy
 - `.opensdd/service-rules.md` — service invariants (copy template)
 - Appends `.specwork/` to `.gitignore`
-- Writes `AGENTS.md` to project root (opencode auto-detects it)
 
 ---
 
@@ -1013,7 +1000,7 @@ Document service invariants, business rules, architecture constraints.
 
 **Standalone:** `/f-commit` · `/f-mr` · `/f-code-review` · `/f-handoff`
 
-**Doc skills:** `/doc-adr` · `/doc-catalog` · `/doc-query`
+**Doc commands:** `/doc-adr` · `/doc-catalog` · `/doc-query`
 
 ---
 

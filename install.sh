@@ -12,7 +12,7 @@ install_cmd() {
   local name="$1" description="$2"
   cat > "${CMD_DIR}/f-${name}.md" <<EOF
 ---description: ${description}---
-Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
 EOF
 }
 
@@ -24,8 +24,24 @@ ${directive}
 EOF
 }
 
+install_doc_cmd() {
+  local name="$1" description="$2"
+  cat > "${CMD_DIR}/${name}.md" <<EOF
+---description: ${description}---
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
+EOF
+}
+
+install_doc_cmd_directive() {
+  local name="$1" description="$2" directive="$3"
+  cat > "${CMD_DIR}/${name}.md" <<EOF
+---description: ${description}---
+${directive}
+EOF
+}
+
 install_cmd_directive "start" "Initialize SDD pipeline: branch + source.md (spec.md is created by /f-spec)" "\
-Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
 
 Ask the user about branch choice using the suggested name (prefixed with 'feature/'), a custom name, or staying on the current branch. Once decided, run:
 
@@ -41,7 +57,7 @@ install_cmd "commit"        "Stage changes and generate semantic commit"
 install_cmd "mr"            "Push branch and create merge request"
 install_cmd "close"         "Clean .specwork and optionally delete feature branch"
 install_cmd_directive "auto" "Run full SDD pipeline non-interactively" "\
-Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
 
 This command drives the entire pipeline non-interactively — no bash prompts.
 
@@ -80,21 +96,31 @@ install_cmd "mr-address" "Work through MR review comments"
 install_cmd "handoff"       "Package artifacts for another agent"
 install_cmd "test-design"   "Design test cases for current changes"
 install_cmd "test-impl"     "Implement test files for changed source"
+install_doc_cmd_directive "doc-catalog" "Scan codebase and generate/update docs/service-info.md" "\
+Run ${OPENSDD_PATH}/commands/doc-catalog.sh \$ARGUMENTS to scan the project and produce structured findings, then use those findings to generate or update docs/service-info.md. Ask the user for confirmation before writing."
+install_doc_cmd_directive "doc-publish" "Publish service catalog to central registry" "\
+Run ${OPENSDD_PATH}/commands/doc-publish.sh \$ARGUMENTS. If the argument is 'list', print the registered catalogs. Otherwise publish docs/service-info.md to the central registry."
+install_doc_cmd_directive "doc-query" "Ask cross-service architecture questions" "\
+Run ${OPENSDD_PATH}/commands/doc-query.sh \$ARGUMENTS. It prints all registered service catalogs. Use that output to answer the user's architecture question, citing the source catalog for each claim."
+install_doc_cmd_directive "doc-adr" "Create an Architecture Decision Record" "\
+Run ${OPENSDD_PATH}/commands/doc-adr.sh \$ARGUMENTS to find the next ADR number and gather context. Use the output to draft an ADR, confirm with the user, write to docs/adr/, and offer to commit."
+install_doc_cmd_directive "adr-publish" "Publish ADRs to central registry" "\
+Run ${OPENSDD_PATH}/commands/adr-publish.sh \$ARGUMENTS. If the argument is 'list', print the registered ADRs. Otherwise sync docs/adr/*.md to the central registry."
+install_doc_cmd_directive "adr-query" "Ask architecture-decision questions across ADRs" "\
+Run ${OPENSDD_PATH}/commands/adr-query.sh \$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the user's question, citing every claim as <service>/<ADR-file>."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
-# agent/SDD_AGENT_INSTRUCTIONS.md ("Do NOT run triage here").
+# agent/PIPELINE.md ("Do NOT run triage here").
 
-# Remove commands deregistered in newer versions (clean up stale installs).
+# Remove commands deregistered or renamed in newer versions (clean up stale installs).
 rm -f "${CMD_DIR}/f-triage.md"
+# Clean up f-prefixed variants from earlier buggy installs.
+rm -f "${CMD_DIR}/f-doc-adr.md" "${CMD_DIR}/f-doc-catalog.md" "${CMD_DIR}/f-doc-publish.md" "${CMD_DIR}/f-doc-query.md"
+rm -f "${CMD_DIR}/f-adr-publish.md" "${CMD_DIR}/f-adr-query.md"
 
-echo "open-sdd: 20 commands installed to $CMD_DIR"
+echo "open-sdd: 26 commands installed to $CMD_DIR"
 echo ""
 
-# Generate AGENTS.md with resolved OPEN_SDD_ROOT path
-sed "s|\$OPEN_SDD_ROOT|$OPENSDD_PATH|g" "$OPENSDD_PATH/templates/AGENTS.md" > "$OPENCODE_DIR/AGENTS.md"
-echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
-
-echo ""
 echo "============================================"
 echo "  open-sdd requirements check"
 echo "============================================"
@@ -108,34 +134,6 @@ echo "  Jira:              set JIRA_BASE_URL, JIRA_USER, JIRA_TOKEN (optional)"
 echo ""
 echo "  Windows users: run from WSL2 (recommended) or Git Bash"
 echo "============================================"
-
-# ---- standalone skills (doc) slash commands ----------------------------------
-
-for skill_dir in "$OPENSDD_PATH/skills/doc/"*/; do
-  [ -d "$skill_dir" ] || continue
-  skill_name="$(basename "$skill_dir")"
-  first_line="$(head -1 "$skill_dir/SKILL.md" 2>/dev/null || true)"
-  desc=""
-  if [ "$first_line" = "---" ]; then
-    desc="$(sed -n '3p' "$skill_dir/SKILL.md" 2>/dev/null | sed 's/^description: //')"
-  fi
-  [ -z "$desc" ] && desc="$skill_name skill"
-  cat > "${CMD_DIR}/${skill_name}.md" <<EOF
----description: ${desc}---
-View ${OPENSDD_PATH}/skills/doc/${skill_name}/SKILL.md and follow the instructions.
-EOF
-done
-echo "doc skills (6) slash commands installed — available as /doc-adr, /doc-catalog, etc."
-
-# ---- set environment variables (with dedup) ----
-ZSENV="${HOME}/.zshenv"
-touch "$ZSENV"
-for _line in \
-  "export OPEN_SDD_ROOT=\"$OPENSDD_PATH\"" \
-  "export OPEN_SDD_DOC_HOME=\"\${OPEN_SDD_ROOT:-\$HOME}/.opensdd/registry\""; do
-  grep -qxF "$_line" "$ZSENV" || echo "$_line" >> "$ZSENV"
-done
-echo "OPEN_SDD_ROOT and OPEN_SDD_DOC_HOME added to ~/.zshenv (deduplicated)"
 
 echo ""
 echo "Re-run this script after moving open-sdd or adding new commands."

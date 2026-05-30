@@ -1,8 +1,8 @@
-# SDD Pipeline — open-sdd
+# SDD Pipeline
 
-open-sdd is at `$OPEN_SDD_ROOT`.
+SDD pipeline is at `$OPEN_SDD_ROOT`.
 
-Load `$OPEN_SDD_ROOT/agent/SDD_AGENT_INSTRUCTIONS.md` for the full
+Load `$OPEN_SDD_ROOT/agent/PIPELINE.md` for the full
 pipeline protocol (gates, spec template, stack detection, OQ rules).
 
 If `.opensdd/service-rules.md` exists, load it for project-specific
@@ -68,7 +68,7 @@ Do not create for:
 ## Quality Gates
 
 - `bash commands/check.sh` must pass before committing (`/f-commit`) and again before pushing (`/f-mr`).
-- open-sdd ships a stack-detecting default at `$OPEN_SDD_ROOT/commands/check.sh` (auto-detects Gradle / Maven / npm / pnpm / yarn / pytest / Cargo / Go). The framework runs that script by default — no setup needed for the common case.
+- SDD pipeline ships a stack-detecting default at `$OPEN_SDD_ROOT/commands/check.sh` (auto-detects Gradle / Maven / npm / pnpm / yarn / pytest / Cargo / Go). The framework runs that script by default — no setup needed for the common case.
 - To override (e.g. Spring Boot with `integrationTest`, Maven with profiles, extra lint steps), drop a project-local `commands/check.sh` in the project root. `/f-commit` and `/f-mr` prefer it over the framework default. Template lives at `$OPEN_SDD_ROOT/templates/check.sh.example`.
 - Failed quality checks block progression — do not commit or push on failure.
 
@@ -101,5 +101,14 @@ Do not create for:
 | `/f-handoff` | `bash $OPEN_SDD_ROOT/commands/handoff.sh` |
 | `/f-mr` | `bash $OPEN_SDD_ROOT/commands/mr.sh` |
 | `/f-close` | `bash $OPEN_SDD_ROOT/commands/close.sh` |
+| `/doc-catalog` | `bash $OPEN_SDD_ROOT/commands/doc-catalog.sh` |
+| `/doc-publish` | `bash $OPEN_SDD_ROOT/commands/doc-publish.sh` |
+| `/doc-publish list` | `bash $OPEN_SDD_ROOT/commands/doc-publish.sh list` |
+| `/doc-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-query.sh <question>` |
+| `/doc-adr <desc>` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh <desc>` |
+| `/doc-adr open-questions` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh open-questions` |
+| `/adr-publish` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh` |
+| `/adr-publish list` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh list` |
+| `/adr-query <question>` | `bash $OPEN_SDD_ROOT/commands/adr-query.sh <question>` |
 
 All commands run from the root of the current project.

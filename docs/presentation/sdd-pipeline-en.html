@@ -2794,14 +2794,14 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 ;" data-marpit-pagination-total="39">
 <h2 id="setup-in-5-minutes">Setup in 5 minutes</h2>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash"><span class="hljs-comment"># 1. Install the pipeline</span>
-<span class="hljs-built_in">cd</span> ~/team/Yield/claude-tools
-./update.sh --install sdd
+<span class="hljs-built_in">cd</span> ~/team/Yield/open-sdd
+./install.sh
 
 <span class="hljs-comment"># 2. Configure Atlassian MCP (once per machine)</span>
 claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse
 
 <span class="hljs-comment"># 3. Configure reviewers in your project</span>
-<span class="hljs-comment"># .claude/mr-config.json  (commit this file)</span>
+<span class="hljs-comment"># .opensdd/mr-config.json  (commit this file)</span>
 {
   <span class="hljs-string">&quot;reviewers&quot;</span>: [<span class="hljs-string">&quot;username1&quot;</span>, <span class="hljs-string">&quot;username2&quot;</span>],
   <span class="hljs-string">&quot;target_branch&quot;</span>: <span class="hljs-string">&quot;development&quot;</span>,
@@ -3077,7 +3077,7 @@ section.divider h1 { color: #F5A623; border: none; font-size: 2.5em; }
 section.divider p { color: #aaa; font-size: 1.2em; }
 ;" data-marpit-pagination-total="39">
 <h1 id="questions">Questions</h1>
-<p><strong>Repo:</strong> <code>team/Yield/claude-tools</code></p>
+<p><strong>Repo:</strong> <code>team/Yield/open-sdd</code></p>
 <pre is="marp-pre" data-auto-scaling="downscale-only"><code class="language-bash">./update.sh --install sdd      <span class="hljs-comment"># install</span>
 /f-help                        <span class="hljs-comment"># get your bearings at any point</span>
 </code></pre>

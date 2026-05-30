@@ -6,7 +6,6 @@ $ErrorActionPreference = "Stop"
 
 $OPENSDD_PATH = Split-Path -Parent $PSCommandPath
 $CMD_DIR = Join-Path $HOME ".config" "opencode" "commands"
-$OPENCODE_DIR = Join-Path $HOME ".config" "opencode"
 
 New-Item -ItemType Directory -Force -Path $CMD_DIR | Out-Null
 
@@ -14,7 +13,7 @@ function Install-Cmd {
   param($Name, $Description)
   $content = @"
 ---description: ${Description}---
-Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${Name}.sh `$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${Name}.sh `$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
 "@
   Set-Content -Path (Join-Path $CMD_DIR "f-${Name}.md") -Value $content -Encoding UTF8
 }
@@ -28,8 +27,26 @@ ${Directive}
   Set-Content -Path (Join-Path $CMD_DIR "f-${Name}.md") -Value $content -Encoding UTF8
 }
 
+function Install-DocCmd {
+  param($Name, $Description)
+  $content = @"
+---description: ${Description}---
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${Name}.sh `$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
+"@
+  Set-Content -Path (Join-Path $CMD_DIR "${Name}.md") -Value $content -Encoding UTF8
+}
+
+function Install-DocCmdDirective {
+  param($Name, $Description, $Directive)
+  $content = @"
+---description: ${Description}---
+${Directive}
+"@
+  Set-Content -Path (Join-Path $CMD_DIR "${Name}.md") -Value $content -Encoding UTF8
+}
+
 $startDirective = @"
-Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
 
 Ask the user about branch choice using the suggested name (prefixed with 'feature/'), a custom name, or staying on the current branch. Once decided, run:
 
@@ -59,38 +76,21 @@ Install-Cmd -Name "mr-address" -Description "Work through MR review comments"
 Install-Cmd -Name "handoff"       -Description "Package artifacts for another agent"
 Install-Cmd -Name "test-design"   -Description "Design test cases for current changes"
 Install-Cmd -Name "test-impl"     -Description "Implement test files for changed source"
-Install-Cmd -Name "triage"        -Description "Classify ticket complexity from spec and recommend pipeline path"
+Install-DocCmdDirective -Name "doc-catalog" -Description "Scan codebase and generate/update docs/service-info.md" -Directive "Run ${OPENSDD_PATH}/commands/doc-catalog.sh `$ARGUMENTS to scan the project and produce structured findings, then use those findings to generate or update docs/service-info.md. Ask the user for confirmation before writing."
+Install-DocCmdDirective -Name "doc-publish" -Description "Publish service catalog to central registry" -Directive "Run ${OPENSDD_PATH}/commands/doc-publish.sh `$ARGUMENTS. If the argument is 'list', print the registered catalogs. Otherwise publish docs/service-info.md."
+Install-DocCmdDirective -Name "doc-query" -Description "Ask cross-service architecture questions" -Directive "Run ${OPENSDD_PATH}/commands/doc-query.sh `$ARGUMENTS. It prints all registered service catalogs. Use that output to answer the question, citing the source catalog for each claim."
+Install-DocCmdDirective -Name "doc-adr" -Description "Create an Architecture Decision Record" -Directive "Run ${OPENSDD_PATH}/commands/doc-adr.sh `$ARGUMENTS to find the next ADR number and gather context. Use the output to draft an ADR, confirm with the user, write to docs/adr/, and offer to commit."
+Install-DocCmdDirective -Name "adr-publish" -Description "Publish ADRs to central registry" -Directive "Run ${OPENSDD_PATH}/commands/adr-publish.sh `$ARGUMENTS. If the argument is 'list', print the registered ADRs. Otherwise sync docs/adr/*.md to the registry."
+Install-DocCmdDirective -Name "adr-query" -Description "Ask architecture-decision questions across ADRs" -Directive "Run ${OPENSDD_PATH}/commands/adr-query.sh `$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the question, citing every claim as <service>/<ADR-file>."
 
-Write-Host "open-sdd: 19 commands installed to $CMD_DIR"
-Write-Host ""
-
-# Generate AGENTS.md with resolved OPEN_SDD_ROOT path
-$template = Join-Path $OPENSDD_PATH "templates" "AGENTS.md"
-$agentsOut = Join-Path $OPENCODE_DIR "AGENTS.md"
-(Get-Content $template -Raw) -replace '\$OPEN_SDD_ROOT', $OPENSDD_PATH | Set-Content -Path $agentsOut -Encoding UTF8 -NoNewline
-Write-Host "Global AGENTS.md placed at $agentsOut"
-
-# ---- standalone skills (doc) slash commands ----------------------------------
-$docSrc = Join-Path $OPENSDD_PATH "skills" "doc"
-Get-ChildItem -Path $docSrc -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-  $skillName = $_.Name
-  $skillFile = Join-Path $_.FullName "SKILL.md"
-  $desc = ""
-  if (Test-Path $skillFile) {
-    $firstLine = Get-Content -Path $skillFile -TotalCount 1
-    if ($firstLine -eq "---") {
-      $thirdLine = Get-Content -Path $skillFile -TotalCount 3 | Select-Object -Last 1
-      $desc = $thirdLine -replace '^description: ', ''
-    }
-  }
-  if (-not $desc) { $desc = "${skillName} skill" }
-  $cmdContent = @"
----description: ${desc}---
-View $(Join-Path $OPENSDD_PATH "skills" "doc" $skillName "SKILL.md") and follow the instructions.
-"@
-  Set-Content -Path (Join-Path $CMD_DIR "${skillName}.md") -Value $cmdContent -Encoding UTF8
+# Remove stale commands from previous versions
+Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContinue | Out-Null
+@("doc-adr", "doc-catalog", "doc-publish", "doc-query", "adr-publish", "adr-query") | ForEach-Object {
+  Remove-Item -Path (Join-Path $CMD_DIR "f-$_.md") -ErrorAction SilentlyContinue | Out-Null
 }
-Write-Host "doc skills (6) slash commands installed — available as /doc-adr, /doc-catalog, etc."
+
+Write-Host "open-sdd: 25 commands installed to $CMD_DIR"
+Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------
 $profilePath = $PROFILE.CurrentUserAllHosts

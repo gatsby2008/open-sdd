@@ -168,14 +168,6 @@ echo "Working branch: $BRANCH"
 
 # ---- bootstrap project setup (on feature branch, no commit) -----------------
 
-if [ ! -f "AGENTS.md" ]; then
-  # Bake the absolute open-sdd path into the template (same as install.sh) so the
-  # command paths resolve even when $OPEN_SDD_ROOT is not exported in the shell.
-  OPEN_SDD_ROOT_PATH="$(cd "$SCRIPT_DIR/.." && pwd)"
-  if sed "s|\$OPEN_SDD_ROOT|$OPEN_SDD_ROOT_PATH|g" "$TEMPLATES_DIR/AGENTS.md" > "AGENTS.md"; then
-    echo "Created AGENTS.md"
-  fi
-fi
 if [ ! -d ".opensdd" ]; then
   mkdir -p ".opensdd"
 fi
@@ -199,35 +191,21 @@ mkdir -p ".specwork/_plan"
 
 # ---- ensure transient/generated artifacts are gitignored --------------------
 
-# open-sdd artifacts are local to each developer's machine and must not be
-# committed:
+# Pipeline artifacts are local to each developer and must not be committed:
 #   - .specwork/  transient pipeline runtime state
-#   - AGENTS.md   generated from the template with this machine's absolute
-#                 $OPEN_SDD_ROOT baked in
 #   - .opensdd/   per-developer pipeline config (service-rules.md, mr-config.json)
-# start.sh guarantees this by appending to (or creating) .gitignore. If files
-# were already tracked from a prior bad setup, warn with the exact untrack
-# command (we cannot run `git rm --cached` automatically — too destructive
-# without the user's intent).
 GITIGNORE=".gitignore"
 [ -f "$GITIGNORE" ] || : > "$GITIGNORE"
 
-# Append each entry only if it is not already ignored (idempotent).
 if ! grep -qE '^\.specwork(/|$)' "$GITIGNORE" 2>/dev/null; then
   printf '\n# open-sdd pipeline state (transient)\n.specwork/\n' >> "$GITIGNORE"
   echo "Appended '.specwork/' to .gitignore"
-fi
-if ! grep -qE '^AGENTS\.md$' "$GITIGNORE" 2>/dev/null; then
-  printf '\n# open-sdd agent instructions (generated, machine-specific paths)\nAGENTS.md\n' >> "$GITIGNORE"
-  echo "Appended 'AGENTS.md' to .gitignore"
 fi
 if ! grep -qE '^\.opensdd(/|$)' "$GITIGNORE" 2>/dev/null; then
   printf '\n# open-sdd pipeline config (local to each developer)\n.opensdd/\n' >> "$GITIGNORE"
   echo "Appended '.opensdd/' to .gitignore"
 fi
 
-# Warn if any of these are already tracked from a previous bad setup —
-# .gitignore alone will not untrack them.
 TRACKED_SPECWORK=$(git ls-files .specwork 2>/dev/null | head -3)
 if [ -n "$TRACKED_SPECWORK" ]; then
   echo ""
@@ -236,18 +214,6 @@ if [ -n "$TRACKED_SPECWORK" ]; then
   echo ""
   echo "     git rm -r --cached .specwork/"
   echo "     git commit -m 'chore: untrack .specwork/ (pipeline state is transient)'"
-  echo ""
-fi
-
-TRACKED_AGENTS=$(git ls-files AGENTS.md 2>/dev/null)
-if [ -n "$TRACKED_AGENTS" ]; then
-  echo ""
-  echo "⚠  Warning: AGENTS.md is already tracked in git. It is generated and"
-  echo "   contains this machine's absolute open-sdd path — do not commit it."
-  echo "   To untrack while keeping the local file:"
-  echo ""
-  echo "     git rm --cached AGENTS.md"
-  echo "     git commit -m 'chore: untrack AGENTS.md (generated, machine-specific)'"
   echo ""
 fi
 

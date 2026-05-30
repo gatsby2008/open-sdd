@@ -22,7 +22,7 @@ Command-by-command reference for the documentation and architecture-decision too
 
 | Variable | Effect |
 |----------|--------|
-| `$OPEN_SDD_DOC_HOME` | Overrides the registry root for team-shared registries (e.g., a cloned GitLab repo). Affects all four doc skills: `/doc-publish`, `/doc-query`, `/adr-publish`, `/adr-query`. |
+| `$OPEN_SDD_DOC_HOME` | Overrides the registry root for team-shared registries (e.g., a cloned GitLab repo). Affects all four doc commands: `/doc-publish`, `/doc-query`, `/adr-publish`, `/adr-query`. |
 
 ---
 
