@@ -34,8 +34,12 @@ echo ""
 
 # ---- step 1: start ----------------------------------------------------------
 
-echo "--- [1/4] f-start ---"
-bash "$SCRIPT_DIR/start.sh" "$TICKET" || die "f-start failed"
+echo "--- [1/4] f-start / pipeline detect ---"
+if engine precheck >/dev/null 2>&1; then
+  echo "Existing pipeline detected — skipping /f-start and keeping current branch."
+else
+  bash "$SCRIPT_DIR/start.sh" "$TICKET" --confirm-branch || die "f-start failed"
+fi
 echo ""
 
 # ---- step 2: spec -----------------------------------------------------------

@@ -42,6 +42,7 @@ tree_is_clean() {
 
 BRANCH_FLAG=""
 CUSTOM_BRANCH=""
+CONFIRM_BRANCH=0
 INPUT=""        # full raw positional input (ticket + free text), for diagnostics
 FIRST_POS=""    # first positional token — used to detect a leading Jira ticket
 DESC=""         # supplementary free text typed after a ticket (or, when there
@@ -50,6 +51,7 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --keep)    BRANCH_FLAG="keep"; shift ;;
     --branch)  BRANCH_FLAG="branch"; shift; CUSTOM_BRANCH="${1:-}"; [ -z "$CUSTOM_BRANCH" ] && { echo "Error: --branch requires a name"; exit 1; }; shift ;;
+    --confirm-branch) CONFIRM_BRANCH=1; shift ;;
     *)
       if [ -z "$FIRST_POS" ]; then
         FIRST_POS="$1"
@@ -130,7 +132,7 @@ elif [ "$BRANCH_FLAG" = "keep" ]; then
   echo "Staying on $BRANCH (slug: $SLUG)."
 else
   CHOICE="A"
-  if [ -t 0 ] && [ "${SDD_NON_INTERACTIVE:-0}" != "1" ]; then
+  if [ -t 0 ] && { [ "${SDD_NON_INTERACTIVE:-0}" != "1" ] || [ "$CONFIRM_BRANCH" = "1" ]; }; then
     echo ""
     echo "Suggested branch: $SUGGESTED_BRANCH"
     echo ""
@@ -286,6 +288,7 @@ cat > ".specwork/_state/${SLUG}-state.json" <<ENDJSON
   "base_branch": "${BASE_BRANCH}",
   "ticket": $( [ -n "$TICKET" ] && echo "\"${TICKET}\"" || echo "null" ),
   "input_type": "${INPUT_TYPE}",
+  "non_interactive": $( [ "${SDD_NON_INTERACTIVE:-0}" = "1" ] && echo "true" || echo "false" ),
   "source_title": $(printf '%s' "$TITLE" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))'),
   "spec_file": ".specwork/_spec/${SLUG}-spec.md",
   "source_file": ".specwork/_spec/${SLUG}-source.md",

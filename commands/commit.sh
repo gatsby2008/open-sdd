@@ -8,6 +8,7 @@ ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
 
 source "$LIB_DIR/gates.sh"
+source "$SCRIPT_DIR/../lib/non_interactive.sh"
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -29,6 +30,7 @@ extract_ticket() {
 SLUG=$(resolve_slug) || die "Could not resolve slug."
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
+hydrate_non_interactive_from_state "$SLUG"
 
 # /f-commit is artifact-driven and re-runnable. No step gate. Standalone
 # (git-only / vibe-coding) mode is allowed when no pipeline state exists.

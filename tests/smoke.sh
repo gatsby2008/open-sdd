@@ -48,6 +48,13 @@ else
   bad "install.sh/install.ps1 parity check"
 fi
 
+echo "== sdd surface parity =="
+if ( cd "$REPO" && bash tests/check-sdd-surface-parity.sh >/dev/null 2>&1 ); then
+  ok "sdd surface parity check"
+else
+  bad "sdd surface parity check"
+fi
+
 echo "== precheck =="
 d=$(new_repo precheck); cd "$d"
 assert_rc 1 "no .specwork rejects" -- python3 -m engine.cli precheck
@@ -60,6 +67,23 @@ assert_out "already initialized" "--fresh refusal message" -- python3 -m engine.
 
 echo "== check bug fixed =="
 assert_out "MISSING" "check command reachable" -- python3 -m engine.cli check demo
+
+echo "== f-auto: start then auto skips re-start =="
+d=$(new_repo auto-skip-start); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_plan .specwork/_progress
+cat > .specwork/_state/demo-state.json <<'JSON'
+{"id":"demo","slug":"demo","ticket_type":"feature","input_type":"freetext","branch":"feature/demo","non_interactive":false,"spec_write_timestamp":1}
+JSON
+printf '{"schema_version":1,"id":"demo","global_rules":[],"service_rules":[]}\n' > .specwork/_state/demo-rules.json
+printf '{"schema_version":1,"id":"demo","repositories":[],"patterns":[],"related_tests":[],"similar_classes":[],"notes":[]}\n' > .specwork/_state/demo-implementation-cache.json
+printf '# source\n' > .specwork/_spec/demo-source.md
+printf '# demo\n\n## Open Questions\n' > .specwork/_spec/demo-spec.md
+out="$($TO bash "$REPO/commands/auto.sh" "demo ticket" 2>&1 </dev/null || true)"
+if printf '%s' "$out" | grep -qF "Existing pipeline detected — skipping /f-start"; then
+  ok "f-auto skips /f-start when pipeline already exists"
+else
+  bad "f-auto should skip /f-start on active pipeline :: ${out:0:200}"
+fi
 
 echo "== risk-signals (f-auto test gate) =="
 d=$(new_repo risksig); cd "$d"; mkdir -p .specwork/_spec
@@ -83,6 +107,26 @@ if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -qF "/f-start"; then
   ok "status.sh graceful without pipeline"
 else
   bad "status.sh graceful path (rc=$rc) :: ${out:0:120}"
+fi
+
+echo "== non-interactive mode rehydrates from state.json =="
+d=$(new_repo noninteractive-hydrate); cd "$d"
+mkdir -p .specwork/_state .specwork/_spec .specwork/_plan
+cat > .specwork/_state/demo-state.json <<'JSON'
+{"id":"demo","slug":"demo","ticket_type":"feature","input_type":"freetext","branch":"feature/demo","non_interactive":true,"spec_write_timestamp":4102444800}
+JSON
+printf '{"schema_version":1,"id":"demo","global_rules":[],"service_rules":[]}\n' > .specwork/_state/demo-rules.json
+printf '# demo\n\n## Open Questions\n' > .specwork/_spec/demo-spec.md
+printf '# plan\n' > .specwork/_plan/demo-plan.md
+cat > .specwork/_plan/demo-plan.json <<'JSON'
+{"schema_version":1,"id":"demo","target_files":[{"path":"README.md","change":"touch","tags":"docs"}]}
+JSON
+unset SDD_NON_INTERACTIVE || true
+out="$(bash "$REPO/commands/implement.sh" 2>&1 </dev/null || true)"
+if printf '%s' "$out" | grep -qF "Non-interactive: re-running /f-plan automatically."; then
+  ok "implement.sh rehydrates non-interactive mode from state.json"
+else
+  bad "implement.sh did not rehydrate non-interactive mode :: ${out:0:200}"
 fi
 
 echo "== spec.sh detects draft vs refine by spec.md presence =="

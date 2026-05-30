@@ -5,6 +5,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
 
 source "$LIB_DIR/gates.sh"
+source "$LIB_DIR/non_interactive.sh"
+hydrate_non_interactive_from_state "$(resolve_slug 2>/dev/null || true)"
 
 # ---- helpers ----------------------------------------------------------------
 

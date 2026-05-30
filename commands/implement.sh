@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 engine() { PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli "$@"; }
+source "$SCRIPT_DIR/../lib/non_interactive.sh"
 
 # ---- helpers ----------------------------------------------------------------
 
@@ -86,6 +87,7 @@ engine precheck >/dev/null 2>&1 \
 SLUG=$(engine resolve-slug 2>/dev/null || true)
 [ -n "$SLUG" ] || die "Could not resolve slug from current branch."
 echo "Slug: $SLUG"
+hydrate_non_interactive_from_state "$SLUG"
 
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 
