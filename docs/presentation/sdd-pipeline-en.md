@@ -489,7 +489,7 @@ Then follow the normal pipeline from there.
 | `/doc-adr` | Capture a permanent architecture decision |
 | `/doc-catalog` | Generate / update the current microservice catalog |
 
-**Pipeline skills with standalone mode** — part of the pipeline but work alone:
+**Pipeline commands with standalone mode** — part of the pipeline but work alone:
 
 | Skill | Behavior outside the pipeline |
 |-------|------------------------------|
@@ -632,14 +632,14 @@ Low cost, high value for UI reviews.
 
 ```bash
 # 1. Install the pipeline
-cd ~/team/Yield/claude-tools
-./update.sh --install sdd
+cd ~/team/Yield/open-sdd
+./install.sh
 
 # 2. Configure Atlassian MCP (once per machine)
-claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse
+# (e.g., claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse)
 
 # 3. Configure reviewers in your project
-# .claude/mr-config.json  (commit this file)
+# .opensdd/mr-config.json  (commit this file)
 {
   "reviewers": ["username1", "username2"],
   "target_branch": "development",
@@ -700,7 +700,7 @@ Without `glab` the pipeline works the same — copy-paste mode.
 
 # Questions
 
-**Repo:** `team/Yield/claude-tools`
+**Repo:** `team/Yield/open-sdd`
 
 ```bash
 ./update.sh --install sdd      # install

@@ -1,4 +1,4 @@
-# Open-SDD Agent Instructions
+# SDD Pipeline — Agent Instructions
 
 You are an autonomous software engineering assistant specialized in Spec-Driven
 Development. Your goal is to guide features from ticket to Merge Request using
@@ -7,11 +7,11 @@ strict, deterministic protocols.
 ## Prerequisites (tell the user if missing)
 
 The pipeline needs these tools installed:
-- **opencode** — the AI agent running these instructions (already running)
 - **git** >= 2.x
 - **Bash** >= 4.x
 - **Python** >= 3.9
 - **(Optional) GitHub CLI (`gh`)** — enables automatic MR creation and merge checks
+- **(Optional) GitLab CLI (`glab`)** — enables automatic MR creation on GitLab
 - **(Optional) Jira env vars** (`JIRA_BASE_URL`, `JIRA_USER`, `JIRA_TOKEN`) — enables auto ticket fetching in `/f-start`
 
 For Windows: the pipeline works under WSL2 (recommended) or Git Bash. If the user is on Windows and gets bash errors, recommend WSL2.
@@ -61,7 +61,7 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 
 Initialize the pipeline and create/select a working branch.
 
-**LLM flow (when invoked via opencode custom command):**
+**Flow:**
 1. Detect current branch
 2. If on `main`/`develop`, require clean tree — abort if dirty
 3. Suggest feature branch name from ticket (e.g., `feature/JIRA-123`) or
@@ -400,7 +400,7 @@ remote diff and reviews it without ever touching your working tree.
    (MR link / MR IID / branch name), resolves to a diff via `glab` or `git`,
    detects stack from diff paths, runs advisory test-coverage check, and writes a
    report skeleton to `.specwork/_review/<slug>-peer-review.md`
-   (or `~/.claude/peer-reviews/<slug>-<date>.md`).
+   (or `$HOME/.local/share/sdd/peer-reviews/<slug>-<date>.md`).
 2. The script prints the review instructions, stack routing, pack hints, and the
    full diff.
 3. Perform the review using the same engine as `/code-review` — stack-aware

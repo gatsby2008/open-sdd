@@ -2,8 +2,8 @@
 
 Open-source Spec-Driven Development pipeline. Framework-agnostic, LLM-agnostic.
 
-A portable reimplementation of the SDD pipeline — originally built for Claude Code,
-now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as shell scripts.
+A portable reimplementation of the SDD pipeline — decoupled to work with any LLM
+(Ollama, GPT, Claude, Gemini) or purely as shell scripts.
 
 > **Just want to code without the full pipeline?** See
 > [docs/learning/vibe-coding.md](docs/learning/vibe-coding.md) — the standalone `/f-commit`,
@@ -90,11 +90,9 @@ UTILITIES:
 
 ## Install
 
-open-sdd is **fully self-contained** — no dependency on `~/.claude/` or any
-external skill registry. Everything lives in this repo.
+open-sdd is **fully self-contained** — everything lives in this repo.
 
-Registers all 19 `/f-*` commands as native opencode custom commands
-(underlined, tab-completion, no trailing space needed):
+Registers all 29 commands (20 pipeline + 9 doc/adr) as custom commands with tab-completion:
 
 ```bash
 git clone <repo-url> ~/team/Yield/open-sdd
@@ -109,7 +107,7 @@ In each consumer project where you want to use the pipeline:
 
 1. Install open-sdd globally (see Install above)
 
-The first `/f-start` auto-bootstraps `AGENTS.md`, `.opensdd/service-rules.md`,
+The first `/f-start` auto-bootstraps `.opensdd/service-rules.md`
 and `.opensdd/mr-config.json` in the project.
 
 ## One-Time Setup
@@ -215,7 +213,7 @@ into `.specwork/_state/<slug>-rules.json`.
 
 ### Doc registry (optional)
 
-open-sdd bundles doc skills (`/doc-adr`, `/doc-catalog`, `/doc-publish`,
+open-sdd bundles doc commands (`/doc-adr`, `/doc-catalog`, `/doc-publish`,
 `/doc-query`, `/adr-publish`, `/adr-query`) that publish and query a
 central registry of service catalogs and ADRs. The registry location is
 controlled by:
@@ -367,17 +365,19 @@ that do not exist yet) — both are human-gated steps after the MR is open.
 
 ---
 
-## Companion Skills (Doc / ADR)
+## Companion Commands (Doc / ADR)
 
-Beyond the pipeline, open-sdd bundles companion skills for cross-service
-documentation and architecture decisions. These load automatically when
-opencode starts (from `$OPEN_SDD_ROOT/skills/doc/`, registered via install.sh):
+Beyond the pipeline, open-sdd bundles companion commands for cross-service
+documentation and architecture decisions (registered via install.sh):
 
 | Command | What it does |
 |---------|--------------|
 | **`/doc-catalog`** | Scan the current microservice and generate `docs/service-info.md` with endpoints, integrations, and config |
-| **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`) |
-| **`/doc-query`** | Ask cross-service questions across all registered catalogs |
+| **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`). `--with-docs` also publishes `docs/architecture/`, `docs/product/`, `docs/security/`, `docs/features/` |
+| **`/doc-query`** | Ask cross-service questions across all registered documents (catalogs + extra docs) |
+| **`/doc-freshness`** | Detect drift between docs and repo: broken links, orphan files, version mismatch, stale dates, missing endpoints |
+| **`/spec-query`** | Query product specs (product-spec.md, gap-analysis.md, feature-inventory.md) from the registry |
+| **`/sec-query`** | Query security docs (security-report.md, gl-\*-report\*.json) from the registry |
 | **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
 | **`/adr-publish`** | Publish all ADRs to the central registry (`$OPEN_SDD_DOC_HOME/adr-registry/<service>/`) |
 | **`/adr-query`** | Ask decision-history questions across all registered ADRs |
@@ -385,7 +385,7 @@ opencode starts (from `$OPEN_SDD_ROOT/skills/doc/`, registered via install.sh):
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.
 
-**See also:** [docs/learning/doc-adr-cheatsheet.md](docs/learning/doc-adr-cheatsheet.md)
+**See also:** [docs/learning/doc-adr-cheatsheet.md](docs/learning/doc-adr-cheatsheet.md) — full onboarding & examples
 
 ---
 
@@ -469,11 +469,11 @@ execution: blockers, decisions, hints.
 ```
 open-sdd/
 ├── agent/
-│   └── SDD_AGENT_INSTRUCTIONS.md   # System prompt for any LLM
+│   └── PIPELINE.md   # System prompt for any LLM
 ├── lib/
 │   ├── gates.sh                     # Validation gates
 │   └── jira.sh                      # Jira REST client via curl
-├── commands/                        # 20 pipeline commands
+├── commands/                        # 31 scripts (29 user-facing commands + internal helpers)
 │   ├── check.sh
 │   ├── code-review.sh
 │   ├── commit.sh
@@ -492,20 +492,27 @@ open-sdd/
 │   ├── status.sh
 │   ├── test-design.sh
 │   ├── test-impl.sh
+│   ├── doc-catalog.sh               # doc/adr commands (9)
+│   ├── doc-publish.sh
+│   ├── doc-query.sh
+│   ├── doc-freshness.sh
+│   ├── doc-adr.sh
+│   ├── spec-query.sh
+│   ├── sec-query.sh
+│   ├── adr-publish.sh
+│   └── adr-query.sh
 ├── templates/
-│   ├── AGENTS.md                    # For opencode auto-discovery (copy to project root)
-│   ├── CLAUDE.md                    # For Claude Code auto-discovery (copy to project root)
 │   ├── rules.md                     # Global pipeline rules (compiled at /f-start)
 │   ├── service-rules.md             # Per-project invariants (copy to .opensdd/)
 │   ├── rules.json                   # Rules schema template
 │   ├── spec.md                      # Spec scaffold template
 │   └── mr-config.json               # MR config template
-└── install.sh                       # Register /f-* commands in opencode
+└── install.sh                       # Register /f-* commands as custom commands
 ```
 
 ---
 
-## Bugs fixed from the original (claude-tools)
+## Bugs fixed from the original
 
 | Bug | Fix |
 |-----|-----|
@@ -594,19 +601,15 @@ don't apply for backend-only features:
 
 | Tool | Version | Why | Windows | macOS | Linux |
 |------|---------|-----|---------|-------|-------|
-| **[opencode](https://opencode.ai/)** | Latest | Runs the LLM, interprets `/f-*` commands | Desktop app or WSL2 | Terminal (`curl`) or desktop app | Terminal (`curl`) or desktop app |
+| **LLM client** | Latest | Interprets `/f-*` commands, runs LLM inference | Varies by client | Varies by client | Varies by client |
 | **git** | >= 2.x | All version control | Git Bash or WSL2 | Built-in | Built-in |
 | **Bash** | >= 4.x | All pipeline scripts (`commands/*.sh`) | Git Bash or WSL2 | Built-in | Built-in |
 | **Python** | >= 3.9 | Engine layer (`engine/`) | python.org or WSL2 | Built-in | Built-in |
 
-**Install opencode:**
+**Install an LLM client:**
 
-```bash
-# macOS / Linux
-curl -fsSL https://opencode.ai/install | bash
-
-# Windows: download from https://opencode.ai/download or use WSL2
-```
+The pipeline commands require an LLM client that supports custom slash commands.
+Choose your preferred client and follow its installation instructions.
 
 ### Optional
 
@@ -656,18 +659,15 @@ wsl --install
 # 3. Inside Ubuntu, update packages
 sudo apt update && sudo apt upgrade -y
 
-# 4. Install opencode
-curl -fsSL https://opencode.ai/install | bash
-
-# 5. Clone open-sdd
+# 4. Clone open-sdd
 git clone <repo-url> ~/team/Yield/open-sdd
 
-# 6. Run installer
+# 5. Run installer
 cd ~/team/Yield/open-sdd && bash install.sh
 ```
 
 After install, always work from inside the Ubuntu terminal (open via Start menu
-or `wsl -d Ubuntu -e bash` from PowerShell). The pipeline, git, and opencode all
+or `wsl -d Ubuntu -e bash` from PowerShell). The pipeline, git, and your LLM client all
 run inside WSL2.
 
 **Optional tools inside WSL2:**
@@ -699,8 +699,7 @@ adjustments.
 #    Download from https://python.org/downloads/
 #    Check "Add Python to PATH" during install
 
-# 3. Install opencode desktop app
-#    Download from https://opencode.ai/download
+# 3. Install an LLM client (choose one that supports custom slash commands)
 
 # 4. Clone open-sdd
 #    Open Git Bash (Start menu → Git Bash)
@@ -711,11 +710,11 @@ cd ~/team/Yield/open-sdd
 bash install.sh
 ```
 
-**Important:** opencode's integrated terminal uses PowerShell by default. When a
+**Important:** Some LLM clients default to PowerShell on Windows. When a
 command prints a clickable path like `/home/user/repo/file:42`, PowerShell won't
 recognise it. Either:
 - Use WSL2 (option A) for full compatibility, or
-- Configure opencode to launch Git Bash as its shell backend
+- Configure your LLM client to launch Git Bash as its shell backend
 
 **Optional tools (Git Bash):**
 
@@ -749,7 +748,7 @@ glab version           # optional, for /f-mr on GitLab + /f-mr-review MR mode
 | `install.sh: line X: syntax error` | You're running with CMD/PowerShell. Use `bash install.sh` from **Git Bash** or the Ubuntu terminal. |
 | `glab: command not found` | `winget install glab` (Git Bash) or `sudo apt install glab` (WSL2). Fallback: pass branch names to `/f-mr-review` instead of MR links. |
 | Git operations are slow | You cloned on `/mnt/c/` (Windows drive). Re-clone inside the Linux filesystem (`~/team/`). |
-| opencode can't find bash | Point opencode settings to the full path of `bash.exe` (Git Bash: `C:\Program Files\Git\bin\bash.exe`) or use the WSL2 terminal. |
+| LLM client can't find bash | Point your client's shell setting to the full path of `bash.exe` (Git Bash: `C:\Program Files\Git\bin\bash.exe`) or use the WSL2 terminal. |
 
 ---
 
