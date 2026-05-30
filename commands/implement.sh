@@ -34,6 +34,48 @@ EOF
   echo "Escalation logged to: $escalations_file"
 }
 
+run_retry_cmd_with_escalation() {
+  local area="$1" command_str="$2"
+  local setup_command="${3:-}"
+  local attempt=1
+  local max_direct=2
+  local tmp_out
+  tmp_out="$(mktemp)"
+  trap 'rm -f "$tmp_out"' RETURN
+
+  while [ "$attempt" -le "$max_direct" ]; do
+    echo "Attempt $attempt/$max_direct: $command_str"
+    if bash -lc "$command_str" >"$tmp_out" 2>&1; then
+      echo "Command succeeded on attempt $attempt."
+      cat "$tmp_out"
+      return 0
+    fi
+    echo "Attempt $attempt failed."
+    attempt=$((attempt + 1))
+  done
+
+  if [ -n "$setup_command" ]; then
+    echo "Running setup retry step: $setup_command"
+    bash -lc "$setup_command" >/dev/null 2>&1 || true
+  fi
+
+  echo "Final retry attempt: $command_str"
+  if bash -lc "$command_str" >"$tmp_out" 2>&1; then
+    echo "Command succeeded on final retry."
+    cat "$tmp_out"
+    return 0
+  fi
+
+  local err_excerpt attempted_fixes recommended
+  err_excerpt="$(tail -n 25 "$tmp_out" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g')"
+  [ -n "$err_excerpt" ] || err_excerpt="retry command failed (no stderr captured)"
+  attempted_fixes="direct retry x2"
+  [ -n "$setup_command" ] && attempted_fixes="$attempted_fixes + setup retry: $setup_command"
+  recommended="human review of failing command and environment"
+  append_escalation "$area" "$err_excerpt" "$attempted_fixes" "$recommended"
+  return 1
+}
+
 # ---- step 0: pipeline precondition gate -------------------------------------
 
 engine precheck >/dev/null 2>&1 \
@@ -57,6 +99,17 @@ if [ "${1:-}" = "--escalate" ]; then
 
   [ -n "$AREA" ] || die "Usage: ./commands/implement.sh --escalate \"<failing area>\" [\"<error excerpt>\"] [\"<attempted fixes>\"] [\"<recommended next step>\"]"
   append_escalation "$AREA" "$ERROR_TEXT" "$ATTEMPTED_FIXES" "$RECOMMENDED"
+  exit 0
+fi
+
+if [ "${1:-}" = "--retry-cmd" ]; then
+  AREA="${2:-}"
+  COMMAND_STR="${3:-}"
+  SETUP_COMMAND="${4:-}"
+
+  [ -n "$AREA" ] || die "Usage: ./commands/implement.sh --retry-cmd \"<failing area>\" \"<command>\" [\"<setup command>\"]"
+  [ -n "$COMMAND_STR" ] || die "Usage: ./commands/implement.sh --retry-cmd \"<failing area>\" \"<command>\" [\"<setup command>\"]"
+  run_retry_cmd_with_escalation "$AREA" "$COMMAND_STR" "$SETUP_COMMAND" || exit 1
   exit 0
 fi
 
@@ -295,3 +348,5 @@ fmt_bold "Ready. Follow the instructions above to implement each target."
 echo "After each file, run: ./commands/implement.sh --done N"
 echo "On persistent failure, log escalation with:"
 echo "  ./commands/implement.sh --escalate \"<area>\" \"<error>\" \"<attempted fixes>\" \"<recommended>\""
+echo "Or run bounded retries with auto-escalation on failure:"
+echo "  ./commands/implement.sh --retry-cmd \"<area>\" \"<command>\" [\"<setup command>\"]"
