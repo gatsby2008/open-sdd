@@ -41,6 +41,13 @@ echo "== unit suite =="
 ( cd "$REPO" && python3 -m unittest discover -s tests -p 'test_*.py' >/dev/null 2>&1 ) \
   && ok "unittest suite" || bad "unittest suite"
 
+echo "== installer parity =="
+if ( cd "$REPO" && bash tests/check-install-parity.sh >/dev/null 2>&1 ); then
+  ok "install.sh/install.ps1 parity check"
+else
+  bad "install.sh/install.ps1 parity check"
+fi
+
 echo "== precheck =="
 d=$(new_repo precheck); cd "$d"
 assert_rc 1 "no .specwork rejects" -- python3 -m engine.cli precheck
