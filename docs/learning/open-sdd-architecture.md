@@ -414,13 +414,14 @@ The AI handles:
 
 ## 16. Vibe Coding (Standalone Commands)
 
-Three commands work on **any branch with no pipeline setup** — no `.specwork/`, no spec, no plan:
+Four commands work on **any branch with no pipeline setup** — no `.specwork/`, no spec, no plan:
 
 | Command | Purpose |
 |---------|---------|
 | `/f-commit` | Stage + run quality gate + semantic commit message |
 | `/f-mr` | Validate tests + push + open MR |
-| `/f-code-review` | Stack-aware quality + security review of diff |
+| `/f-code-review` | Stack-aware quality + security review of your own diff |
+| `/f-mr-review` | Stack-aware quality + security review of a peer's branch or MR |
 
 See [VIBE-CODING.md](vibe-coding.md) for the full workflow.
 
@@ -458,6 +459,7 @@ repo-root/
     _review/
       <slug>-code-review.md
       <slug>-mr-address.md
+      <slug>-peer-review.md
 
     _handoff/
       <slug>-execution-pack.md
@@ -481,7 +483,8 @@ repo-root/
 | `implementation-cache.json` | **WHAT WAS ALREADY DISCOVERED** | Repositories, related tests, similar classes, utility patterns, notes |
 | `test-design.md` | **WHAT TO TEST** | Designed test cases (high-risk flow only) |
 | `escalations.md` | **WHAT FAILED AND WHAT WAS TRIED** | Append-only retry-exhaustion and blocker log |
-| `code-review.md` | **WHAT'S WRONG** | Quality and security findings |
+| `code-review.md` | **WHAT'S WRONG** | Quality and security findings (your own branch) |
+| `peer-review.md` | **WHAT'S WRONG** | Quality and security findings (peer's branch/MR) |
 | `mr-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution |
 | `execution-pack.md` | **WHAT TO EXECUTE** | Handoff contract for multi-model execution |
 
@@ -500,7 +503,7 @@ repo-root/
 | Doc skills | Bundled as `/doc-*` and `/adr-*` commands | Bundled as `doc` skills |
 | Testing | 104 unit tests (`python3 -m unittest discover`) + smoke tests (`tests/smoke.sh`) | No dedicated test suite |
 | Autopilot | `/f-auto` with `SDD_NON_INTERACTIVE=1` | Not available |
-| Vibe coding | 3 standalone commands (`/f-commit`, `/f-mr`, `/f-code-review`) with no pipeline needed | All commands require pipeline |
+| Vibe coding | 4 standalone commands (`/f-commit`, `/f-mr`, `/f-code-review`, `/f-mr-review`) with no pipeline needed | All commands require pipeline |
 
 ---
 

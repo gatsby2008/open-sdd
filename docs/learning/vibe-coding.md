@@ -3,9 +3,9 @@
 You don't always want the full spec-driven pipeline (`/f-start` → `/f-spec` →
 `/f-plan` → `/f-implement`). Sometimes you just want to code — hack, iterate,
 follow your nose — and still get the *quality helpers*: a test-gated semantic
-commit, a clean MR, and a pre-push review.
+commit, a clean MR, and peer review.
 
-open-sdd has three **standalone** commands for exactly this. They need **no
+open-sdd has four **standalone** commands for exactly this. They need **no
 pipeline state** (`.specwork/`), no spec, no plan. They work on any branch, any
 time, in any repo — even one that has never seen `/f-start`.
 
@@ -14,11 +14,9 @@ time, in any repo — even one that has never seen `/f-start`.
 | **`/f-commit`** | Stage + run the test gate + semantic commit message | No |
 | **`/f-mr`** | Validate + push + open the MR | No |
 | **`/f-code-review`** | Stack-aware quality + security review of your diff | No |
+| **`/f-mr-review`** | Stack-aware quality + security review of a peer's branch or MR | No |
 
-Everything else (`/f-start`, `/f-spec`, `/f-plan`, `/f-implement`, `/f-handoff`,
-`/f-test-design`, `/f-test-impl`, `/f-status`, `/f-pause`, `/f-resume`,
-`/f-close`, `/f-resync`) **requires** an active pipeline and is not part of the
-vibe-coding flow.
+Everything else (`/f-start`, `/f-spec`, `/f-plan`, `/f-implement`, `/f-test-design`, `/f-test-impl`, `/f-status`, `/f-pause`, `/f-resume`, `/f-close`, `/f-resync`, `/f-handoff`) **requires** an active pipeline and is not part of the vibe-coding flow.
 
 ---
 

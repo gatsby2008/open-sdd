@@ -15,6 +15,7 @@ engine. So most fixes need re-expression, not copy-paste.
 | 5 | Add `CLAUDE.md` | **N/A — open-sdd specific** | — |
 | 6 | Vibe-coding doc + "handoff is not independent" README fix | **Optional doc only — claude-tools already correct** | `contrib/skills/sdd/VIBE-CODING.md` (new, optional) |
 | 7 | `detect_stack` distinguishes `frontend` from `node` | **YES — port it** | `engine/gates.py` + `lib/gates.py` (both) + tests |
+| 8 | `/f-resume` dedup of stale per-branch stashes | **YES — DONE 2026-05-30** | `f-resume/SKILL.md` (+ README) |
 
 ---
 
@@ -304,3 +305,36 @@ java/unknown default.
 - `frontend` via dependency (`{"dependencies": {"react": "..."}}`).
 - backend-only deps (`express`) stays `node`.
 - polyglot `build.gradle` + `package.json` resolves to `java` (precedence).
+
+---
+
+## 8. /f-resume dedup of stale per-branch stashes — DONE (ported 2026-05-30)
+
+### Problem (open-sdd)
+A branch paused more than once (without resuming in between) accumulates several
+`f-pause:` stashes. The old `/f-resume` listed all of them, so the same branch
+appeared multiple times in the menu and stale stashes were never cleaned up.
+
+### open-sdd fix
+`commands/resume.sh` — parse stashes newest-first (`git stash list` order),
+track seen branches with `declare -A SEEN_BRANCHES`, keep the first (most recent)
+ref per branch, record the rest in `DUP_REFS_FOR[branch]`, warn before the menu,
+and after a successful `git stash pop` drop the recorded duplicates with
+`git stash drop`. (Also fixed a bash bug in the same change: `${OTHER_COUNT: +es}`
+→ `${OTHER_COUNT:+es}` — the space made bash read it as `${var:offset}`.)
+
+### claude-tools port — `f-resume/SKILL.md`
+Re-expressed as skill prose (Claude is the engine, no bash script):
+- New **Step 2 — Deduplicate by Branch**: walk the `f-pause:` list newest-first,
+  keep the first stash per branch, flag later ones as stale duplicates.
+- New **Step 7 — Drop Stale Duplicates**: only after a successful pop, drop the
+  recorded duplicates of the *resumed* branch with `git stash drop`.
+- Menu (Step 4) lists each branch once; a warning announces older stashes.
+- README "What It Shows" notes the dedup behavior.
+
+Two notes:
+- The `${OTHER_COUNT:+es}` bash bug does **not** exist in claude-tools — there is
+  no `resume.sh`. The pluralization is prose, so the SKILL just says to pluralize
+  naturally ("1 older stash" / "2 older stashes").
+- claude-tools' `/f-pause` uses `git stash push --all` (see item 2), so the
+  newest-first ordering and `f-pause: <branch>` message format match open-sdd.

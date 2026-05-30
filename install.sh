@@ -74,7 +74,8 @@ install_cmd "pause"         "Pause pipeline and stash all work"
 install_cmd "resume"        "List paused pipelines and restore selected one"
 install_cmd "refine"        "Deprecated — alias for spec, forwards to ./commands/spec.sh"
 install_cmd "resync"        "Resync artifacts after branch rename"
-install_cmd "code-review"   "Stack-aware code quality and security review"
+install_cmd "code-review"   "Stack-aware code quality and security review of your own branch"
+install_cmd "mr-review"    "Stack-aware code quality and security review of a peer's branch or MR"
 install_cmd "mr-address" "Work through MR review comments"
 install_cmd "handoff"       "Package artifacts for another agent"
 install_cmd "test-design"   "Design test cases for current changes"
@@ -86,7 +87,7 @@ install_cmd "test-impl"     "Implement test files for changed source"
 # Remove commands deregistered in newer versions (clean up stale installs).
 rm -f "${CMD_DIR}/f-triage.md"
 
-echo "open-sdd: 19 commands installed to $CMD_DIR"
+echo "open-sdd: 20 commands installed to $CMD_DIR"
 echo ""
 
 # Generate AGENTS.md with resolved OPEN_SDD_ROOT path
@@ -106,7 +107,7 @@ echo "  Project toolchain: detected by commands/check.sh per project"
 echo "  Jira:              set JIRA_BASE_URL, JIRA_USER, JIRA_TOKEN (optional)"
 echo ""
 echo "  Windows users: run from WSL2 (recommended) or Git Bash"
-echo "============================================""
+echo "============================================"
 
 # ---- standalone skills (doc) slash commands ----------------------------------
 

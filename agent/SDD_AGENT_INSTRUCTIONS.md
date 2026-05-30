@@ -49,7 +49,8 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 ├── _state/<slug>-rules.json              # Compiled rules
 ├── _state/<slug>-implementation-cache.json  # Discovered facts
 ├── _progress/escalations.md              # Escalation log
-├── _review/<slug>-code-review.md         # Code review report
+├── _review/<slug>-code-review.md         # Code review report (your own branch)
+├── _review/<slug>-peer-review.md         # Peer review report (someone else's branch/MR)
 ├── _review/<slug>-mr-address.md          # Review comment resolution
 └── _handoff/<slug>-execution-pack.md     # Handoff contract
 ```
@@ -389,7 +390,29 @@ PASS | PASS WITH WARNINGS | FAIL
 
 `--recheck` mode: compare current diff against previous report, show resolved/still-open/new findings.
 
+### /mr-review <branch | mr-url | mr-iid>
+
+Peer review someone else's committed changes — a branch or a merge request.
+Unlike `/code-review`, which reviews your working tree, `/mr-review` resolves a
+remote diff and reviews it without ever touching your working tree.
+
+1. Run `bash commands/mr-review.sh <arg>` — the script classifies the argument
+   (MR link / MR IID / branch name), resolves to a diff via `glab` or `git`,
+   detects stack from diff paths, runs advisory test-coverage check, and writes a
+   report skeleton to `.specwork/_review/<slug>-peer-review.md`
+   (or `~/.claude/peer-reviews/<slug>-<date>.md`).
+2. The script prints the review instructions, stack routing, pack hints, and the
+   full diff.
+3. Perform the review using the same engine as `/code-review` — stack-aware
+   quality and security review, evidence-based findings with file:line citations.
+4. Update the report file with your findings.
+5. **Read-only rule**: never checkout, switch branches, commit, push, or comment
+   on the MR. This is a peer review — the user takes findings into their review
+   by hand.
+
 ### /help
+
+
 
 Inspect the current pipeline state and show the contextual next step.
 

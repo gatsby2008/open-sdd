@@ -11,17 +11,26 @@ source "$LIB_DIR/gates.sh"
 die() { echo "$*" >&2; exit 1; }
 fmt_bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
-# ---- detect glab ------------------------------------------------------------
-
-GLAB_AVAILABLE=false
-if command -v glab &>/dev/null; then
-  GLAB_AVAILABLE=true
-fi
-
 # ---- resolve context --------------------------------------------------------
 
 SLUG=$(resolve_slug 2>/dev/null || echo "")
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+# ---- detect provider --------------------------------------------------------
+
+PROVIDER=""
+ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+case "$ORIGIN_URL" in
+  *github.com*) PROVIDER="github" ;;
+  *gitlab*)     PROVIDER="gitlab" ;;
+esac
+
+GH_AVAILABLE=false
+GLAB_AVAILABLE=false
+command -v gh >/dev/null 2>&1   && GH_AVAILABLE=true
+command -v glab >/dev/null 2>&1 && GLAB_AVAILABLE=true
+
+# ---- resolve MR IID from state ----------------------------------------------
 
 MR_URL=""
 MR_IID=""
@@ -46,8 +55,10 @@ fi
 
 echo "Branch: $BRANCH"
 echo "Slug:   ${SLUG:-"(none)"}"
+echo "Host:   ${PROVIDER:-unknown}"
+echo "gh:     $([ "$GH_AVAILABLE" = true ] && echo 'available' || echo 'not available')"
 echo "glab:   $([ "$GLAB_AVAILABLE" = true ] && echo 'available' || echo 'not available')"
-[ -n "$MR_IID" ] && echo "MR:     !$MR_IID"
+[ -n "$MR_IID" ] && echo "MR:     #${MR_IID}"
 echo ""
 
 # ---- load or create progress file -------------------------------------------
@@ -60,7 +71,7 @@ if [ ! -f "$PROGRESS_FILE" ]; then
   cat > "$PROGRESS_FILE" <<EOF
 # MR Address: ${SLUG}
 
-MR: ${MR_IID:+"!${MR_IID}"}${MR_IID:-"(unknown)"}
+MR: #${MR_IID:-unknown}
 
 ## Addressed
 
@@ -71,22 +82,29 @@ fi
 # ---- collect threads --------------------------------------------------------
 
 THREADS=""
+MODE="manual"
 
-if [ "$GLAB_AVAILABLE" = true ] && [ -n "$MR_IID" ]; then
-  echo "Fetching unresolved threads from MR !$MR_IID ..."
+if [ "$PROVIDER" = "github" ] && [ "$GH_AVAILABLE" = true ] && [ -n "$MR_IID" ]; then
+  echo "Fetching review comments from PR #$MR_IID via gh..."
+  # gh pr view --json comments gives the top-level comments, but for review
+  # threads we need the full review comment thread. Use the API for that.
+  THREADS=$(gh api "/repos/{owner}/{repo}/pulls/$MR_IID/comments" --jq '.[] | "\(.path):\(.line) — \(.user.login): \(.body)"' 2>/dev/null || true)
+  REVIEWS=$(gh api "/repos/{owner}/{repo}/pulls/$MR_IID/reviews" --jq '.[] | select(.state != "APPROVED" and .state != "DISMISSED") | "\(.user.login) (\(.state)): \(.body)"' 2>/dev/null || true)
+  if [ -n "$THREADS" ] || [ -n "$REVIEWS" ]; then
+    THREADS="${THREADS:+Inline comments:${THREADS}}${REVIEWS:+${THREADS:+$'\n'}}${REVIEWS:+Review summaries:${REVIEWS}}"
+    MODE="auto"
+  fi
+elif [ "$PROVIDER" = "gitlab" ] && [ "$GLAB_AVAILABLE" = true ] && [ -n "$MR_IID" ]; then
+  echo "Fetching unresolved threads from MR !$MR_IID via glab..."
   THREADS=$(glab mr notes "$MR_IID" 2>/dev/null || true)
-  if [ -z "$THREADS" ]; then
-    echo "No threads fetched via glab."
-    echo ""
+  if [ -n "$THREADS" ]; then
+    MODE="auto"
   fi
 fi
 
-if [ -z "$THREADS" ]; then
-  echo "No glab data available. Paste a review comment below, or use 'done' to stop."
+if [ "$MODE" = "manual" ]; then
+  echo "No API data available. Paste a review comment below, or use 'done' to stop."
   echo ""
-  MODE="manual"
-else
-  MODE="auto"
 fi
 
 # ---- print instructions -----------------------------------------------------
@@ -104,7 +122,7 @@ echo "  Deferred:          $ALREADY_DEFERRED"
 echo ""
 
 if [ "$MODE" = "auto" ]; then
-  echo "Using glab. Handling unresolved threads one by one."
+  echo "Using ${PROVIDER^^} API. Handling unresolved threads one by one."
 else
   echo "Manual mode. Paste one comment at a time."
   echo "Format includes optional file: and line: hints."

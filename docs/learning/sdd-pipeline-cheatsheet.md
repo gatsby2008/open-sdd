@@ -35,6 +35,7 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 |---------|--------------|
 | **`/f-commit`** | Generate a semantic commit message. Auto-stages working tree files if nothing is staged. One logical commit per feature step. Quality gate: runs `commands/check.sh` before committing. Works without pipeline (vibe coding). |
 | **`/f-code-review`** | Stack-aware review of the diff (Java or Frontend/Node based on stack detection). Emits findings with severity (BLOCKING / IMPORTANT / OPTIONAL) plus **Suggested Follow-ups** linking to relevant review packs (JPA, concurrency, API, logging for Java; lifecycle, state, a11y for Frontend). Use `--recheck` to compare against previous report. Works without pipeline. |
+| **`/f-mr-review <branch \| mr-url \| mr-iid>`** | Stack-aware review of **someone else's** committed changes — a peer's branch or MR. Resolves the diff via `glab mr diff` (MR mode) or `git diff` (branch mode). Same review engine as `/f-code-review`. Never checks out the branch or modifies your working tree. |
 | **`/f-mr`** | Pre-push validation (runs `commands/check.sh`), pushes branch, creates MR via GitHub CLI (`gh`) or GitLab CLI (`glab`) — auto-detects which remote is configured. Override with `OPEN_SDD_MR_PROVIDER=github|gitlab`. Works without pipeline. |
 
 ## After MR
@@ -57,7 +58,7 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 
 ---
 
-**19 commands total** (+ 6 doc/ADR commands: `/doc-catalog`, `/doc-publish`, `/doc-query`, `/doc-adr`, `/adr-publish`, `/adr-query`).
+**20 commands total** (+ 6 doc/ADR commands: `/doc-catalog`, `/doc-publish`, `/doc-query`, `/doc-adr`, `/adr-publish`, `/adr-query`).
 
 **See also:**
 - [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview

@@ -854,7 +854,7 @@ git clone <repo-url> ~/team/Yield/open-sdd
 
 **Option B — Git Bash:**
 1. Install [Git for Windows](https://git-scm.com/download/win) (comes with Git Bash)
-2. Install [Python for Windows](https://python.org/downloads/)
+2. Install [Python for Windows](https://python.org/downloads/) — check "Add Python to PATH"
 3. Install opencode desktop app from [opencode.ai/download](https://opencode.ai/download)
 4. Clone open-sdd: `git clone <repo-url> ~/team/Yield/open-sdd`
 5. Run `install.sh` from **Git Bash** (not CMD or PowerShell)
@@ -865,6 +865,21 @@ git clone <repo-url> ~/team/Yield/open-sdd
 cd ~/team/Yield/open-sdd
 bash install.sh
 ```
+
+**Optional tools (Git Bash):** `winget install GitHub.cli` (gh) · `winget install glab` (GitLab CLI, needed by `/f-mr-review`).
+
+> **Important:** opencode's integrated terminal uses PowerShell by default, which does not understand bash-style clickable paths like `/home/user/file:42`. Either use WSL2 (option A) or configure opencode to launch Git Bash as its shell backend.
+
+**Troubleshooting:**
+
+| Symptom | Fix |
+|---------|-----|
+| `bash: command not found` | You're in CMD/PowerShell. Open Git Bash or the Ubuntu terminal. |
+| `python3: command not found` | Install Python and add to PATH (Git Bash) or `sudo apt install python3` (WSL2). |
+| `install.sh: syntax error` | Run with CMD/PowerShell instead of bash. Use Git Bash. |
+| `glab: command not found` | `winget install glab` (Git Bash) / `sudo apt install glab` (WSL2). Fallback: pass branch names to `/f-mr-review`. |
+| Git operations are slow | Cloned on `/mnt/c/`. Re-clone inside Linux filesystem (`~/team/`). |
+| opencode can't find bash | Point opencode settings to `C:\Program Files\Git\bin\bash.exe` (Git Bash) or use WSL2 terminal. |
 
 ---
 

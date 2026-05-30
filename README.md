@@ -643,15 +643,113 @@ export JIRA_TOKEN="your-atlassian-api-token"
 
 The pipeline runs on bash scripts. Two options:
 
-**WSL2 (recommended):**
-```bash
-wsl --install                        # install Ubuntu WSL2
+**Option A — WSL2 (recommended):**
+
+Full Linux environment inside Windows. Everything works natively.
+
+```powershell
+# 1. Install WSL2 with Ubuntu (run in PowerShell as Admin)
+wsl --install
+
+# 2. Restart your machine, then open the "Ubuntu" terminal
+
+# 3. Inside Ubuntu, update packages
+sudo apt update && sudo apt upgrade -y
+
+# 4. Install opencode
 curl -fsSL https://opencode.ai/install | bash
+
+# 5. Clone open-sdd
 git clone <repo-url> ~/team/Yield/open-sdd
-./open-sdd/install.sh
+
+# 6. Run installer
+cd ~/team/Yield/open-sdd && bash install.sh
 ```
 
-**Git Bash:** Install [Git for Windows](https://git-scm.com/download/win) + [Python](https://python.org/downloads/), then run `bash install.sh` from Git Bash (not CMD/PowerShell).
+After install, always work from inside the Ubuntu terminal (open via Start menu
+or `wsl -d Ubuntu -e bash` from PowerShell). The pipeline, git, and opencode all
+run inside WSL2.
+
+**Optional tools inside WSL2:**
+
+```bash
+# GitHub CLI — auto MR creation
+sudo apt install gh
+
+# GitLab CLI — auto MR on self-hosted GitLab
+sudo apt install glab    # or: brew install glab (if Homebrew on Linux is set up)
+```
+
+> **WSL2 + Windows drives:** Access your Windows files at `/mnt/c/`. Clone repos
+> into the Linux filesystem (`~/team/...`) for best performance — `/mnt/c/`
+> is noticeably slower for git operations.
+
+---
+
+**Option B — Git Bash:**
+
+Runs bash scripts without WSL2. Some commands (e.g. `glab mr diff`) may need
+adjustments.
+
+```powershell
+# 1. Install Git for Windows (comes with Git Bash)
+#    Download from https://git-scm.com/download/win
+
+# 2. Install Python 3.9+
+#    Download from https://python.org/downloads/
+#    Check "Add Python to PATH" during install
+
+# 3. Install opencode desktop app
+#    Download from https://opencode.ai/download
+
+# 4. Clone open-sdd
+#    Open Git Bash (Start menu → Git Bash)
+git clone <repo-url> ~/team/Yield/open-sdd
+
+# 5. Run installer from Git Bash (not CMD, not PowerShell)
+cd ~/team/Yield/open-sdd
+bash install.sh
+```
+
+**Important:** opencode's integrated terminal uses PowerShell by default. When a
+command prints a clickable path like `/home/user/repo/file:42`, PowerShell won't
+recognise it. Either:
+- Use WSL2 (option A) for full compatibility, or
+- Configure opencode to launch Git Bash as its shell backend
+
+**Optional tools (Git Bash):**
+
+```powershell
+# GitHub CLI — auto MR creation
+winget install GitHub.cli
+
+# GitLab CLI — auto MR on self-hosted GitLab (needed by /f-mr-review MR mode)
+winget install glab
+```
+
+---
+
+**Verify installation (both options):**
+
+```bash
+# Inside bash (WSL2 or Git Bash), run these checks:
+git --version          # should show >= 2.x
+bash --version         # should show >= 4.x
+python3 --version      # should show >= 3.9
+gh --version           # optional, for /f-mr on GitHub
+glab version           # optional, for /f-mr on GitLab + /f-mr-review MR mode
+```
+
+**Troubleshooting:**
+
+| Symptom | Fix |
+|---------|-----|
+| `bash: command not found` | You're in CMD or PowerShell. Open Git Bash or the Ubuntu terminal. |
+| `python3: command not found` | Install Python and add it to PATH (Git Bash) or `sudo apt install python3` (WSL2). |
+| `install.sh: line X: syntax error` | You're running with CMD/PowerShell. Use `bash install.sh` from **Git Bash** or the Ubuntu terminal. |
+| `glab: command not found` | `winget install glab` (Git Bash) or `sudo apt install glab` (WSL2). Fallback: pass branch names to `/f-mr-review` instead of MR links. |
+| Git operations are slow | You cloned on `/mnt/c/` (Windows drive). Re-clone inside the Linux filesystem (`~/team/`). |
+| opencode can't find bash | Point opencode settings to the full path of `bash.exe` (Git Bash: `C:\Program Files\Git\bin\bash.exe`) or use the WSL2 terminal. |
 
 ---
 
