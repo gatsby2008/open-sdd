@@ -114,10 +114,11 @@ Discover target files and write an implementation plan.
 3. Load spec, rules, cache
 4. Detect stack via `detect_stack`:
    - **java**: run all heuristics (cross-cutting, mock-consumer, naming guard)
-   - **node**: run adapted heuristics (Express error middleware via grep,
-     Jest/Vitest mock patterns, `__tests__/` test detection)
+   - **frontend**: run frontend heuristics (error boundaries, Components/Pages/Hooks/Stores mock discovery, `__tests__/` test detection)
+   - **node**: run Node backend heuristics (Express error middleware via grep,
+     NestJS exception filters, Jest/Vitest mock patterns, `__tests__/` test detection)
    - **unknown**: run spec-body heuristics only (consistency check, risk)
-5. For java/node, run reference-update grep and spec consistency check
+5. For java/node/frontend, run reference-update grep and spec consistency check
 6. Run risk signal detection via `detect_risk_signals`
 7. Write `plan.md` with Target Files table, Approach steps, Open Questions,
    Risk Assessment
@@ -444,7 +445,7 @@ All implemented in `lib/gates.sh`:
 | Plan staleness | `check_plan_staleness` | Abort, recommend re-run `/plan` |
 | Required artifacts | `check_required_artifacts` | Abort, list missing files |
 | Branch match | `check_branch_match` | Abort, show recorded vs current branch |
-| Risk signals | `detect_risk_signals` | Advisory — annotates plan |
+| Risk signals | `detect_risk_signals` | Advisory — annotates plan. Signals: db-migration, auth-security, breaking-api, data-destructive, concurrency (backend) + component-api, state-management, accessibility, routing, data-fetching, ui-migration (frontend) |
 | Spec consistency | `check_spec_consistency` | Appends plan Open Questions |
 
 ## Stack detection
@@ -452,24 +453,33 @@ All implemented in `lib/gates.sh`:
 `detect_stack` returns one of:
 
 - **java**: `build.gradle` / `pom.xml` exists → run all heuristics
-- **node**: `package.json` exists → run TS-adapted heuristics
+- **frontend**: `package.json` + Vite / Next / Angular / Svelte / Nuxt config or framework dep → run frontend-adapted heuristics (components, pages, stores, hooks)
+- **node**: `package.json` exists (no frontend framework detected) → run Node backend heuristics (Express/NestJS)
 - **unknown**: neither → run only spec-body heuristics
 
 ## Spec template
 
-Seven canonical sections (must preserve heading text exactly):
+Canonical sections (must preserve heading text exactly):
 
 ```
 ## Summary
 ## Scope (### In scope / ### Out of scope)
 ## Behavior
+## UI / Component Breakdown   (frontend, delete if N/A)
+## User Flows                  (frontend, delete if N/A)
+## Visual / Design Requirements (frontend, delete if N/A)
+## Accessibility Requirements  (frontend, delete if N/A)
+## State Management            (frontend, delete if N/A)
+## API Contract (Frontend Perspective) (frontend, delete if N/A)
 ## Implementation Context
 ## Expected Change Scope
 ## Safe Constraints (**Safe** / **Unsafe**)
 ## Open Questions
 ```
 
-Downstream commands parse by heading. Never rename headings.
+Frontend UI sections are optional — delete them from the template when the
+feature is backend-only. Downstream commands parse by heading. Never rename
+core headings (`## Behavior`, `## Implementation Context`, etc.).
 
 ## Metrics
 

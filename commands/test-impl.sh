@@ -89,7 +89,7 @@ def resolve_test_path(src_path, stack):
                 candidate = f"{test_root}/{pkg_dir}/{class_name}{suffix}.java"
                 results.append(candidate)
         return results
-    elif stack == "node":
+    elif stack in ("node", "frontend"):
         # src/Foo.ts → src/__tests__/Foo.test.ts, src/Foo.test.ts, etc.
         for ext in [".ts", ".tsx", ".js", ".jsx"]:
             if src_path.endswith(ext):
@@ -114,7 +114,7 @@ existing_tests = []
 for sf in files:
     if stack == "java" and not sf.endswith(".java"):
         continue
-    if stack == "node" and not any(sf.endswith(e) for e in [".ts", ".tsx", ".js", ".jsx"]):
+    if stack in ("node", "frontend") and not any(sf.endswith(e) for e in [".ts", ".tsx", ".js", ".jsx"]):
         continue
     if "/test/" in sf or "/intTest/" in sf or "/integrationTest/" in sf or "/__tests__/" in sf:
         continue  # skip test files themselves
@@ -173,18 +173,22 @@ HARD RULES — Behavior-Based Assertions
 Generated tests MUST verify behavior, not just that code doesn't explode.
 Before writing any test method, read the implementation file and extract:
 
-| Facet | What to extract | Asserted with |
-|-------|-----------------|---------------|
-| Return value | Type, fields populated, derived computations | \`assertThat(result.getStatus()).isEqualTo(OPEN)\` — concrete value |
-| Persistence | \`repository.save(...)\` — what entity, which fields | \`verify(repository).save(argThat(c -> c.getName().equals("X")))\` |
-| Events / messages | \`publishEvent(...)\`, \`sqsTemplate.send(...)\` | \`verify(publisher).publishEvent(any(ConsentCreatedEvent.class))\` |
-| Outbound calls | Feign / RestTemplate invocations | \`verify(feignClient).fetchUser(eq(userId))\` |
-| Exceptions | Specific exception class thrown | \`assertThatThrownBy(...).isInstanceOf(NotFoundException.class)\` |
+| Facet | What to extract | Java (JUnit + Mockito) | Frontend (Jest/Vitest + RTL) |
+|-------|-----------------|------------------------|------------------------------|
+| Return value | Type, fields populated, derived computations | \`assertThat(result.getStatus()).isEqualTo(OPEN)\` | \`expect(result.status).toBe('OPEN')\` |
+| Persistence / storage | \`repository.save(...)\` / \`localStorage.set(...)\` — what, which fields | \`verify(repository).save(argThat(c -> c.getName().equals("X")))\` | \`expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ name: 'X' }))\` |
+| Events / messages | \`publishEvent(...)\`, \`analytics.track(...)\` | \`verify(publisher).publishEvent(any(ConsentCreatedEvent.class))\` | \`expect(mockTrack).toHaveBeenCalledWith('event_name', { userId })\` |
+| Outbound calls | Feign / fetch / axios invocations | \`verify(feignClient).fetchUser(eq(userId))\` | \`expect(mockFetch).toHaveBeenCalledWith('/api/users', { method: 'POST', body: ... })\` |
+| Exceptions | Specific exception class thrown | \`assertThatThrownBy(...).isInstanceOf(NotFoundException.class)\` | \`expect(() => fn()).toThrow('Not found')\` |
+| UI rendering | Component rendered with props | — | \`render(<Component prop="value" />)\` + \`screen.getByRole('button')\` + \`userEvent.click(btn)\` |
 
 FORBIDDEN patterns (defects — pass even when behavior is wrong):
-  \`assertThat(result).isNotNull()\`               — says nothing about behavior
+  Java: \`assertThat(result).isNotNull()\`        — says nothing about behavior
+  Frontend: \`expect(result).toBeDefined()\`      — says nothing about behavior
   \`verify(repository).save(any())\`               — doesn't validate WHAT was saved
+  \`expect(mockSave).toHaveBeenCalled()\`           — doesn't validate WHAT was saved (use \`toHaveBeenCalledWith\`)
   \`assertThat(result.getItems()).isNotEmpty()\`    — doesn't check content
+  \`expect(result.items).toHaveLength(3)\`          — doesn't check content, only count
 
 A non-null check is acceptable ONLY as a precondition before a content assertion.
 
@@ -192,6 +196,7 @@ A non-null check is acceptable ONLY as a precondition before a content assertion
 |-------|-----------|-------------------|
 | Java | \`*Test.java\` (@ExtendWith(MockitoExtension)) | \`*IntTest.java\` / \`*IT.java\` (@WebMvcTest / @DataJpaTest) |
 | Frontend | \`*.test.ts\` (Jest/Vitest) | \`*.test.tsx\` (RTL + MSW) |
+| Node (backend) | \`*.test.ts\` (Jest/Vitest + MSW) | \`*.test.ts\` (superTest + test DB) |
 
 Next: run ./commands/commit.sh to stage and commit the test files.
 INSTRUCTIONS
