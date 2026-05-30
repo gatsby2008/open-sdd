@@ -20,7 +20,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │      │                                                            │ optional. At any point: `/f-pause`, `/f-resume`, `/f-status`, `/f-code-review`, `/f-handoff`. `/f-auto` runs the full flow              │
 │      │                                                            │ non-interactively.                                                                                                                       │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│  3   │ Where does pipeline state live?                            │ `.specwork/` at the project root. Subdirs: `_spec/`, `_plan/`, `_state/`, `_test/`, `_progress/`, `_review/`, `_handoff/`, `_metrics/`. |
+│  3   │ Where does pipeline state live?                            │ `.specwork/` at the project root. Subdirs: `_spec/`, `_plan/`, `_state/`, `_test/`, `_progress/`, `_review/`, `_handoff/`. |
 │      │                                                            │ State is file-based, not database.                                                                                                        │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │  4   │ How does opencode consume AGENTS.md?                       │ opencode auto-discovers `AGENTS.md` at the project root and injects it as system instructions at session start. The model reads it       │
@@ -132,7 +132,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │ 39   │ How does install.sh work?                                  │ Copies 19 `commands/*.sh` scripts to `~/.config/opencode/commands/` as opencode custom commands. Also links `skills/` for doc/ADR tools.   │
 │      │                                                            │ Prints a post-install requirements check. Is the single source of truth for the command catalog.                                          │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 40   │ What is the architecture file structure?                   │ `agent/` (LLM instructions) + `lib/` (gates.sh, metrics.sh, jira.sh) + `commands/` (19 scripts) + `engine/` (Python decision layer) +     │
+│ 40   │ What is the architecture file structure?                   │ `agent/` (LLM instructions) + `lib/` (gates.sh, jira.sh) + `commands/` (19 scripts) + `engine/` (Python decision layer) +                  │
 │      │                                                            │ `templates/` (scaffolds for consumer projects) + `tests/` (104 unit tests) + `docs/` (learning docs, presentation).                        │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 41   │ How does /f-spec detect draft vs refine mode?              │ By checking if `spec.md` exists. If absent → draft mode (creates spec from source.md + template). If present → refine mode (integrates    │
@@ -181,19 +181,16 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │ 55   │ How does state.json handle unknown legacy keys?             │ Through the `extra` dict field. `from_dict`/`to_dict` round-trip any on-disk keys not in the dataclass (legacy `id`, `input_type`, etc.)  │
 │      │                                                            │ by storing them in `extra`. Removing a field would drop legacy data on save — `extra` preserves it deliberately.                          │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 56   │ What is the metrics_mode system?                            │ `state.json::metrics_mode` (values: `none`, `heavy`, `all`). `lib/metrics.sh` provides `metrics_start`/`metrics_end` functions that track  │
-│      │                                                            │ files scanned, duration, tokens. Reports to `.specwork/_metrics/`. Library is defined but NOT yet wired into command scripts.             │
-├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 57   │ How does /f-handoff work?                                   │ Packages spec + rules + state + cache into `.specwork/_handoff/<slug>-execution-pack.md`. Gates: requires state, rules, spec, and no      │
+│ 56   │ How does /f-handoff work?                                   │ Packages spec + rules + state + cache into `.specwork/_handoff/<slug>-execution-pack.md`. Gates: requires state, rules, spec, and no      │
 │      │                                                            │ unresolved OQs. No-enrichment rule: only packages existing artifacts, never generates new content. Also writes execution-pack.json.        │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 58   │ What 6 doc/ADR companion skills does open-sdd bundle?       │ `/doc-catalog` (scan service → docs/service-info.md), `/doc-publish` (publish to registry), `/doc-query` (cross-service questions),        │
+│ 57   │ What 6 doc/ADR companion skills does open-sdd bundle?       │ `/doc-catalog` (scan service → docs/service-info.md), `/doc-publish` (publish to registry), `/doc-query` (cross-service questions),        │
 │      │                                                            │ `/doc-adr` (create ADR in docs/adr/), `/adr-publish` (publish ADRs to registry), `/adr-query` (decision-history questions).               │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 59   │ How does /f-test-impl list (dry-run) mode work?             │ `./commands/test-impl.sh list` runs a read-only preview. Reads the git diff, resolves each changed source file to expected test paths,   │
+│ 58   │ How does /f-test-impl list (dry-run) mode work?             │ `./commands/test-impl.sh list` runs a read-only preview. Reads the git diff, resolves each changed source file to expected test paths,   │
 │      │                                                            │ and prints which tests exist (UPDATE) and which don't (CREATE). No files are written. The real run (without `list`) implements them.       │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 60   │ How does /f-mr handle pre-push test validation?             │ Runs `commands/check.sh` before pushing. Skips validation if HEAD's `checked_sha` matches the current HEAD (meaning /f-commit already      │
+│ 59   │ How does /f-mr handle pre-push test validation?             │ Runs `commands/check.sh` before pushing. Skips validation if HEAD's `checked_sha` matches the current HEAD (meaning /f-commit already      │
 │      │                                                            │ validated this exact commit). Stops entirely if tests fail. `--skip-validation` bypasses the gate.                                         │
 └──────┴────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```

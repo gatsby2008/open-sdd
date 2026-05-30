@@ -13,6 +13,8 @@ engine. So most fixes need re-expression, not copy-paste.
 | 3 | Deregister `/f-triage` user command | **N/A — already internal** | — |
 | 4 | Cosmetic `/f-*` hints (vs `./commands/X.sh`) | **N/A — skill prose already uses `/f-*`** | — |
 | 5 | Add `CLAUDE.md` | **N/A — open-sdd specific** | — |
+| 6 | Vibe-coding doc + "handoff is not independent" README fix | **Optional doc only — claude-tools already correct** | `contrib/skills/sdd/VIBE-CODING.md` (new, optional) |
+| 7 | `detect_stack` distinguishes `frontend` from `node` | **YES — port it** | `engine/gates.py` + `lib/gates.py` (both) + tests |
 
 ---
 
@@ -198,3 +200,107 @@ already reference `/f-*`. Nothing to port.
 
 Added a `CLAUDE.md` to open-sdd describing its bash↔engine architecture.
 claude-tools already has its own `CLAUDE.md`. open-sdd specific.
+
+---
+
+## 6. Vibe-coding doc + "handoff is not independent" fix — OPTIONAL DOC ONLY
+
+### What open-sdd did
+- Added `docs/VIBE-CODING.md` — a consolidated guide to the three **standalone**
+  commands usable without a pipeline: `/f-commit`, `/f-mr`, `/f-code-review`
+  (loop: branch → code-review → commit → mr; what you give up; when to graduate
+  to the full pipeline).
+- Fixed open-sdd's `README.md`, which **wrongly** listed `/f-handoff` under
+  "INDEPENDENT". `handoff` requires the pipeline (it packages
+  `.specwork/_state`, `spec.md`, `plan.md`, `_progress/`). Removed it from that
+  list and added a vibe-coding pointer.
+
+### claude-tools status — already correct, nothing to fix
+Verified in `contrib/skills/sdd/`:
+- `f-commit/SKILL.md` — *"works in SDD pipeline, vibe coding, and git-only
+  workflows"*.
+- `f-mr/SKILL.md` — has explicit **pipeline mode (2A)** vs **standalone mode
+  (2B)**; *"If `.specwork` artifacts are missing, generate from git history
+  only."*
+- `f-code-review/SKILL.md` — *"Run from the active pipeline branch, or any
+  current branch when reviewing outside SDD."*
+- `f-handoff/SKILL.md` — *"`/f-handoff` requires all of these:
+  `.specwork/_state/...`, `spec.md`, `plan.md`, `_progress/...-context.md`"* —
+  correctly pipeline-only.
+- `contrib/skills/sdd/README.md` "INDEPENDENT" block lists **only** `/f-commit`,
+  `/f-mr`, `/f-code-review` (+ doc/adr commands). It does **not** list
+  `/f-handoff`. So the open-sdd README bug was a **regression** open-sdd
+  introduced; claude-tools never had it.
+
+### Optional port
+The only thing claude-tools lacks is a **single consolidated vibe-coding guide**.
+The standalone behavior is already implemented and documented per-skill, so this
+is documentation polish, not a fix. If wanted, add
+`contrib/skills/sdd/VIBE-CODING.md` mirroring open-sdd's (adjust paths/wording to
+claude-tools' skill layout). No code changes needed.
+
+---
+
+## 7. detect_stack: distinguish `frontend` from `node` — PORT THIS
+
+### Problem
+claude-tools' `detect_stack()` (in **both** `engine/gates.py:124` and
+`lib/gates.py:128`) returns only `java` / `node` / `unknown`. A React/Vue/Angular
+app resolves to **`node`**, even though several skills already write `frontend`
+in their prose (`f-code-review`, `f-test-impl`, `f-help`, `f-commit`, `f-spec`).
+So the deterministic plan/test logic treats UI repos as generic Node backends —
+missing component/RTL/Storybook/a11y handling. This is the "UI gap".
+
+### What open-sdd did (the fix to port)
+`engine/gates.py:detect_stack()` now returns `frontend` when, alongside
+`package.json`, it finds a frontend framework **config file** or a frontend
+framework **dependency**. All consumers route `frontend` specially:
+`plan.sh` (React/Vue error boundaries, component/page/hook discovery),
+`test-design.sh` (RTL + MSW + Storybook + Playwright), `test-impl.sh`
+(`stack in ("node","frontend")`), `code-review.sh` (a11y / React-Vue patterns /
+state-management focus). Unit tests added in `tests/test_gates.py`.
+
+### claude-tools patch — apply to BOTH `engine/gates.py` and `lib/gates.py`
+Replace the `package.json → node` line with:
+
+```python
+def detect_stack(project_dir: str = ".") -> str:
+    root = Path(project_dir)
+    if any((root / f).exists() for f in ["build.gradle", "build.gradle.kts", "pom.xml"]):
+        return "java"
+    if not (root / "package.json").exists():
+        return "unknown"
+    frontend_configs = [
+        "vite.config.ts", "vite.config.js", "vite.config.mjs",
+        "next.config.js", "next.config.ts", "next.config.mjs",
+        "angular.json", "svelte.config.js", "nuxt.config.ts",
+        "nuxt.config.js", "vue.config.js", "remix.config.js",
+        "astro.config.mjs",
+    ]
+    if any((root / f).exists() for f in frontend_configs):
+        return "frontend"
+    try:
+        import json
+        pkg = json.loads((root / "package.json").read_text(encoding="utf-8"))
+        deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+        frontend_kw = {"react", "vue", "@angular/core", "svelte", "preact", "solid-js", "lit"}
+        if frontend_kw & set(deps.keys()):
+            return "frontend"
+    except Exception:
+        pass
+    return "node"
+```
+
+### Follow-up audit in claude-tools (important)
+Once `detect_stack` can emit `frontend`, make sure the **deterministic
+consumers** handle it (the skills' prose already does). In particular
+`lib/f-plan.py` — check `resolve_test_path` / mock-consumer / reference-grep
+extension filters and group `frontend` with `node` (mirror open-sdd's
+`node|frontend)` cases) so `frontend` does not silently fall through to a
+java/unknown default.
+
+### Tests — add to claude-tools test suite (mirror `tests/test_gates.py`)
+- `frontend` via config file (`vite.config.ts` next to `package.json`).
+- `frontend` via dependency (`{"dependencies": {"react": "..."}}`).
+- backend-only deps (`express`) stays `node`.
+- polyglot `build.gradle` + `package.json` resolves to `java` (precedence).

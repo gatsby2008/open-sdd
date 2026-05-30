@@ -196,6 +196,35 @@ class GatesTestCase(unittest.TestCase):
         Path("package.json").write_text("{}", encoding="utf-8")
         self.assertEqual(detect_stack(), "node")
 
+    def test_detect_stack_frontend_by_config(self):
+        # A frontend framework config file (next to package.json) → "frontend".
+        Path("package.json").write_text("{}", encoding="utf-8")
+        Path("vite.config.ts").write_text("", encoding="utf-8")
+        self.assertEqual(detect_stack(), "frontend")
+
+    def test_detect_stack_frontend_by_dependency(self):
+        # No config file, but a frontend framework dependency → "frontend".
+        Path("package.json").write_text(
+            '{"dependencies": {"react": "^18.0.0"}}', encoding="utf-8"
+        )
+        self.assertEqual(detect_stack(), "frontend")
+
+    def test_detect_stack_node_backend_stays_node(self):
+        # package.json with only backend deps (no frontend config/framework) → "node".
+        Path("package.json").write_text(
+            '{"dependencies": {"express": "^4.18.0"}}', encoding="utf-8"
+        )
+        self.assertEqual(detect_stack(), "node")
+
+    def test_detect_stack_java_wins_over_package_json(self):
+        # Polyglot repo (build.gradle + package.json) resolves to java — java is
+        # checked first. Guards the detection precedence.
+        Path("build.gradle").write_text("", encoding="utf-8")
+        Path("package.json").write_text(
+            '{"dependencies": {"react": "^18.0.0"}}', encoding="utf-8"
+        )
+        self.assertEqual(detect_stack(), "java")
+
     def test_detect_stack_unknown(self):
         self.assertEqual(detect_stack(), "unknown")
 

@@ -22,7 +22,6 @@ class PipelineState:
     rules_file: str = ""
     cache_file: str = ""
     path_file: str = ""
-    metrics_mode: str = "none"
     schema_version: int = 1
     spec_write_timestamp: int = 0
     escalations: list = field(default_factory=list)

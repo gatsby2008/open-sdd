@@ -325,7 +325,6 @@ cat > ".specwork/_state/${SLUG}-state.json" <<ENDJSON
   "source_file": ".specwork/_spec/${SLUG}-source.md",
   "rules_file": ".specwork/_state/${SLUG}-rules.json",
   "cache_file": ".specwork/_state/${SLUG}-implementation-cache.json",
-  "metrics_mode": "${METRICS_MODE:-none}",
   "spec_write_timestamp": ${SPEC_WRITE_TIMESTAMP}
 }
 ENDJSON

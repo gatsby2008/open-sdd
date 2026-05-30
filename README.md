@@ -472,7 +472,6 @@ open-sdd/
 │   └── SDD_AGENT_INSTRUCTIONS.md   # System prompt for any LLM
 ├── lib/
 │   ├── gates.sh                     # Validation gates
-│   ├── metrics.sh                   # Timing & token metrics (opt-in)
 │   └── jira.sh                      # Jira REST client via curl
 ├── commands/                        # 20 pipeline commands
 │   ├── check.sh
@@ -511,9 +510,7 @@ open-sdd/
 | Bug | Fix |
 |-----|-----|
 | mtime gate false negative after git stash (f-pause destroys mtime) | `spec_write_timestamp` stored in `state.json`, not filesystem mtime |
-| `source metrics.sh` blocked by Claude Code allowed-tools | No permission system — scripts run directly |
 | Java-only heuristics silently skip Node/TS projects | Stack detection (`build.gradle`/`pom.xml` → java, `package.json` + frontend config → frontend, `package.json` only → node) with per-stack heuristics |
-| Metrics "heavy" tier mislabeled | Prompt and code now agree on which skills are heavy |
 | `resolve_slug()` ignored free-text slug in favor of branch name | Matches current branch against `state.json::branch` field first |
 
 ---

@@ -49,7 +49,6 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 ├── _state/<slug>-rules.json              # Compiled rules
 ├── _state/<slug>-implementation-cache.json  # Discovered facts
 ├── _progress/escalations.md              # Escalation log
-├── _metrics/<slug>-metrics.json          # Timing data
 ├── _review/<slug>-code-review.md         # Code review report
 ├── _review/<slug>-mr-address.md          # Review comment resolution
 └── _handoff/<slug>-execution-pack.md     # Handoff contract
@@ -480,17 +479,6 @@ Canonical sections (must preserve heading text exactly):
 Frontend UI sections are optional — delete them from the template when the
 feature is backend-only. Downstream commands parse by heading. Never rename
 core headings (`## Behavior`, `## Implementation Context`, etc.).
-
-## Metrics
-
-Opt-in via `metrics_mode` in `state.json`. Values: `none`, `heavy`
-(f-start, f-plan, f-implement), `all`.
-
-```bash
-source lib/metrics.sh && metrics_start
-# ... work ...
-source lib/metrics.sh && metrics_end "<skill>" "<mode>" "<scanned>" "<changed>" "<full_scan>"
-```
 
 ## Escalation
 

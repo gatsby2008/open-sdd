@@ -79,8 +79,7 @@ class PipelineStateTestCase(unittest.TestCase):
             "source_file": "",
             "rules_file": "",
             "cache_file": "",
-            "metrics_mode": "none",
-            "schema_version": 1,
+                "schema_version": 1,
             "spec_write_timestamp": 0,
             "escalations": [],
             # Legacy keys from pre-strip state.json — should be preserved in extra.

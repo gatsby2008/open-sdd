@@ -426,35 +426,7 @@ See [VIBE-CODING.md](vibe-coding.md) for the full workflow.
 
 ---
 
-## 17. Metrics and Observability
-
-The pipeline includes a metrics library (`lib/metrics.sh`) for lightweight observability focused on execution behavior rather than raw token counting.
-
-Metrics tracked by the library:
-
-* files scanned
-* files changed
-* full scan flag
-* execution mode
-* duration seconds
-* spec tokens
-* output tokens
-* total tokens
-* estimated cost
-
-Goal:
-
-```text
-evaluate pipeline quality, not just model quality
-```
-
-Stored at `.specwork/_metrics/<slug>-metrics.json`.
-
-> **Note**: The library is defined and configurable via `METRICS_MODE` in `state.json` (values: `none`, `heavy`, `all`), but `metrics_start`/`metrics_end` are not yet wired into the command scripts. Metrics collection requires explicit integration per command.
-
----
-
-## 18. Final Architecture
+## 17. Final Architecture
 
 ```text
 repo-root/
@@ -483,9 +455,6 @@ repo-root/
     _progress/
       escalations.md
 
-    _metrics/
-      <slug>-metrics.json
-
     _review/
       <slug>-code-review.md
       <slug>-mr-address.md
@@ -493,6 +462,7 @@ repo-root/
     _handoff/
       <slug>-execution-pack.md
       <slug>-execution-pack.json
+
 ```
 
 ---
@@ -505,13 +475,12 @@ repo-root/
 | `source.md` | **WHERE FROM** | Raw input — Jira ticket or free text |
 | `plan.md` | **WHERE** + **HOW** | Target files, approach, risks, plan-level Open Questions |
 | `plan.json` | **MACHINE PLAN** | Same data as plan.md in JSON (target_files, risk_signals, consistency_issues) |
-| `state.json` | **WHERE ARE WE IN THE PIPELINE** | Branch, ticket, slug, artifact paths, timestamps, escalations, metrics_mode |
+| `state.json` | **WHERE ARE WE IN THE PIPELINE** | Branch, ticket, slug, artifact paths, timestamps, escalations |
 | `rules.json` | **WHAT MUST NEVER BREAK** | Compiled business invariants and architectural constraints |
 | `path.json` | **WHICH PIPELINE PATH IS ADVISED** | Complexity tier (trivial/focused/standard/high-risk) + recommended steps |
 | `implementation-cache.json` | **WHAT WAS ALREADY DISCOVERED** | Repositories, related tests, similar classes, utility patterns, notes |
 | `test-design.md` | **WHAT TO TEST** | Designed test cases (high-risk flow only) |
 | `escalations.md` | **WHAT FAILED AND WHAT WAS TRIED** | Append-only retry-exhaustion and blocker log |
-| `metrics.json` | **HOW EFFICIENT WAS THE EXECUTION** | Tokens, duration, files scanned, cost estimates (library ready, not yet wired) |
 | `code-review.md` | **WHAT'S WRONG** | Quality and security findings |
 | `mr-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution |
 | `execution-pack.md` | **WHAT TO EXECUTE** | Handoff contract for multi-model execution |
@@ -525,8 +494,7 @@ repo-root/
 | State engine | Python (`engine/`) + thin bash wrappers | Python (`f-start.py`, `f-plan.py`, `gates.py`) |
 | Install | `install.sh` copies commands to opencode | `update.sh` symlinks skills |
 | Rules path | `.opensdd/service-rules.md` | `.claude/service-rules.md` |
-| Artifact extras | `_test/`, `_metrics/`, `implementation-cache.json` | `context.md`, `execution-pack.json` |
-| Metrics | `lib/metrics.sh` + `_metrics/` (library defined, not wired into commands) | Not implemented |
+| Artifact extras | `_test/`, `implementation-cache.json` | `context.md`, `execution-pack.json` |
 | Code review | Stack-aware with inline LLM instructions + pack hints | Stack-aware with dedicated reviewer agents + packs |
 | MR creation | GitHub (`gh`) + GitLab (`glab`) auto-detection. Override with `OPEN_SDD_MR_PROVIDER` | GitLab (`glab`) + manual URL fallback |
 | Doc skills | Bundled as `/doc-*` and `/adr-*` commands | Bundled as `doc` skills |
