@@ -33,16 +33,24 @@ echo "Branch: $BRANCH"
 echo ""
 
 if [ "$ARG" = "open-questions" ]; then
-  SPEC_DIR=".specwork/_spec"
-  if [ -d "$SPEC_DIR" ]; then
-    echo "Open Questions mode. Scanning resolved items..."
-    for f in "$SPEC_DIR"/*-spec.md; do
+  FOUND=false
+  if [ -d ".specwork/_spec" ]; then
+    echo "== Pipeline specs =="
+    for f in ".specwork/_spec"/*-spec.md; do
       [ -f "$f" ] || continue
+      FOUND=true
       echo "--- Spec: $(basename "$f") ---"
       grep -E '^\s*(- \[x\]|- \[X\])' "$f" 2>/dev/null || echo "(no resolved questions)"
     done
-  else
-    echo "No .specwork/_spec/ found. Run /f-start first."
+  fi
+  for f in docs/decisions.md docs/open-questions.md docs/adr/decisions.md; do
+    [ -f "$f" ] || continue
+    FOUND=true
+    echo "--- $(basename "$f") ---"
+    grep -E '^\s*(- \[x\]|- \[X\]|## Resolved|## Decision|## OQ[0-9]|^### .*resolved)' "$f" 2>/dev/null | head -30 || true
+  done
+  if [ "$FOUND" = false ]; then
+    echo "No specs or decisions files found. Provide context directly."
   fi
 elif echo "$ARG" | grep -qE '^[A-Z]+-[0-9]+$'; then
   echo "Jira mode. To capture decisions from ticket $ARG, ask the user for context."

@@ -99,15 +99,21 @@ install_cmd "test-impl"     "Implement test files for changed source"
 install_doc_cmd_directive "doc-catalog" "Scan codebase and generate/update docs/service-info.md" "\
 Run ${OPENSDD_PATH}/commands/doc-catalog.sh \$ARGUMENTS to scan the project and produce structured findings, then use those findings to generate or update docs/service-info.md. Ask the user for confirmation before writing."
 install_doc_cmd_directive "doc-publish" "Publish service catalog to central registry" "\
-Run ${OPENSDD_PATH}/commands/doc-publish.sh \$ARGUMENTS. If the argument is 'list', print the registered catalogs. Otherwise publish docs/service-info.md to the central registry."
+Run ${OPENSDD_PATH}/commands/doc-publish.sh \$ARGUMENTS. If the argument is 'list', print the registered catalogs. Use --with-docs to also publish docs/architecture/, docs/features/, docs/product/ alongside the catalog."
 install_doc_cmd_directive "doc-query" "Ask cross-service architecture questions" "\
-Run ${OPENSDD_PATH}/commands/doc-query.sh \$ARGUMENTS. It prints all registered service catalogs. Use that output to answer the user's architecture question, citing the source catalog for each claim."
+Run ${OPENSDD_PATH}/commands/doc-query.sh \"\$ARGUMENTS\". It prints all registered documents (catalogs + any extra docs published with --with-docs). Use that output to answer the user's architecture question, citing the source file for every claim."
 install_doc_cmd_directive "doc-adr" "Create an Architecture Decision Record" "\
 Run ${OPENSDD_PATH}/commands/doc-adr.sh \$ARGUMENTS to find the next ADR number and gather context. Use the output to draft an ADR, confirm with the user, write to docs/adr/, and offer to commit."
 install_doc_cmd_directive "adr-publish" "Publish ADRs to central registry" "\
 Run ${OPENSDD_PATH}/commands/adr-publish.sh \$ARGUMENTS. If the argument is 'list', print the registered ADRs. Otherwise sync docs/adr/*.md to the central registry."
 install_doc_cmd_directive "adr-query" "Ask architecture-decision questions across ADRs" "\
 Run ${OPENSDD_PATH}/commands/adr-query.sh \$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the user's question, citing every claim as <service>/<ADR-file>."
+install_doc_cmd_directive "doc-freshness" "Check docs for drift against code" "\
+Run ${OPENSDD_PATH}/commands/doc-freshness.sh \$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
+install_doc_cmd_directive "spec-query" "Ask questions about product specs" "\
+Run ${OPENSDD_PATH}/commands/spec-query.sh \"\$ARGUMENTS\". It reads product specs from the registry (product-spec.md, gap-analysis.md, feature-inventory.md). Use the output to answer the user's product/spec question, citing the source file for every claim."
+install_doc_cmd_directive "sec-query" "Ask questions about security docs" "\
+Run ${OPENSDD_PATH}/commands/sec-query.sh \"\$ARGUMENTS\". It reads security docs from the registry (security-report.md, gl-*-report*.json). Use the output to answer the user's security question, citing the source file for every claim."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").
@@ -118,7 +124,7 @@ rm -f "${CMD_DIR}/f-triage.md"
 rm -f "${CMD_DIR}/f-doc-adr.md" "${CMD_DIR}/f-doc-catalog.md" "${CMD_DIR}/f-doc-publish.md" "${CMD_DIR}/f-doc-query.md"
 rm -f "${CMD_DIR}/f-adr-publish.md" "${CMD_DIR}/f-adr-query.md"
 
-echo "open-sdd: 26 commands installed to $CMD_DIR"
+echo "open-sdd: 29 commands installed to $CMD_DIR"
 echo ""
 
 echo "============================================"

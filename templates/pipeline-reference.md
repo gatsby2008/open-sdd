@@ -110,5 +110,9 @@ Do not create for:
 | `/adr-publish` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh` |
 | `/adr-publish list` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh list` |
 | `/adr-query <question>` | `bash $OPEN_SDD_ROOT/commands/adr-query.sh <question>` |
+| `/doc-freshness` | `bash $OPEN_SDD_ROOT/commands/doc-freshness.sh` — detect drift between docs and code |
+| `/doc-freshness <path>` | `bash $OPEN_SDD_ROOT/commands/doc-freshness.sh <path>` — check docs in another repo |
+| `/spec-query <question>` | `bash $OPEN_SDD_ROOT/commands/spec-query.sh <question>` — query product specs in registry |
+| `/sec-query <question>` | `bash $OPEN_SDD_ROOT/commands/sec-query.sh <question>` — query security docs in registry |
 
 All commands run from the root of the current project.

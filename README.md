@@ -92,7 +92,7 @@ UTILITIES:
 
 open-sdd is **fully self-contained** — everything lives in this repo.
 
-Registers all 19 `/f-*` commands as custom commands with tab-completion:
+Registers all 29 commands (20 pipeline + 9 doc/adr) as custom commands with tab-completion:
 
 ```bash
 git clone <repo-url> ~/team/Yield/open-sdd
@@ -107,7 +107,7 @@ In each consumer project where you want to use the pipeline:
 
 1. Install open-sdd globally (see Install above)
 
-The first `/f-start` auto-bootstraps `AGENTS.md`, `.opensdd/service-rules.md`,
+The first `/f-start` auto-bootstraps `.opensdd/service-rules.md`
 and `.opensdd/mr-config.json` in the project.
 
 ## One-Time Setup
@@ -373,8 +373,11 @@ documentation and architecture decisions (registered via install.sh):
 | Command | What it does |
 |---------|--------------|
 | **`/doc-catalog`** | Scan the current microservice and generate `docs/service-info.md` with endpoints, integrations, and config |
-| **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`) |
-| **`/doc-query`** | Ask cross-service questions across all registered catalogs |
+| **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`). `--with-docs` also publishes `docs/architecture/`, `docs/product/`, `docs/security/`, `docs/features/` |
+| **`/doc-query`** | Ask cross-service questions across all registered documents (catalogs + extra docs) |
+| **`/doc-freshness`** | Detect drift between docs and repo: broken links, orphan files, version mismatch, stale dates, missing endpoints |
+| **`/spec-query`** | Query product specs (product-spec.md, gap-analysis.md, feature-inventory.md) from the registry |
+| **`/sec-query`** | Query security docs (security-report.md, gl-\*-report\*.json) from the registry |
 | **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
 | **`/adr-publish`** | Publish all ADRs to the central registry (`$OPEN_SDD_DOC_HOME/adr-registry/<service>/`) |
 | **`/adr-query`** | Ask decision-history questions across all registered ADRs |
@@ -382,7 +385,7 @@ documentation and architecture decisions (registered via install.sh):
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.
 
-**See also:** [docs/learning/doc-adr-cheatsheet.md](docs/learning/doc-adr-cheatsheet.md)
+**See also:** [docs/learning/doc-adr-cheatsheet.md](docs/learning/doc-adr-cheatsheet.md) — full onboarding & examples
 
 ---
 
@@ -470,7 +473,7 @@ open-sdd/
 ├── lib/
 │   ├── gates.sh                     # Validation gates
 │   └── jira.sh                      # Jira REST client via curl
-├── commands/                        # 20 pipeline commands
+├── commands/                        # 31 scripts (29 user-facing commands + internal helpers)
 │   ├── check.sh
 │   ├── code-review.sh
 │   ├── commit.sh
@@ -489,6 +492,15 @@ open-sdd/
 │   ├── status.sh
 │   ├── test-design.sh
 │   ├── test-impl.sh
+│   ├── doc-catalog.sh               # doc/adr commands (9)
+│   ├── doc-publish.sh
+│   ├── doc-query.sh
+│   ├── doc-freshness.sh
+│   ├── doc-adr.sh
+│   ├── spec-query.sh
+│   ├── sec-query.sh
+│   ├── adr-publish.sh
+│   └── adr-query.sh
 ├── templates/
 │   ├── rules.md                     # Global pipeline rules (compiled at /f-start)
 │   ├── service-rules.md             # Per-project invariants (copy to .opensdd/)

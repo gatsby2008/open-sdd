@@ -42,7 +42,7 @@ Run /doc-adr first to create an ADR."
 
 SERVICE=""
 if [ -f docs/service-info.md ] && head -1 docs/service-info.md | grep -qE '^# '; then
-  SERVICE=$(head -1 docs/service-info.md | sed 's/^# \s*//;s/[ _]/-/g' | tr '[:upper:]' '[:lower:]')
+  SERVICE=$(head -1 docs/service-info.md | sed 's/^# *//;s/^Service: *//i;s/[ _]/-/g' | tr '[:upper:]' '[:lower:]')
 fi
 if [ -z "$SERVICE" ]; then
   SERVICE=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
