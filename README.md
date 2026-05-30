@@ -6,7 +6,7 @@ A portable reimplementation of the SDD pipeline — originally built for Claude 
 now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as shell scripts.
 
 > **Just want to code without the full pipeline?** See
-> [docs/VIBE-CODING.md](docs/VIBE-CODING.md) — the standalone `/f-commit`,
+> [docs/learning/vibe-coding.md](docs/learning/vibe-coding.md) — the standalone `/f-commit`,
 > `/f-mr`, and `/f-code-review` commands work on any branch with no setup.
 
 ## Pipeline Flow
@@ -69,7 +69,7 @@ INDEPENDENT — vibe coding (any branch, any time, no pipeline needed):
   /f-commit            — semantic commit messages
   /f-mr                — MR description & creation
   /f-code-review       — stack-aware quality + security review
-                         → see docs/VIBE-CODING.md
+                         → see docs/learning/vibe-coding.md
 
   /f-handoff           — package artifacts for another agent (needs an active pipeline)
 

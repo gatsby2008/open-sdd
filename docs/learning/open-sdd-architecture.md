@@ -422,7 +422,7 @@ Three commands work on **any branch with no pipeline setup** — no `.specwork/`
 | `/f-mr` | Validate tests + push + open MR |
 | `/f-code-review` | Stack-aware quality + security review of diff |
 
-See [VIBE-CODING.md](../../docs/VIBE-CODING.md) for the full workflow.
+See [VIBE-CODING.md](vibe-coding.md) for the full workflow.
 
 ---
 
@@ -608,4 +608,4 @@ Primary pipeline references:
 * Merge request: [`/f-mr`](../../commands/mr.sh)
 * Execution handoff: [`/f-handoff`](../../commands/handoff.sh)
 * Non-interactive autopilot: [`/f-auto`](../../commands/auto.sh)
-* Vibe coding (no pipeline): [`docs/VIBE-CODING.md`](../../docs/VIBE-CODING.md)
+* Vibe coding (no pipeline): [`docs/learning/vibe-coding.md`](vibe-coding.md)

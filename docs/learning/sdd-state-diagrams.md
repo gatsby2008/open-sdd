@@ -69,7 +69,7 @@ stateDiagram-v2
 ```
 
 > **Vibe coding** (no pipeline): `/f-commit`, `/f-mr`, and `/f-code-review`
-> work on any branch without `.specwork/`. See [VIBE-CODING.md](../VIBE-CODING.md).
+> work on any branch without `.specwork/`. See [VIBE-CODING.md](vibe-coding.md).
 
 ---
 

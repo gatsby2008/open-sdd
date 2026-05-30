@@ -7,7 +7,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — command lookup
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
-- [VIBE-CODING.md](../VIBE-CODING.md) — standalone commands without pipeline
+- [VIBE-CODING.md](vibe-coding.md) — standalone commands without pipeline
 
 ```
 ┌──────┬────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -121,7 +121,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │      │                                                            │ Exists because `/f-pause` uses `git stash` which destroys filesystem mtimes — the stored timestamp survives stash/unstash.                │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 36   │ What is vibe coding?                                       │ Using `/f-commit`, `/f-mr`, and `/f-code-review` on any branch without creating `.specwork/` artifacts. No spec, no plan, no pipeline.     │
-│      │                                                            │ See docs/VIBE-CODING.md.                                                                                                                   │
+│      │                                                            │ See docs/learning/vibe-coding.md.                                                                                                                   │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 37   │ How does /f-mr detect which provider to use?               │ Auto-detects from the remote: `git remote get-url origin`. If it contains `github.com` → `gh`. Otherwise → `glab`. Override with         │
 │      │                                                            │ `OPEN_SDD_MR_PROVIDER=github|gitlab` (needed for self-hosted GitLab).                                                                     │

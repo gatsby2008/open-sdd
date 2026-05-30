@@ -13,7 +13,7 @@ Cross-cutting ideas that govern how the pipeline works in this project. Understa
 | **Risk signals** | `detect_risk_signals()` is a **deterministic** regex match (not fuzzy triage) for 5 signals: `db-migration`, `auth-security`, `breaking-api`, `data-destructive`, `concurrency`. Used by `/f-auto` to decide whether to pause for optional test steps. `engine risk-signals <slug>` prints matching signals. |
 | **`spec_write_timestamp`** | An epoch-seconds field in `state.json` bumped by every `/f-spec` write. Used by the plan staleness gate (compares against `plan.md` mtime). Exists because `/f-pause` stashes destroy filesystem mtimes. |
 | **`SDD_NON_INTERACTIVE=1`** | Env var that suppresses bash prompts in `/f-start` (branch creation), `/f-commit` (message confirmation), and `/f-close` (confirmation). Set by `/f-auto` for the non-interactive autopilot. Override manually with `SDD_NON_INTERACTIVE=1` to skip prompts in any command. |
-| **Vibe coding** | `/f-commit`, `/f-mr`, and `/f-code-review` work on **any branch with no pipeline setup**. No `.specwork/`, no spec, no plan needed. See [VIBE-CODING.md](../VIBE-CODING.md). |
+| **Vibe coding** | `/f-commit`, `/f-mr`, and `/f-code-review` work on **any branch with no pipeline setup**. No `.specwork/`, no spec, no plan needed. See [VIBE-CODING.md](vibe-coding.md). |
 | **Quality gates** | `bash commands/check.sh` must pass before `/f-commit` and `/f-mr`. Failed checks block progression. open-sdd ships a stack-detecting default (`npm test`, `./gradlew check`, `mvn verify`, `pytest`, etc.). Projects override by placing their own `commands/check.sh`. |
 | **Service-rules are a convention** | `.opensdd/service-rules.md` is not auto-discovered by opencode. The project's `AGENTS.md` tells the model to load it when present. It is a pipeline convention, not a framework feature. |
 
@@ -24,4 +24,4 @@ Cross-cutting ideas that govern how the pipeline works in this project. Understa
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — command lookup
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A
-- [VIBE-CODING.md](../VIBE-CODING.md) — standalone commands without pipeline
+- [VIBE-CODING.md](vibe-coding.md) — standalone commands without pipeline

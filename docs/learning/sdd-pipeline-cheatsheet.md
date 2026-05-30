@@ -4,7 +4,7 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 
 > **Vibe coding?** Three commands work without any pipeline setup:
 > `/f-commit`, `/f-mr`, `/f-code-review`.
-> See [VIBE-CODING.md](../VIBE-CODING.md).
+> See [VIBE-CODING.md](vibe-coding.md).
 
 ## Entry & Spec
 
@@ -64,4 +64,4 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A on pipeline mechanics
-- [VIBE-CODING.md](../VIBE-CODING.md) — standalone commands without pipeline
+- [VIBE-CODING.md](vibe-coding.md) — standalone commands without pipeline
