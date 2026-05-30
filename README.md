@@ -11,17 +11,10 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
   Jira ticket or free-text description
   (start from any branch; create a new branch or continue on current)
           │
-          ├──→ /f-start       interactive, step by step
-          │
-          └──→ /f-auto <ticket-or-text>   non-interactive, runs the full
-               pipeline through to the open MR. Stops only to ask the
-               human at: unresolved Open Questions, and a concrete risk
-               signal (decide on the costly test steps). Never runs
-               /f-close or /f-mr-address.
-          │
           ▼
     ┌─────────────┐
     │  /f-start   │  → pre-flight, create/select branch, write state + source.md (no spec.md yet)
+    │  (/f-auto)  │  → non-interactive alternative; runs full pipeline through open MR
     └──────┬──────┘
            ▼
     ┌─────────────┐
