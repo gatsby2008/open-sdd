@@ -11,7 +11,7 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 | Command | What it does |
 |---------|--------------|
 | **`/f-start <ticket-or-text>`** | Initialize pipeline: fetch Jira (or free-text), create/select branch, write `.specwork/` state + `source.md`. **Does NOT create `spec.md`** — that is `/f-spec`'s job. Always run first. |
-| **`/f-spec [files \| jira X \| paste \| "text"]`** | Drafts the spec the first time (when `spec.md` is absent) and refines it on subsequent calls. Idempotent; always bumps `spec_write_timestamp`. Warns if plan goes stale. Replaces deprecated `/f-spec-refine` (wrapper still forwards here). |
+| **`/f-spec [files \| jira X \| paste \| "text"]`** | Drafts the spec the first time (when `spec.md` is absent) and refines it on subsequent calls. Idempotent; always bumps `spec_write_timestamp`. Warns if plan goes stale. |
 | **`/f-auto <ticket-or-text>`** | Non-interactive autopilot: runs `/f-start → /f-spec → /f-plan → /f-implement` without bash prompts. Sets `SDD_NON_INTERACTIVE=1`. Stops only for unresolved OQs or risk signal prompts. Ends at open MR. |
 
 ## Plan & Implement

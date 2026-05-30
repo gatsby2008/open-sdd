@@ -12,6 +12,28 @@ die() { echo "$*" >&2; exit 1; }
 
 fmt_bold()  { printf '\033[1m%s\033[0m\n' "$1"; }
 
+append_escalation() {
+  local area="$1" error_text="$2" attempted_fixes="$3" recommended="$4"
+  local progress_dir=".specwork/_progress"
+  local escalations_file="$progress_dir/escalations.md"
+  local today
+  today="$(date '+%Y-%m-%d')"
+
+  mkdir -p "$progress_dir"
+  cat >> "$escalations_file" <<EOF
+## ${today} — ${area}
+
+- Failing test/component: ${area}
+- Error: ${error_text}
+- Attempted fixes: ${attempted_fixes}
+- Recommended: ${recommended}
+
+EOF
+
+  echo ""
+  echo "Escalation logged to: $escalations_file"
+}
+
 # ---- step 0: pipeline precondition gate -------------------------------------
 
 engine precheck >/dev/null 2>&1 \
@@ -24,6 +46,19 @@ SLUG=$(engine resolve-slug 2>/dev/null || true)
 echo "Slug: $SLUG"
 
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
+
+# ---- escalation logging mode -------------------------------------------------
+
+if [ "${1:-}" = "--escalate" ]; then
+  AREA="${2:-}"
+  ERROR_TEXT="${3:-persistent failure (details not provided)}"
+  ATTEMPTED_FIXES="${4:-n/a}"
+  RECOMMENDED="${5:-human review}"
+
+  [ -n "$AREA" ] || die "Usage: ./commands/implement.sh --escalate \"<failing area>\" [\"<error excerpt>\"] [\"<attempted fixes>\"] [\"<recommended next step>\"]"
+  append_escalation "$AREA" "$ERROR_TEXT" "$ATTEMPTED_FIXES" "$RECOMMENDED"
+  exit 0
+fi
 
 # /f-implement is re-runnable. Artifact gates below (implement-check: spec
 # exists, no unresolved OQs, plan not stale) are the only preconditions.
@@ -258,3 +293,5 @@ fi
 echo ""
 fmt_bold "Ready. Follow the instructions above to implement each target."
 echo "After each file, run: ./commands/implement.sh --done N"
+echo "On persistent failure, log escalation with:"
+echo "  ./commands/implement.sh --escalate \"<area>\" \"<error>\" \"<attempted fixes>\" \"<recommended>\""

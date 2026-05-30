@@ -69,7 +69,6 @@ Install-Cmd -Name "status"        -Description "Show pipeline state and next rec
 Install-Cmd -Name "help"          -Description "Show pipeline diagram and contextual next action"
 Install-Cmd -Name "pause"         -Description "Pause pipeline and stash all work"
 Install-Cmd -Name "resume"        -Description "List paused pipelines and restore selected one"
-Install-Cmd -Name "refine"        -Description "Deprecated — alias for spec, forwards to ./commands/spec.sh"
 Install-Cmd -Name "resync"        -Description "Resync artifacts after branch rename"
 Install-Cmd -Name "code-review"   -Description "Stack-aware code quality and security review of your own branch"
 Install-Cmd -Name "mr-review"     -Description "Stack-aware code quality and security review of a peer's branch or MR"
@@ -125,7 +124,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContin
   Remove-Item -Path (Join-Path $CMD_DIR "f-$_.md") -ErrorAction SilentlyContinue | Out-Null
 }
 
-Write-Host "open-sdd: 29 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 28 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------

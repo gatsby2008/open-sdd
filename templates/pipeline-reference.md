@@ -90,7 +90,6 @@ Do not create for:
 | `/f-auto <ticket> [--with-tests]` | `bash $OPEN_SDD_ROOT/commands/auto.sh <ticket> [--with-tests]` |
 | `/f-spec` | `bash $OPEN_SDD_ROOT/commands/spec.sh` |
 | `/f-spec <args>` | `bash $OPEN_SDD_ROOT/commands/spec.sh <args>` |
-| `/f-spec-refine <args>` | `bash $OPEN_SDD_ROOT/commands/refine.sh <args>` (deprecated alias) |
 | `/f-resync` | `bash $OPEN_SDD_ROOT/commands/resync.sh` |
 | `/f-resync <name>` | `bash $OPEN_SDD_ROOT/commands/resync.sh <name>` |
 | `/f-code-review` | `bash $OPEN_SDD_ROOT/commands/code-review.sh` |

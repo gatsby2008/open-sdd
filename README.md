@@ -81,7 +81,7 @@ UTILITIES:
   /f-resume            — restore paused work
   /f-resync            — sync artifacts when branch was renamed
   /f-spec              — draft / refine spec with additional context
-                         (replaces deprecated /f-refine)
+                         (canonical spec command)
 ```
 
 > **Open Questions** are unresolved markdown checkboxes (`- [ ]`) in `spec.md`
@@ -92,7 +92,7 @@ UTILITIES:
 
 open-sdd is **fully self-contained** — everything lives in this repo.
 
-Registers all 29 commands (20 pipeline + 9 doc/adr) as custom commands with tab-completion:
+Registers all 28 commands (19 pipeline + 9 doc/adr) as custom commands with tab-completion:
 
 ```bash
 git clone <repo-url> ~/team/Yield/open-sdd
@@ -276,7 +276,6 @@ that do not exist yet) — both are human-gated steps after the MR is open.
   tree has uncommitted changes
 - Never deletes user content, never touches `source.md` / `rules.json`,
   never modifies git state
-- Replaces the deprecated `/f-refine` (wrapper still works, forwards here)
 
 ### /f-plan *(optional)*
 
@@ -473,7 +472,7 @@ open-sdd/
 ├── lib/
 │   ├── gates.sh                     # Validation gates
 │   └── jira.sh                      # Jira REST client via curl
-├── commands/                        # 31 scripts (29 user-facing commands + internal helpers)
+├── commands/                        # 31 scripts (28 user-facing commands + internal helpers)
 │   ├── check.sh
 │   ├── code-review.sh
 │   ├── commit.sh
@@ -484,7 +483,6 @@ open-sdd/
 │   ├── mr.sh
 │   ├── pause.sh
 │   ├── plan.sh
-│   ├── refine.sh                    # Deprecated — wrapper to spec.sh
 │   ├── resume.sh
 │   ├── resync.sh
 │   ├── spec.sh                      # Draft / refine spec

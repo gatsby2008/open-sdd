@@ -555,7 +555,7 @@ Primary pipeline references:
 
 * Full protocol: [`agent/PIPELINE.md`](../../agent/PIPELINE.md)
 * Pipeline init: [`/f-start`](../../commands/start.sh) (writes source.md only; spec.md is created by /f-spec)
-* Spec draft + refine: [`/f-spec`](../../commands/spec.sh) (`/f-spec-refine` still aliases here via `commands/refine.sh`)
+* Spec draft + refine: [`/f-spec`](../../commands/spec.sh)
 * Implementation plan: [`/f-plan`](../../commands/plan.sh)
 * Implementation: [`/f-implement`](../../commands/implement.sh)
 * Commit: [`/f-commit`](../../commands/commit.sh)

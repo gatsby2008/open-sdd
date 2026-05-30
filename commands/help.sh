@@ -33,7 +33,6 @@ FEATURE PIPELINE
   /f-spec [files | jira <ticket> | free text]
     Draft the spec (first call) or refine it (subsequent calls).
     Idempotent; bumps spec_write_timestamp on every write.
-    Replaces the deprecated /f-refine.
 
   /f-plan
     Discover target files and write an implementation plan (optional).

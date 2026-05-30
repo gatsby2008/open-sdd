@@ -61,7 +61,7 @@ stateDiagram-v2
     Close --> [*]
 
     note right of Spec
-        /f-spec-refine is a deprecated alias.
+        /f-spec handles both draft and refine modes.
         Re-running /f-spec from any later
         state mutates the spec and bumps
         spec_write_timestamp.
@@ -248,7 +248,7 @@ stateDiagram-v2
         Orthogonal to all states:
         · /f-handoff → _handoff/execution-pack.{md,json}
         · /f-pause / /f-resume (stash including .specwork/)
-        · /f-spec-refine → deprecated alias of /f-spec
+        · /f-spec → owns both draft and refine modes
         · /f-auto → non-interactive, ends at open MR
     end note
 ```

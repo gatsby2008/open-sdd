@@ -390,20 +390,6 @@ else
   bad "implement.sh did not enter no-plan workflow :: ${out:0:200}"
 fi
 
-echo "== refine.sh is a deprecated wrapper to spec.sh =="
-d=$(new_repo refine-wrapper); cd "$d"
-out="$($TO bash "$REPO/commands/refine.sh" 2>&1 </dev/null)"; rc=$?
-if printf '%s' "$out" | grep -qF "are deprecated"; then
-  ok "refine.sh prints deprecation (covers /f-refine and /f-spec-refine)"
-else
-  bad "refine.sh deprecation missing :: ${out:0:160}"
-fi
-if printf '%s' "$out" | grep -qF "No active pipeline"; then
-  ok "refine.sh forwards to spec.sh (inherits pipeline gate)"
-else
-  bad "refine.sh forwarding missing :: ${out:0:160}"
-fi
-
 echo "== start.sh --keep derives slug from current branch (not from input) =="
 # Bug reproduction: user is already on feature/MYYES-15518 and runs /f-start
 # with a long free-text description. SLUG must come from the branch

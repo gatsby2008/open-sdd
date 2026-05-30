@@ -85,7 +85,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │      │                                                            │ ## Expected Change Scope, ## Safe Constraints (### Safe / ### Unsafe), ## Open Questions.                                                  │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 24   │ What 4 input types does /f-spec accept?                    │ (1) File paths (detected by `/` or extensions), (2) `jira <TICKET>`, (3) `paste` (stdin), (4) Inline free text in quotes. YES — mixable  │
-│      │                                                            │ in one call. Each keeps its provenance label. (/f-spec-refine kept as deprecated alias.)                                                  │
+│      │                                                            │ in one call. Each keeps its provenance label.                                                                                              │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 25   │ What does /f-spec NEVER touch?                             │ `source.md` (frozen at `/f-start`), `rules.json` (compiled rules), git state (no commits, branch ops, or stash). Downstream artifacts —  │
 │      │                                                            │ only warns about staleness, never deletes or rewrites.                                                                                    │
