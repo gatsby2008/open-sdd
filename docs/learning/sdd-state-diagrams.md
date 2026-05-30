@@ -18,6 +18,13 @@ stateDiagram-v2
     Start: /f-start (init only)
     Start --> Spec
 
+    Start --> Auto: /f-auto
+    Auto: /f-auto (non-interactive)
+    Auto: /f-start → /f-spec → OQ check
+    Auto: → /f-plan → /f-implement → handoff
+    Auto --> Auto: prompt break for OQs / risk signal
+    Auto --> MR
+
     Spec: /f-spec
     Spec: drafts (first call) or refines (subsequent)
     Spec --> Spec: more context\n(files, jira, text)
@@ -61,6 +68,9 @@ stateDiagram-v2
     end note
 ```
 
+> **Vibe coding** (no pipeline): `/f-commit`, `/f-mr`, and `/f-code-review`
+> work on any branch without `.specwork/`. See [VIBE-CODING.md](../VIBE-CODING.md).
+
 ---
 
 ## 2. Complete (gates + transversal commands)
@@ -74,6 +84,7 @@ stateDiagram-v2
     [*] --> Start
 
     state "Start (/f-start)" as Start
+    state "Auto (/f-auto)" as Auto
     state "Spec (/f-spec)" as Spec
     state "Plan (/f-plan)" as Plan
     state "Implement (/f-implement)" as Implement
@@ -87,6 +98,10 @@ stateDiagram-v2
     state "Paused" as Paused
 
     Start --> Spec
+    Start --> Auto
+    Auto --> Spec: runs /f-start → /f-spec → OQ check
+    Auto --> MR: via /f-implement → /f-commit → /f-mr
+    Auto --> Paused: /f-pause mid-flow
 
     Spec --> Spec: more context / unresolved OQs
     Spec --> Plan: OQs resolved · 3+ files
@@ -121,13 +136,14 @@ stateDiagram-v2
     Spec --> Paused: /f-pause
     Plan --> Paused: /f-pause
     Implement --> Paused: /f-pause
+    Auto --> Paused: /f-pause
     Paused --> Implement: /f-resume
 
     note right of Implement
         Strict gates:
         · Open Questions in spec or plan
-        · plan.md older than spec.md mtime
-          (or stored spec_write_timestamp)
+        · plan.md older than spec_write_timestamp
+          (stored in state.json, not mtime)
     end note
 ```
 
@@ -158,9 +174,10 @@ stateDiagram-v2
     Drafted: + _spec/spec.md (created by /f-spec\nfrom source.md + template)
     Drafted: cache updated\n(repositories, related_tests)
     Drafted: spec_write_timestamp bumped
+    Drafted: _state/path.json\n(written by engine triage)
 
     state "Planned" as Planned
-    Planned: + _plan/plan.md
+    Planned: + _plan/plan.md + _plan/plan.json
     Planned: cache seeded\n(patterns, similar_classes)
 
     state "Implementing" as Implementing
@@ -191,6 +208,8 @@ stateDiagram-v2
     Merged: spec lives in docs/specs/
 
     Pristine --> Started: /f-start
+    Pristine --> Started: /f-auto (via /f-start)
+
     Started --> Drafted: /f-spec\n(draft mode)
     Drafted --> Drafted: /f-spec\n(refine mode\n+ bump ts)
     Drafted --> Planned: /f-plan
@@ -215,7 +234,7 @@ stateDiagram-v2
     MROpen --> Addressing: reviewer threads
     Addressing --> Addressing: /f-mr-address\n(per-thread loop)
     Addressing --> MROpen: re-push
-    MROpen --> Merged: merge in GitHub
+    MROpen --> Merged: merge in GitHub / GitLab
 
     Merged --> Pristine: /f-close\n(wipes .specwork/)
 
@@ -223,7 +242,6 @@ stateDiagram-v2
         Side-effects in _progress/:
         · escalations.md (append-only,
           when retry budget exhausted)
-        · context.md (optional, human-authored)
     end note
 
     note right of Started
@@ -231,6 +249,7 @@ stateDiagram-v2
         · /f-handoff → _handoff/execution-pack.{md,json}
         · /f-pause / /f-resume (stash including .specwork/)
         · /f-spec-refine → deprecated alias of /f-spec
+        · /f-auto → non-interactive, ends at open MR
     end note
 ```
 
@@ -248,8 +267,10 @@ stateDiagram-v2
 - **No state machine.** Each command independently checks artifact
   preconditions and decides whether to run. There is no `current_step`,
   no `advance-step`, no `expected-step`. "Next step" is derived from
-  artifact presence + git state (see `status.sh`).
+  artifact presence + git state (see `help.sh` / `status.sh`).
 - The `Planned → Drafted` and `Implementing → Drafted` edges via `/f-spec`
   are the staleness trap: re-running `/f-spec` bumps `spec_write_timestamp`,
   so any existing `plan.md` becomes stale and `/f-implement` will block
   until `/f-plan` re-runs (or the plan is deleted).
+- **Vibe coding**: `/f-commit`, `/f-mr`, `/f-code-review` work from the
+  `Pristine` state — they never create or depend on `.specwork/`.
