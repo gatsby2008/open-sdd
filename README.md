@@ -506,9 +506,82 @@ open-sdd/
 |-----|-----|
 | mtime gate false negative after git stash (f-pause destroys mtime) | `spec_write_timestamp` stored in `state.json`, not filesystem mtime |
 | `source metrics.sh` blocked by Claude Code allowed-tools | No permission system — scripts run directly |
-| Java-only heuristics silently skip Node/TS projects | Stack detection (`build.gradle`/`pom.xml` → java, `package.json` → node) with per-stack heuristics |
+| Java-only heuristics silently skip Node/TS projects | Stack detection (`build.gradle`/`pom.xml` → java, `package.json` + frontend config → frontend, `package.json` only → node) with per-stack heuristics |
 | Metrics "heavy" tier mislabeled | Prompt and code now agree on which skills are heavy |
 | `resolve_slug()` ignored free-text slug in favor of branch name | Matches current branch against `state.json::branch` field first |
+
+---
+
+## UI / Frontend Support
+
+open-sdd detects frontend projects (React, Vue, Angular, Svelte, etc.) and
+adapts its heuristics. Stack detection classifies a project as:
+
+| Detection signal | Stack | What changes |
+|-----------------|-------|-------------|
+| `build.gradle` / `pom.xml` | `java` | Backend JVM heuristics |
+| `package.json` + Vite / Next / Angular / Svelte / Nuxt config | `frontend` | Component/page/store discovery + frontend risk signals |
+| `package.json` (no frontend config) | `node` | Node backend heuristics (Express/NestJS) |
+| None of the above | `unknown` | Spec-body heuristics only |
+
+### Plan heuristics (frontend)
+
+- **Infrastructure discovery**: searches for React error boundaries (`ErrorBoundary`, `componentDidCatch`) and Vue error handlers (`Vue.config.errorHandler`)
+- **Mock consumer discovery**: searches for `*Component.tsx`, `*Page.tsx`, `*Hook.ts`, `*Store.ts` patterns alongside the existing `*Service.ts` / `*Client.ts`
+- **Test resolution**: resolves `*.test.ts`, `*.test.tsx`, `*.spec.ts`, `*.spec.tsx` in `__tests__/` or sibling directories
+- **Reference update**: greps `.ts`, `.tsx`, `.js`, `.jsx`, `.json` files for renamed/removed symbols
+
+### Triage (frontend)
+
+Frontend risk keywords: `state management`, `routing`, `accessibility`/`a11y`,
+`ssr`/`hydration`, `data fetching`, `useSWR`/`react-query`, `component migration`,
+`i18n`, `theming`, `dark mode`.
+
+Frontend known layers: `component`, `page`, `store`, `hook`, `screen`, `layout`,
+`util` — in addition to the standard backend layers.
+
+### Risk signals
+
+Frontend-specific hard keyword matches:
+
+| Signal | Example triggers |
+|--------|-----------------|
+| `component-api` | props interface change, prop rename/removal, render signature change |
+| `state-management` | redux/zustand/context migration, store refactor |
+| `accessibility` | a11y, ARIA, keyboard nav, focus trap, WCAG |
+| `routing` | react-router, useRouter, navigate, route restructure |
+| `data-fetching` | tanstack query, useSWR, Apollo, SSR/hydration |
+| `ui-migration` | design system update, UI library upgrade, theming overhaul |
+
+### Test implementation
+
+The HARD RULES table in `/f-test-impl` shows both Java (AssertJ/Mockito) and
+frontend (Jest/Vitest/RTL) assertion examples side by side. FORBIDDEN patterns
+are shown for both stacks.
+
+### Code review
+
+Frontend diff gets targeted pack hints:
+- **Lifecycle hooks**: cleanup and dependency arrays
+- **State management**: immutability and re-render scope
+- **Memoization**: dependency correctness
+- **Accessibility**: ARIA patterns and keyboard navigation
+- **Routing**: side effects, guards, error states
+- **Dynamic imports**: loading states, bundle splitting
+
+### Spec template
+
+The spec template ships with optional frontend sections. Delete the ones that
+don't apply for backend-only features:
+
+```
+## UI / Component Breakdown
+## User Flows
+## Visual / Design Requirements
+## Accessibility Requirements
+## State Management
+## API Contract (Frontend Perspective)
+```
 
 ---
 

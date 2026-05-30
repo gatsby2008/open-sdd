@@ -146,6 +146,16 @@ find_infra() {
         found+=("$f")
       done < <(find src -type f \( -name "*exception-filter.ts" -o -name "*exception-filter.js" \) 2>/dev/null || true)
       ;;
+    frontend)
+      # React error boundaries
+      while IFS= read -r f; do
+        found+=("$f")
+      done < <(grep -rEl "componentDidCatch|getDerivedStateFromError|ErrorBoundary" src/ --include="*.tsx" --include="*.ts" --include="*.jsx" --include="*.js" 2>/dev/null || true)
+      # Vue error handlers
+      while IFS= read -r f; do
+        found+=("$f")
+      done < <(grep -rEl "Vue\.config\.errorHandler|app\.config\.errorHandler" src/ --include="*.ts" --include="*.js" 2>/dev/null || true)
+      ;;
   esac
   for f in "${found[@]+"${found[@]}"}"; do
     echo "$f"
@@ -190,6 +200,17 @@ find_mock_consumers() {
         done < <(grep -rlE "\b${class_name}\b" . --include="*.test.ts" --include="*.spec.ts" --include="*.test.tsx" --include="*.spec.tsx" --include="*.test.js" 2>/dev/null || true)
       done < <(find . -path "*/src/*" \( -name "*Service.ts" -o -name "*Repository.ts" -o -name "*Client.ts" -o -name "*Controller.ts" \) 2>/dev/null || true)
       ;;
+    frontend)
+      while IFS= read -r -d '' f; do
+        local class_name
+        class_name=$(basename "$f" | sed 's/\.[^.]*$//')
+        while IFS= read -r test_file; do
+          if grep -qE "(jest\.(mock|fn|spyOn)|vi\.(mock|fn|spyOn)|jest\.mock|vi\.mock)" "$test_file" 2>/dev/null; then
+            found+=("$test_file|$class_name")
+          fi
+        done < <(grep -rlE "\b${class_name}\b" . --include="*.test.ts" --include="*.spec.ts" --include="*.test.tsx" --include="*.spec.tsx" --include="*.test.js" 2>/dev/null || true)
+      done < <(find . -path "*/src/*" \( -name "*Component.tsx" -o -name "*Component.ts" -o -name "*Page.tsx" -o -name "*Page.ts" -o -name "*Hook.ts" -o -name "*Store.ts" -o -name "*Service.ts" -o -name "*Client.ts" \) 2>/dev/null || true)
+      ;;
   esac
 
   for entry in "${found[@]+"${found[@]}"}"; do
@@ -220,7 +241,7 @@ resolve_test_path() {
         -name "${class_name}Test.java" -o -name "${class_name}IT.java" \
         -o -name "${class_name}Tests.java" \) 2>/dev/null | head -1 || true
       ;;
-    node)
+    node|frontend)
       local test_result
       test_result=$(find . -path "*/__tests__/*" -o -path "*/test/*" -o -path "*/tests/*" 2>/dev/null | head -1 || true)
       if [ -z "$test_result" ]; then
@@ -310,7 +331,7 @@ if [ -n "$REFERENCE_PATHS" ]; then
       java)
         hits=$(grep -rlF "$old_path" src/ --include='*.java' --include='*.kt' --include='*.properties' --include='*.yml' --include='*.yaml' 2>/dev/null || true)
         ;;
-      node)
+      node|frontend)
         hits=$(grep -rlF "$old_path" src/ --include='*.ts' --include='*.tsx' --include='*.js' --include='*.jsx' --include='*.json' 2>/dev/null || true)
         ;;
       *)
@@ -371,8 +392,8 @@ for candidate in $CANDIDATES; do
       java)
         found_file=$(find src -name "${candidate}.java" 2>/dev/null | head -1 || true)
         ;;
-      node)
-        found_file=$(find src -name "${candidate}.ts" -o -name "${candidate}.tsx" -o -name "${candidate}.js" 2>/dev/null | head -1 || true)
+      node|frontend)
+        found_file=$(find src -name "${candidate}.ts" -o -name "${candidate}.tsx" -o -name "${candidate}.js" -o -name "${candidate}.jsx" 2>/dev/null | head -1 || true)
         ;;
     esac
     if [ -n "$found_file" ]; then

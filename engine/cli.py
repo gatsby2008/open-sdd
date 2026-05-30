@@ -110,13 +110,23 @@ def triage(slug: str) -> int:
         "event", "sns", "sqs", "kafka", "consumer", "producer",
         "auth", "authentication", "authorization", "security",
         "migration", "flyway", "liquibase", "breaking", "concurrency",
+        # Frontend high-risk keywords
+        "state management", "redux", "zustand", "context api",
+        "routing", "navigation", "react-router", "next.router",
+        "accessibility", "a11y", "aria",
+        "ssr", "hydration", "code splitting",
+        "data fetching", "useSWR", "react-query", "tanstack query",
+        "component migration", "ui library", "design system",
+        "i18n", "localization",
+        "theming", "dark mode",
     )
     trivial_kw = ("typo", "rename", "copy change", "wording", "message change")
 
     matched_high = [k for k in high_kw if k in spec_text or k in impl_ctx]
     matched_triv = [k for k in trivial_kw if k in spec_text]
 
-    known_layers = ("service", "controller", "repository", "config", "tests", "integration")
+    known_layers = ("service", "controller", "repository", "config", "tests", "integration",
+                    "component", "page", "store", "hook", "screen", "layout", "util")
     layers_match = re.search(r"expected layers[^\n]*?:\s*([^\n]+)", scope)
     layers = [L for L in known_layers if layers_match and L in layers_match.group(1)]
     num_layers = len(layers)

@@ -141,9 +141,28 @@ def check_branch_match(slug: str) -> Optional[str]:
 def detect_stack() -> str:
     if any(Path(f).exists() for f in ["build.gradle", "build.gradle.kts", "pom.xml"]):
         return "java"
-    if Path("package.json").exists():
-        return "node"
-    return "unknown"
+    if not Path("package.json").exists():
+        return "unknown"
+    # Frontend frameworks: check for common config files first
+    frontend_configs = [
+        "vite.config.ts", "vite.config.js", "vite.config.mjs",
+        "next.config.js", "next.config.ts", "next.config.mjs",
+        "angular.json", "svelte.config.js", "nuxt.config.ts",
+        "nuxt.config.js", "vue.config.js", "remix.config.js",
+        "astro.config.mjs",
+    ]
+    if any(Path(f).exists() for f in frontend_configs):
+        return "frontend"
+    # Fallback: check package.json for frontend framework dependencies
+    try:
+        pkg = json.loads(Path("package.json").read_text(encoding="utf-8"))
+        deps = {**pkg.get("dependencies", {}), **pkg.get("devDependencies", {})}
+        frontend_kw = {"react", "vue", "@angular/core", "svelte", "preact", "solid-js", "lit"}
+        if frontend_kw & set(deps.keys()):
+            return "frontend"
+    except Exception:
+        pass
+    return "node"
 
 
 def detect_risk_signals(spec_path: Path) -> dict[str, list[str]]:
@@ -156,6 +175,13 @@ def detect_risk_signals(spec_path: Path) -> dict[str, list[str]]:
         "breaking-api": r"\b(?:breaking\s+change|remove\s+endpoint|deprecate\s+endpoint|change\s+response\s+(?:format|shape)|change\s+contract|api\s+version\s+bump)\b",
         "data-destructive": r"\b(?:delete\s+data|purge|wipe|cleanup\s+data|production\s+data|truncate)\b",
         "concurrency": r"\b(?:@transactional|distributed\s+transaction|race\s+condition|two-phase\s+commit|optimistic\s+lock|pessimistic\s+lock)\b",
+        # Frontend risk signals
+        "component-api": r"\b(?:component\s+api|props?\s+(?:interface|type|shape)|breaking\s+change\s+in\s+component|rename\s+prop|remove\s+prop|change\s+(?:prop|render)\s+(?:type|signature))\b",
+        "state-management": r"\b(?:state\s+management|redux|zustand|context\s+api|mobx|recoil|jotai|migration\s+(?:from|to)\s+(?:redux|zustand|context)|replace\s+(?:redux|zustand|context))\b",
+        "accessibility": r"\b(?:a11y|accessibility|aria[-_]\w*|screen\s+reader|keyboard\s+navigat|focus\s+trap|role\s*=|tab\s*index|wcag|contrast\s+ratio)\b",
+        "routing": r"\b(?:routing|navigation|react-router|next\.router|useRouter|navigate|redirect|route\s+(?:structure|change|restructure))\b",
+        "data-fetching": r"\b(?:data\s+fetching|useSWR|react-query|tanstack\s+query|apollo\s+client|graphql|useQuery|useMutation|ssr|server-side\s+rendering|hydration|getServerSideProps|getStaticProps|getStaticPaths)\b",
+        "ui-migration": r"\b(?:ui[- ]library\s+(?:upgrade|migration|bump)|migrat(?:e|ion)\s+(?:from|to)\s+(?:material|antd|chakra|tailwind|bootstrap|shadcn|styled|emotion)|design\s+system\s+update|theming\s+overhaul|dark\s+mode)\b",
     }
     hits: dict[str, list[str]] = {}
     for label, pattern in signals.items():

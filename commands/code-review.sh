@@ -164,6 +164,7 @@ frontend_coverage() {
 case "$STACK" in
   java)  COVERAGE_SECTION=$(java_coverage) ;;
   node)  COVERAGE_SECTION=$(frontend_coverage) ;;
+  frontend)  COVERAGE_SECTION=$(frontend_coverage) ;;
 esac
 
 # ---- pack hints detection ---------------------------------------------------
@@ -182,6 +183,28 @@ if [ "$STACK" = "java" ]; then
   fi
   if echo "$DIFF" | grep -qE 'org\.slf4j|@Slf4j|MDC\.|logback\b|feign\.client\.config'; then
     PACK_HINTS+="- Diff touches logging — consider logging patterns review for structured logging, PII redaction, and Feign DEBUG hygiene."$'\n'
+  fi
+elif [ "$STACK" = "frontend" ]; then
+  if echo "$DIFF" | grep -qE 'useEffect|useLayoutEffect|componentDidMount|componentWillUnmount|useCleanup'; then
+    PACK_HINTS+="- Diff touches lifecycle hooks — consider review of cleanup, dependency arrays, and memory leaks."$'\n'
+  fi
+  if echo "$DIFF" | grep -qE 'useState|useReducer|redux|zustand|context'; then
+    PACK_HINTS+="- Diff touches state management — consider review of immutability, selector optimization, and re-render scope."$'\n'
+  fi
+  if echo "$DIFF" | grep -qE 'useMemo|useCallback|React\.memo|memo\('; then
+    PACK_HINTS+="- Diff touches memoization — consider review of dependency correctness and memoization value."$'\n'
+  fi
+  if echo "$DIFF" | grep -qE 'aria-|role=|tabIndex|keyboard|focus|screen.?reader'; then
+    PACK_HINTS+="- Diff touches accessibility — consider a11y review for ARIA patterns and keyboard navigation."$'\n'
+  fi
+  if echo "$DIFF" | grep -qE 'Route|Router|useRouter|navigate|redirect'; then
+    PACK_HINTS+="- Diff touches routing — consider review of navigation side effects, guards, and error states."$'\n'
+  fi
+  if echo "$DIFF" | grep -qE 'React\.lazy|import\(|dynamic\(|code.?split'; then
+    PACK_HINTS+="- Diff touches dynamic imports — consider review of loading states and bundle splitting strategy."$'\n'
+  fi
+  if echo "$DIFF" | grep -qE 'getServerSideProps|getStaticProps|getStaticPaths|getInitialProps|useSWR|useQuery|useMutation'; then
+    PACK_HINTS+="- Diff touches data fetching — consider review of caching, error handling, and loading states."$'\n'
   fi
 fi
 
@@ -328,9 +351,14 @@ case "$STACK" in
     echo "  Focus: security (Spring Boot), quality (error handling, N+1, transactions)"
     echo ""
     ;;
-  node)
+  frontend)
     echo "Stack routing: Frontend"
-    echo "  Focus: quality (React/Vue patterns), a11y, test coverage"
+    echo "  Focus: quality (React/Vue patterns), a11y, performance, state management"
+    echo ""
+    ;;
+  node)
+    echo "Stack routing: Node (backend)"
+    echo "  Focus: security (Express/NestJS), error handling, type safety"
     echo ""
     ;;
   *)

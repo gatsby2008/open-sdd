@@ -65,6 +65,12 @@ case "$STACK" in
     E2E_PATTERN="Playwright/Cypress skeleton"
     FRAMEWORK="Jest/Vitest + RTL + Playwright"
     ;;
+  frontend)
+    UNIT_PATTERN="*.test.ts (Jest/Vitest)"
+    INT_PATTERN="*.test.tsx (RTL + MSW, full component tree)"
+    E2E_PATTERN="Playwright/Cypress skeleton"
+    FRAMEWORK="Jest/Vitest + RTL + Playwright + Storybook"
+    ;;
   *)
     UNIT_PATTERN="Standard unit tests"
     INT_PATTERN="Standard integration tests"
