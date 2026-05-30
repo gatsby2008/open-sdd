@@ -74,13 +74,21 @@ fi
 echo ""
 
 if [ "$TOTAL" -eq 1 ]; then
-  echo "Resume ${STASH_BRANCHES[0]}? (y/n)"
-  read -r choice
-  case "$choice" in
-    y|Y|yes|Yes) SELECTED=0 ;;
-    *) echo "Aborted."; exit 1 ;;
-  esac
+  if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
+    echo "Non-interactive: resuming ${STASH_BRANCHES[0]}."
+    SELECTED=0
+  else
+    echo "Resume ${STASH_BRANCHES[0]}? (y/n)"
+    read -r choice
+    case "$choice" in
+      y|Y|yes|Yes) SELECTED=0 ;;
+      *) echo "Aborted."; exit 1 ;;
+    esac
+  fi
 else
+  if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
+    die "Multiple paused branches — cannot auto-select in non-interactive mode."
+  fi
   printf "Resume which branch? (0-%d / cancel): " $((TOTAL - 1))
   read -r choice
   [ "$choice" = "cancel" ] && echo "Aborted." && exit 1

@@ -47,6 +47,10 @@ GATES_RESULT=$(engine implement-check "$SLUG" 2>&1) || {
     *PLAN_STALE*)
       echo ""
       echo "Plan is stale — spec was modified after plan was created."
+      if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
+        echo "Non-interactive: re-running /f-plan automatically."
+        exec "$SCRIPT_DIR/plan.sh"
+      fi
       echo "Run /f-plan to regenerate."
       echo ""
       echo "  y) Re-run /f-plan now"

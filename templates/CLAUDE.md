@@ -16,6 +16,8 @@ open-sdd is at `~/team/Yield/open-sdd/`.
 | `/f-test-design` | Design test cases for current changes |
 | `/f-test-impl` | Implement test files |
 | `/f-commit` | Stage + semantic commit |
+| `/f-auto` | Non-interactive full pipeline |
+| `/f-auto <ticket> [--with-tests]` | Run full pipeline, only stops at OQs |
 | `/f-spec` | Draft the spec (first call) or refine it (subsequent calls) |
 | `/f-spec <context>` | Same, with extra context (files, jira, text) |
 | `/f-spec-refine <context>` | Deprecated — alias for `/f-spec <context>` |

@@ -101,47 +101,22 @@ echo "Commit format: [TICKET-ID] <type>: <description>"
 echo "  Types: feat | fix | refactor | docs | test | perf"
 echo ""
 
-# ---- interactive: confirm and commit ----------------------------------------
+# ---- commit: interactive or auto --------------------------------------------
 
-if [ "$HAS_STAGED" = true ] && [ -t 0 ]; then
-  COMMIT_MSG_FILE=".specwork/_state/${SLUG}-commit-msg.txt"
+COMMIT_MSG_FILE=".specwork/_state/${SLUG}-commit-msg.txt"
 
-  if [ -n "$TICKET" ]; then
-    PROPOSED="[$TICKET] feat: $SPEC_TITLE"
-  else
-    PROPOSED="feat: $SPEC_TITLE"
-  fi
+if [ -n "$TICKET" ]; then
+  PROPOSED="[$TICKET] feat: $SPEC_TITLE"
+else
+  PROPOSED="feat: $SPEC_TITLE"
+fi
 
-  echo "Proposed message:"
-  echo "  $PROPOSED"
-  echo ""
-  echo "  1) Accept and commit     [Enter]"
-  echo "  2) Edit message           [e]"
-  echo "  3) Abort                  [q]"
-  read -r choice
+commit_and_update() {
+  echo "$PROPOSED" > "$COMMIT_MSG_FILE"
+  git commit -F "$COMMIT_MSG_FILE"
+  echo "Committed."
+  rm -f "$COMMIT_MSG_FILE"
 
-  case "$choice" in
-    e|E)
-      echo "Type the new commit message (first line is subject):"
-      read -r new_msg
-      echo "$new_msg" > "$COMMIT_MSG_FILE"
-      git commit -F "$COMMIT_MSG_FILE"
-      echo "Committed."
-      rm -f "$COMMIT_MSG_FILE"
-      ;;
-    q|Q)
-      echo "Aborted."
-      exit 1
-      ;;
-    *)
-      echo "$PROPOSED" > "$COMMIT_MSG_FILE"
-      git commit -F "$COMMIT_MSG_FILE"
-      echo "Committed."
-      rm -f "$COMMIT_MSG_FILE"
-      ;;
-  esac
-
-  # update state.json with commit sha (pipeline mode only)
   LAST_COMMIT=$(git rev-parse HEAD)
   if [ -f "$STATE_FILE" ]; then
     python3 - "$STATE_FILE" "$LAST_COMMIT" <<'PY'
@@ -155,11 +130,43 @@ if sha not in commits:
     commits.append(sha)
 data["commits"] = commits
 data["last_commit"] = sha
-# The quality gate (check.sh) passed just before this commit, so this exact SHA
-# is validated. f-mr reads this to skip re-running the same checks.
 data["checked_sha"] = sha
 fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
     echo "State updated with commit $LAST_COMMIT"
+  fi
+}
+
+if [ "$HAS_STAGED" = true ]; then
+  if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
+    echo "Non-interactive: accepting proposed commit message automatically."
+    echo "  $PROPOSED"
+    commit_and_update
+  elif [ -t 0 ]; then
+    echo "Proposed message:"
+    echo "  $PROPOSED"
+    echo ""
+    echo "  1) Accept and commit     [Enter]"
+    echo "  2) Edit message           [e]"
+    echo "  3) Abort                  [q]"
+    read -r choice
+
+    case "$choice" in
+      e|E)
+        echo "Type the new commit message (first line is subject):"
+        read -r new_msg
+        echo "$new_msg" > "$COMMIT_MSG_FILE"
+        git commit -F "$COMMIT_MSG_FILE"
+        echo "Committed."
+        rm -f "$COMMIT_MSG_FILE"
+        ;;
+      q|Q)
+        echo "Aborted."
+        exit 1
+        ;;
+      *)
+        commit_and_update
+        ;;
+    esac
   fi
 fi

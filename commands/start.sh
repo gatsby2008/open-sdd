@@ -130,7 +130,7 @@ elif [ "$BRANCH_FLAG" = "keep" ]; then
   echo "Staying on $BRANCH (slug: $SLUG)."
 else
   CHOICE="A"
-  if [ -t 0 ]; then
+  if [ -t 0 ] && [ "${SDD_NON_INTERACTIVE:-0}" != "1" ]; then
     echo ""
     echo "Suggested branch: $SUGGESTED_BRANCH"
     echo ""

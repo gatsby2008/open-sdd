@@ -10,6 +10,7 @@ from engine.cli import (
     triage,
     cmd_precheck,
     cmd_bump_spec_ts,
+    cmd_risk_signals,
 )
 
 SPECWORK = Path(".specwork")
@@ -297,6 +298,39 @@ class StepCommandsTestCase(unittest.TestCase):
     def test_bump_spec_ts_rejects_unknown_slug(self):
         rc = cmd_bump_spec_ts(["nonexistent"])
         self.assertEqual(rc, 1)
+
+
+class RiskSignalsTestCase(CliTestCase):
+    """cmd_risk_signals prints concrete (deterministic) risk labels, one per line.
+
+    /f-auto uses this to decide whether to pause and ask about the costly test
+    steps — only hard keyword matches count, not the fuzzy triage tier.
+    """
+
+    def _signals(self, slug):
+        import io
+        import contextlib
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            rc = cmd_risk_signals([slug])
+        self.assertEqual(rc, 0)
+        return [ln for ln in out.getvalue().splitlines() if ln.strip()]
+
+    def test_db_migration_signal(self):
+        self._write_spec("migrate", "# m\n## Behavior\nAdd a Flyway migration and alter table users.\n")
+        self.assertIn("db-migration", self._signals("migrate"))
+
+    def test_auth_signal(self):
+        self._write_spec("auth", "# a\n## Behavior\nValidate the JWT and check authorization.\n")
+        self.assertIn("auth-security", self._signals("auth"))
+
+    def test_clean_spec_has_no_signals(self):
+        self._write_spec("copy", "# c\n## Behavior\nRename a label on the landing page.\n")
+        self.assertEqual(self._signals("copy"), [])
+
+    def test_missing_spec_has_no_signals(self):
+        # No spec file → no signals, still rc 0 (auto.sh treats empty as "proceed").
+        self.assertEqual(self._signals("ghost"), [])
 
 
 if __name__ == "__main__":

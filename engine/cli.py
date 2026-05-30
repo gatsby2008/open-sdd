@@ -27,7 +27,7 @@ COMMANDS = [
     "test-design", "test-impl", "code-review", "handoff",
     "precheck", "check", "triage", "status", "pause", "resume", "help",
     "implement-check", "implement-done", "implement-plan",
-    "resolve-slug", "detect-stack",
+    "resolve-slug", "detect-stack", "risk-signals",
     "bump-spec-ts",
 ]
 
@@ -340,6 +340,23 @@ def cmd_resolve_slug(args: list[str]) -> int:
     return 1
 
 
+def cmd_risk_signals(args: list[str]) -> int:
+    # Print the concrete, deterministic risk signals in the spec (one label per
+    # line): db-migration, auth-security, breaking-api, data-destructive,
+    # concurrency. These are keyword matches, not the fuzzy triage tier — /f-auto
+    # uses them to decide whether to pause and ask about the test steps. No
+    # signals → no output, rc 0.
+    from engine.gates import detect_risk_signals
+    slug = args[0] if args else resolve_slug()
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    hits = detect_risk_signals(SPECWORK / "_spec" / f"{slug}-spec.md")
+    for label in hits:
+        print(label)
+    return 0
+
+
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -374,6 +391,7 @@ def main() -> int:
         "implement-plan": cmd_implement_plan,
         "resolve-slug": cmd_resolve_slug,
         "detect-stack": cmd_detect_stack,
+        "risk-signals": cmd_risk_signals,
         "bump-spec-ts": cmd_bump_spec_ts,
     }
 

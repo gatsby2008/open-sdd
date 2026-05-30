@@ -86,6 +86,8 @@ Do not create for:
 | `/f-test-design` | `bash $OPEN_SDD_ROOT/commands/test-design.sh` |
 | `/f-test-impl` | `bash $OPEN_SDD_ROOT/commands/test-impl.sh` |
 | `/f-commit` | `bash $OPEN_SDD_ROOT/commands/commit.sh` |
+| `/f-auto` | `bash $OPEN_SDD_ROOT/commands/auto.sh` |
+| `/f-auto <ticket> [--with-tests]` | `bash $OPEN_SDD_ROOT/commands/auto.sh <ticket> [--with-tests]` |
 | `/f-spec` | `bash $OPEN_SDD_ROOT/commands/spec.sh` |
 | `/f-spec <args>` | `bash $OPEN_SDD_ROOT/commands/spec.sh <args>` |
 | `/f-spec-refine <args>` | `bash $OPEN_SDD_ROOT/commands/refine.sh <args>` (deprecated alias) |

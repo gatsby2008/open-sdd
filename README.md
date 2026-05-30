@@ -11,6 +11,14 @@ now decoupled to work with any LLM (Ollama, GPT, Claude, Gemini) or purely as sh
   Jira ticket or free-text description
   (start from any branch; create a new branch or continue on current)
           │
+          ├──→ /f-start       interactive, step by step
+          │
+          └──→ /f-auto <ticket-or-text>   non-interactive, runs the full
+               pipeline through to the open MR. Stops only to ask the
+               human at: unresolved Open Questions, and a concrete risk
+               signal (decide on the costly test steps). Never runs
+               /f-close or /f-mr-address.
+          │
           ▼
     ┌─────────────┐
     │  /f-start   │  → pre-flight, create/select branch, write state + source.md (no spec.md yet)
@@ -69,6 +77,7 @@ INDEPENDENT (any branch, any time):
 UTILITIES:
   /f-help              — where am I, what's next
   /f-status            — detailed pipeline progress
+  /f-auto              — run full pipeline non-interactively, up to the open MR
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
   /f-resync            — sync artifacts when branch was renamed
@@ -85,7 +94,7 @@ UTILITIES:
 open-sdd is **fully self-contained** — no dependency on `~/.claude/` or any
 external skill registry. Everything lives in this repo.
 
-Registers all 18 `/f-*` commands as native opencode custom commands
+Registers all 19 `/f-*` commands as native opencode custom commands
 (underlined, tab-completion, no trailing space needed):
 
 ```bash
@@ -221,6 +230,28 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
 ---
 
 ## Pipeline Commands
+
+### /f-auto \<ticket-or-text\>
+
+Non-interactive autopilot for the happy path. Runs the whole pipeline in
+sequence — `/f-start → /f-spec → /f-plan → /f-implement → /f-commit → /f-mr` —
+without bash prompts (`SDD_NON_INTERACTIVE=1` auto-confirms branch creation and
+the commit message). No flags: just the ticket key or free-text description.
+
+It hands control back to the human at exactly two points:
+
+- **Unresolved Open Questions** (after `/f-spec`): stops and asks you to resolve
+  them in the spec, then re-run.
+- **Concrete risk signal** (before `/f-commit`): if the spec contains a hard,
+  deterministic risk keyword — DB migration, auth/security, data-destructive,
+  concurrency, or breaking API change (via `engine risk-signals`) — it pauses
+  and asks whether to run the token-costly `/f-test-design` + `/f-test-impl`.
+  No signal → it flows straight through. The fuzzy triage *tier* is deliberately
+  **not** used for this — only the reliable keyword matches.
+
+It **ends at the open merge request**. It never runs `/f-close` (deletes the
+branch; a post-merge action) or `/f-mr-address` (needs human review comments
+that do not exist yet) — both are human-gated steps after the MR is open.
 
 ### /f-start \<ticket-or-text\>
 

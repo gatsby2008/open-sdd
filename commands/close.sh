@@ -69,6 +69,8 @@ checkout_parent() {
   fi
 }
 
+# /f-close is always human-driven — it is never reached by /f-auto's
+# non-interactive flow, so branch deletion stays an explicit interactive choice.
 if [ "$BRANCH" != "$PARENT" ]; then
   echo "Branch '$BRANCH' is not the parent ($PARENT)."
   echo ""

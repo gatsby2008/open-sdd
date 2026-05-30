@@ -54,6 +54,13 @@ assert_out "already initialized" "--fresh refusal message" -- python3 -m engine.
 echo "== check bug fixed =="
 assert_out "MISSING" "check command reachable" -- python3 -m engine.cli check demo
 
+echo "== risk-signals (f-auto test gate) =="
+d=$(new_repo risksig); cd "$d"; mkdir -p .specwork/_spec
+printf '# m\n## Behavior\nAdd a Flyway migration and alter table users.\n' > .specwork/_spec/demo-spec.md
+assert_out "db-migration" "risk-signals detects hard signal" -- python3 -m engine.cli risk-signals demo
+printf '# c\n## Behavior\nRename a label on the landing page.\n' > .specwork/_spec/clean-spec.md
+assert_noout "db-migration" "risk-signals silent on clean spec" -- python3 -m engine.cli risk-signals clean
+
 echo "== command wrappers =="
 d=$(new_repo wrappers); cd "$d"
 for w in plan implement handoff spec; do

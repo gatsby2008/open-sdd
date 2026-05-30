@@ -40,6 +40,34 @@ install_cmd "implement"     "Implement next focused change from the spec"
 install_cmd "commit"        "Stage changes and generate semantic commit"
 install_cmd "mr"            "Push branch and create merge request"
 install_cmd "close"         "Clean .specwork and optionally delete feature branch"
+install_cmd_directive "auto" "Run full SDD pipeline non-interactively" "\
+Read ${OPENSDD_PATH}/agent/SDD_AGENT_INSTRUCTIONS.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+
+This command drives the entire pipeline non-interactively — no bash prompts.
+
+1. Run: ${OPENSDD_PATH}/commands/auto.sh \$ARGUMENTS
+   (\$ARGUMENTS is just the ticket key or free-text description — no flags.
+   auto.sh runs f-start, f-spec, checks OQs, f-plan, f-implement in sequence.)
+2. When auto.sh finishes, read the spec and plan it printed. Implement every target.
+   After each target file is done, run: ${OPENSDD_PATH}/commands/implement.sh --done N
+3. TEST GATE — only if auto.sh printed a 'RISK SIGNAL' block: after all targets
+   are implemented and BEFORE commit, STOP and ask the user whether to run the
+   test steps (they are token-costly). Run them ONLY with the user's go-ahead:
+   ${OPENSDD_PATH}/commands/test-design.sh then ${OPENSDD_PATH}/commands/test-impl.sh
+   If auto.sh reported no risk signal, skip this step silently.
+4. Run: ${OPENSDD_PATH}/commands/commit.sh
+5. Run: ${OPENSDD_PATH}/commands/mr.sh — then STOP.
+
+Auto mode ends at the merge request. Do NOT run close.sh (it deletes the branch
+and is a post-merge action) and do NOT run mr-address.sh (it needs human review
+comments that do not exist yet). Both are human-gated steps after the MR is open.
+
+All commands above have SDD_NON_INTERACTIVE=1 set, so they auto-confirm (branch
+creation, commit message) without prompting. Only Open Questions block progression.
+
+Do NOT ask the user for confirmation between steps — execute the flow through to
+the open MR, then present the summary (MR link, branch, status) and hand control
+back to the user for review/merge/close."
 install_cmd "status"        "Show pipeline state and next recommended step"
 install_cmd "help"          "Show pipeline diagram and contextual next action"
 install_cmd "pause"         "Pause pipeline and stash all work"
@@ -58,7 +86,7 @@ install_cmd "test-impl"     "Implement test files for changed source"
 # Remove commands deregistered in newer versions (clean up stale installs).
 rm -f "${CMD_DIR}/f-triage.md"
 
-echo "open-sdd: 18 commands installed to $CMD_DIR"
+echo "open-sdd: 19 commands installed to $CMD_DIR"
 echo ""
 
 # Generate AGENTS.md with resolved OPEN_SDD_ROOT path
