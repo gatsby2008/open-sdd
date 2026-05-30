@@ -1,13 +1,13 @@
 # SDD Pipeline — Flashcards
 
-Hard questions about the spec-driven development pipeline as it applies to this project. Covers artifact layout, AGENTS.md consumption, architecture, quality gates, and non-interactive mode.
+Hard questions about the spec-driven development pipeline as it applies to this project. Covers artifact layout, AGENTS.md consumption, architecture, quality gates, non-interactive mode, plan heuristics, engine internals, and git mechanics.
 
 **See also:**
 - [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — command lookup
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
-- [VIBE-CODING.md](vibe-coding.md) — standalone commands without pipeline
+- [vibe-coding.md](vibe-coding.md) — standalone commands without pipeline
 
 ```
 ┌──────┬────────────────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -134,5 +134,66 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 40   │ What is the architecture file structure?                   │ `agent/` (LLM instructions) + `lib/` (gates.sh, metrics.sh, jira.sh) + `commands/` (19 scripts) + `engine/` (Python decision layer) +     │
 │      │                                                            │ `templates/` (scaffolds for consumer projects) + `tests/` (104 unit tests) + `docs/` (learning docs, presentation).                        │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 41   │ How does /f-spec detect draft vs refine mode?              │ By checking if `spec.md` exists. If absent → draft mode (creates spec from source.md + template). If present → refine mode (integrates    │
+│      │                                                            │ new context into existing spec, append-only on OQs). Called with no args in refine mode is a strict no-op.                                │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 42   │ How does resolve_slug() work?                               │ First reads the current git branch, then scans `.specwork/_state/*-state.json` for a `branch` field match. If found, returns that file's  │
+│      │                                                            │ slug. Falls back to slugifying the branch name. Commands fail with `COULD_NOT_RESOLVE_SLUG` outside a branch with state.                  │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 43   │ What are the 6 plan discovery heuristics in /f-plan?       │ 1) **infra** — cross-cutting files (exception handlers, error boundaries). 2) **mock-consumer** — test files mocking discovered classes.   │
+│      │                                                            │ 3) **test-naming guard** — resolve test paths from source files. 4) **reference-update grep** — symbols marked for rename/removal.        │
+│      │                                                            │ 5) **spec consistency** — detect contradictory requirements. 6) **risk surface** — hard keyword matches for risk signals.                 │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 44   │ What is the reference-update grep guard system?             │ Three guards: 1) Skip Safe Constraints section (preservation language, not rename targets). 2) Skip negated lines ("Do NOT remove ...").  │
+│      │                                                            │ 3) Per-symbol hit cap (OPEN_SDD_REF_HIT_CAP, default 8) — tokens matching more files are generic and silently skipped.                    │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 45   │ What spec consistency pairs does check_spec_consistency      │ Four pairs: (a) idempotent + per-call side effect (needs resolver: transaction/saga/orchestrator). (b) remove + still-referenced.          │
+│      │ detect?                                                     │ (c) atomic + multi-step (needs resolver: coordinator/orchestrator). (d) cache + always fresh (needs resolver: invalidate/expire/ttl).     │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 46   │ How does /f-commit behave without a pipeline (vibe mode)?   │ Auto-stages tracked changes if nothing staged. Runs `commands/check.sh` as quality gate (non-zero stops commit). Builds message from      │
+│      │                                                            │ branch name (`feature/JIRA-123-foo` → `[JIRA-123] feat: ...`). Pipeline-only extras (writing checked_sha into state.json) are skipped.    │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 47   │ How does /f-code-review detect pack hints?                  │ For Java: greps diff for `@Entity`/`@Repository` → JPA patterns; `@Async`/CompletableFuture → concurrency; `@RestController` → API        │
+│      │                                                            │ contracts; `@Slf4j`/MDC → logging patterns. Each match prints a "consider" hint linking to a review pack.                                 │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 48   │ What machine-readable tokens does the engine print?         │ `SPECWORK_OK`, `GATES_PASSED`, `UNRESOLVED_OQS`, `PLAN_STALE`, `ALREADY_INITIALIZED`, `NO_SPECWORK`, `NO_STATE`, `BRANCH_MISMATCH`,          │
+│      │                                                            │ `COULD_NOT_RESOLVE_SLUG`. The bash layer greps on these to decide next action. JSON payloads for plan data and check results.              │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 49   │ How does /f-pause work?                                     │ Verifies pipeline state exists. `git add -A` (tracked + untracked, excluding gitignored). `git add -f .specwork/` (force-add gitignored    │
+│      │                                                            │ artifacts). `git stash push --message "f-pause: <branch>"`. Only stages what was explicitly added — NOT all ignored files.                 │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 50   │ How does /f-resume work?                                    │ Runs `git stash list --format="%gd %s" | grep "f-pause:"` to find pipeline stashes. Shows menu by branch name. Verifies clean tree.       │
+│      │                                                            │ `git switch <branch>` (or `-c` if gone). `git stash pop <ref>`. Deduplicates: after pop, drops older stashes with same branch name.       │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 51   │ What is the OQ format and how are they resolved?            │ Format: `- [ ] **#N** <question>` in spec.md or plan.md. /f-spec refine mode flips resolved OQs to `- [x] **#N** <question> — resolved:    │
+│      │                                                            │ <answer>`. The check_open_questions gate scans both files for any `- [ ]` under `## Open Questions`.                                      │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 52   │ What happens when check.sh fails?                           │ The commit or push is blocked. `/f-commit` refuses to create the commit. `/f-mr` refuses to push. The user must fix the failure and       │
+│      │                                                            │ re-run. Use `--skip-validation` on `/f-mr` for emergencies only (documented for incident response).                                      │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 53   │ How does /f-implement handle no-plan vs plan mode?          │ No-plan: discovers targets inline from the spec's Implementation Context. Plan mode: reads `plan.json` for target files, supports         │
+│      │                                                            │ `/f-implement --done N` to mark steps complete. Writes to `implementation-cache.json` in both modes.                                      │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 54   │ What fields does implementation-cache.json store?           │ `schema_version`, `id` (slug), `repositories`, `patterns`, `related_tests`, `similar_classes`, `notes`. Append-only: discovered facts     │
+│      │                                                            │ are added, never removed. Written by `/f-start`, `/f-plan`, and `/f-implement`.                                                           │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 55   │ How does state.json handle unknown legacy keys?             │ Through the `extra` dict field. `from_dict`/`to_dict` round-trip any on-disk keys not in the dataclass (legacy `id`, `input_type`, etc.)  │
+│      │                                                            │ by storing them in `extra`. Removing a field would drop legacy data on save — `extra` preserves it deliberately.                          │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 56   │ What is the metrics_mode system?                            │ `state.json::metrics_mode` (values: `none`, `heavy`, `all`). `lib/metrics.sh` provides `metrics_start`/`metrics_end` functions that track  │
+│      │                                                            │ files scanned, duration, tokens. Reports to `.specwork/_metrics/`. Library is defined but NOT yet wired into command scripts.             │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 57   │ How does /f-handoff work?                                   │ Packages spec + rules + state + cache into `.specwork/_handoff/<slug>-execution-pack.md`. Gates: requires state, rules, spec, and no      │
+│      │                                                            │ unresolved OQs. No-enrichment rule: only packages existing artifacts, never generates new content. Also writes execution-pack.json.        │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 58   │ What 6 doc/ADR companion skills does open-sdd bundle?       │ `/doc-catalog` (scan service → docs/service-info.md), `/doc-publish` (publish to registry), `/doc-query` (cross-service questions),        │
+│      │                                                            │ `/doc-adr` (create ADR in docs/adr/), `/adr-publish` (publish ADRs to registry), `/adr-query` (decision-history questions).               │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 59   │ How does /f-test-impl list (dry-run) mode work?             │ `./commands/test-impl.sh list` runs a read-only preview. Reads the git diff, resolves each changed source file to expected test paths,   │
+│      │                                                            │ and prints which tests exist (UPDATE) and which don't (CREATE). No files are written. The real run (without `list`) implements them.       │
+├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+│ 60   │ How does /f-mr handle pre-push test validation?             │ Runs `commands/check.sh` before pushing. Skips validation if HEAD's `checked_sha` matches the current HEAD (meaning /f-commit already      │
+│      │                                                            │ validated this exact commit). Stops entirely if tests fail. `--skip-validation` bypasses the gate.                                         │
 └──────┴────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
