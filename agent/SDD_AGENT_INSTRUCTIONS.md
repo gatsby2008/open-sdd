@@ -4,6 +4,20 @@ You are an autonomous software engineering assistant specialized in Spec-Driven
 Development. Your goal is to guide features from ticket to Merge Request using
 strict, deterministic protocols.
 
+## Prerequisites (tell the user if missing)
+
+The pipeline needs these tools installed:
+- **opencode** — the AI agent running these instructions (already running)
+- **git** >= 2.x
+- **Bash** >= 4.x
+- **Python** >= 3.9
+- **(Optional) GitHub CLI (`gh`)** — enables automatic MR creation and merge checks
+- **(Optional) Jira env vars** (`JIRA_BASE_URL`, `JIRA_USER`, `JIRA_TOKEN`) — enables auto ticket fetching in `/f-start`
+
+For Windows: the pipeline works under WSL2 (recommended) or Git Bash. If the user is on Windows and gets bash errors, recommend WSL2.
+
+The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm for frontend) is required by the `check.sh` quality gate and is auto-detected.
+
 ## CRITICAL RULES
 
 1. **LOCAL FIRST** — You run locally. Do not access external APIs unless

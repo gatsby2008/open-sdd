@@ -93,6 +93,21 @@ echo ""
 sed "s|\$OPEN_SDD_ROOT|$OPENSDD_PATH|g" "$OPENSDD_PATH/templates/AGENTS.md" > "$OPENCODE_DIR/AGENTS.md"
 echo "Global AGENTS.md placed at $OPENCODE_DIR/AGENTS.md"
 
+echo ""
+echo "============================================"
+echo "  open-sdd requirements check"
+echo "============================================"
+echo "  git:    $(git --version 2>/dev/null || echo 'NOT FOUND — install git')"
+echo "  bash:   $(bash --version 2>/dev/null | head -1 || echo 'NOT FOUND — install bash >= 4.x')"
+echo "  python: $(python3 --version 2>/dev/null || echo 'NOT FOUND — install python >= 3.9')"
+echo "  gh:     $(gh --version 2>/dev/null | head -1 || echo 'optional — install for auto MRs')"
+echo ""
+echo "  Project toolchain: detected by commands/check.sh per project"
+echo "  Jira:              set JIRA_BASE_URL, JIRA_USER, JIRA_TOKEN (optional)"
+echo ""
+echo "  Windows users: run from WSL2 (recommended) or Git Bash"
+echo "============================================""
+
 # ---- standalone skills (doc) slash commands ----------------------------------
 
 for skill_dir in "$OPENSDD_PATH/skills/doc/"*/; do

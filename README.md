@@ -514,15 +514,68 @@ open-sdd/
 
 ## Requirements
 
-- **Bash 4+**
-- **git**
-- **python3** — used by `start.sh` for JSON/rules processing
-- **opencode** — required only for `/f-*` command integration (via `install.sh`)
-- **GitHub CLI (`gh`)** — required for `mr.sh` and `close.sh`
-- **Stack-specific toolchain** — required by `check.sh` (e.g., Gradle for Java projects, npm for Node)
-- **jq** — optional, for Jira integration
-- **JIRA_BASE_URL**, **JIRA_USER**, **JIRA_TOKEN** — required only for
-  Jira ticket fetching in `start.sh`
+### Required
+
+| Tool | Version | Why | Windows | macOS | Linux |
+|------|---------|-----|---------|-------|-------|
+| **[opencode](https://opencode.ai/)** | Latest | Runs the LLM, interprets `/f-*` commands | Desktop app or WSL2 | Terminal (`curl`) or desktop app | Terminal (`curl`) or desktop app |
+| **git** | >= 2.x | All version control | Git Bash or WSL2 | Built-in | Built-in |
+| **Bash** | >= 4.x | All pipeline scripts (`commands/*.sh`) | Git Bash or WSL2 | Built-in | Built-in |
+| **Python** | >= 3.9 | Engine layer (`engine/`) | python.org or WSL2 | Built-in | Built-in |
+
+**Install opencode:**
+
+```bash
+# macOS / Linux
+curl -fsSL https://opencode.ai/install | bash
+
+# Windows: download from https://opencode.ai/download or use WSL2
+```
+
+### Optional
+
+| Tool | When you need it | Install (macOS) | Install (Windows) |
+|------|-----------------|-----------------|-------------------|
+| **GitHub CLI (`gh`)** | Auto MR creation + merge checks | `brew install gh` | `winget install GitHub.cli` |
+| **GitLab CLI (`glab`)** | Auto MR on self-hosted GitLab | `brew install glab` | `winget install glab` |
+| **jq** | Jira JSON parsing | `brew install jq` | `winget install jqlang.jq` |
+
+### Project toolchain (required by `check.sh`)
+
+The quality gate auto-detects your project stack and runs its test command:
+
+| Detected file | Command run | You need |
+|---------------|-------------|----------|
+| `build.gradle` / `build.gradle.kts` | `./gradlew check` | Java (Gradle wrapper is bundled) |
+| `pom.xml` | `mvn verify` | Java + Maven |
+| `package.json` + `pnpm-lock.yaml` | `pnpm test` | Node.js + pnpm |
+| `package.json` + `yarn.lock` | `yarn test` | Node.js + Yarn |
+| `package.json` (npm) | `npm test` | Node.js + npm |
+| `pyproject.toml` / `setup.py` | `pytest` | Python + deps |
+| `Cargo.toml` | `cargo test` | Rust + Cargo |
+| `go.mod` | `go test ./...` | Go |
+
+### Jira (optional)
+
+```bash
+export JIRA_BASE_URL="https://your-company.atlassian.net"
+export JIRA_USER="your.email@company.com"
+export JIRA_TOKEN="your-atlassian-api-token"
+```
+
+### Windows
+
+The pipeline runs on bash scripts. Two options:
+
+**WSL2 (recommended):**
+```bash
+wsl --install                        # install Ubuntu WSL2
+curl -fsSL https://opencode.ai/install | bash
+git clone <repo-url> ~/team/Yield/open-sdd
+./open-sdd/install.sh
+```
+
+**Git Bash:** Install [Git for Windows](https://git-scm.com/download/win) + [Python](https://python.org/downloads/), then run `bash install.sh` from Git Bash (not CMD/PowerShell).
 
 ---
 
