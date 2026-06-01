@@ -84,11 +84,30 @@ echo "--- [4/4] f-implement ---"
 bash "$SCRIPT_DIR/implement.sh" || die "f-implement failed"
 echo ""
 
-# ---- done — hand off to the LLM ---------------------------------------------
+# ---- step 5: commit ----------------------------------------------------------
 
+echo "--- [5/6] f-commit ---"
+if [ -n "$RISK_SIGNALS" ]; then
+  echo "Risk signals detected; skipping optional /f-test-* steps in auto mode:"
+  while IFS= read -r _sig; do
+    [ -n "$_sig" ] && echo "  - $_sig"
+  done <<EOF
+$RISK_SIGNALS
+EOF
+fi
+bash "$SCRIPT_DIR/commit.sh" || die "f-commit failed"
 echo ""
+
+# ---- step 6: mr --------------------------------------------------------------
+
+echo "--- [6/6] f-mr ---"
+bash "$SCRIPT_DIR/mr.sh" || die "f-mr failed"
+echo ""
+
+# ---- done --------------------------------------------------------------------
+
 echo "============================================"
-echo "  Pipeline setup complete"
+echo "  Auto mode complete"
 echo "============================================"
 echo "  Branch:  $(git rev-parse --abbrev-ref HEAD)"
 echo "  Slug:    ${SLUG:-unknown}"
@@ -96,33 +115,5 @@ echo "  Spec:    .specwork/_spec/${SLUG:-?}-spec.md"
 echo "  Plan:    .specwork/_plan/${SLUG:-?}-plan.md"
 echo "============================================"
 echo ""
-echo "Implement all targets from the plan above."
-echo "After each target, run:  implement.sh --done N"
-echo ""
-if [ -n "$RISK_SIGNALS" ]; then
-echo "============================================"
-echo "  RISK SIGNAL — decide on tests before commit"
-echo "============================================"
-echo "  Concrete risk signals in this spec:"
-while IFS= read -r _sig; do
-  [ -n "$_sig" ] && echo "    - $_sig"
-done <<EOF
-$RISK_SIGNALS
-EOF
-echo ""
-echo "  When all targets are done, STOP and ask the user:"
-echo "    run test-design.sh + test-impl.sh now, or skip to commit?"
-echo "  Do NOT run the test steps without the user's go-ahead — they are costly."
-echo "  Then:  commit.sh  ->  mr.sh   <-- auto mode ends here"
-else
-echo "No concrete risk signals — proceed straight through when targets are done:"
-echo "  1. commit.sh"
-echo "  2. mr.sh   <-- auto mode ends here"
-fi
-echo ""
-echo "Auto mode stops at the open merge request. Do NOT run close.sh"
-echo "(deletes the branch; post-merge) or mr-address.sh (needs review comments)."
-echo "Hand control back to the user for review / merge / close."
-echo ""
-echo "All commands run in non-interactive mode."
-echo "Export SDD_NON_INTERACTIVE=1 if calling manually."
+echo "Stopped at open merge request."
+echo "Do NOT run /f-close until the MR is merged."

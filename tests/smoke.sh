@@ -551,11 +551,26 @@ else
   bad "start.sh dropped free text (ticket + no Jira) :: $([ -f "$SRC" ] && cat "$SRC" || echo MISSING)"
 fi
 if [ -f .specwork/_state/demo-state.json ]; then
+  SHB=$(python3 -c "import json; print(str(json.load(open('.specwork/_state/demo-state.json')).get('source_has_body')).lower())" 2>/dev/null)
+  if [ "$SHB" = "true" ]; then
+    ok "state.json marks source_has_body=true when source body is present"
+  else
+    bad "state.json source_has_body=$SHB (expected true)"
+  fi
+fi
+
+if [ -f .specwork/_state/demo-state.json ]; then
   TICK=$(python3 -c "import json; print(json.load(open('.specwork/_state/demo-state.json')).get('ticket'))" 2>/dev/null)
   if [ "$TICK" = "IR-94" ]; then
     ok "state.json keeps ticket=IR-94 when Jira unavailable"
   else
     bad "state.json ticket=$TICK (expected IR-94)"
+  fi
+  SHB=$(python3 -c "import json; print(str(json.load(open('.specwork/_state/demo-state.json')).get('source_has_body')).lower())" 2>/dev/null)
+  if [ "$SHB" = "true" ]; then
+    ok "state.json marks source_has_body=true for ticket+text fallback"
+  else
+    bad "state.json source_has_body=$SHB (expected true)"
   fi
 fi
 

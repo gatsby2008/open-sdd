@@ -125,8 +125,66 @@ rm -f "${CMD_DIR}/f-doc-adr.md" "${CMD_DIR}/f-doc-catalog.md" "${CMD_DIR}/f-doc-
 rm -f "${CMD_DIR}/f-adr-publish.md" "${CMD_DIR}/f-adr-query.md"
 
 echo "open-sdd: 28 commands installed to $CMD_DIR"
-echo ""
 
+# ---------------------------------------------------------------------------
+# Global SDD instructions file (avoids confusion with project-level AGENTS.md)
+# Installed as ~/.config/opencode/instructions/sdd-pipeline.md and wired into
+# opencode.json so opencode loads it across all sessions.
+# ---------------------------------------------------------------------------
+INST_DIR="${OPENCODE_DIR}/instructions"
+mkdir -p "$INST_DIR"
+
+# Pre-process: replace $OPEN_SDD_ROOT with the absolute path
+sed "s|\$OPEN_SDD_ROOT|${OPENSDD_PATH}|g" \
+  "${OPENSDD_PATH}/templates/pipeline-reference.md" \
+  > "${INST_DIR}/sdd-pipeline.md"
+
+echo "  SDD instructions: ${INST_DIR}/sdd-pipeline.md"
+
+# Wire into opencode.json (create or update)
+OPENCODE_CONFIG="${OPENCODE_DIR}/opencode.json"
+if [ -f "$OPENCODE_CONFIG" ]; then
+  # Add instructions field if not present
+  python3 -c "
+import json, sys
+path = '${OPENCODE_CONFIG}'
+with open(path) as f:
+    cfg = json.load(f)
+if 'instructions' not in cfg:
+    cfg['instructions'] = ['instructions/sdd-pipeline.md']
+    with open(path, 'w') as f:
+        json.dump(cfg, f, indent=2)
+    print('  Config: added instructions to opencode.json')
+else:
+    ref = 'instructions/sdd-pipeline.md'
+    if ref not in cfg['instructions']:
+        cfg['instructions'].append(ref)
+        with open(path, 'w') as f:
+            json.dump(cfg, f, indent=2)
+        print('  Config: appended instructions to opencode.json')
+    else:
+        print('  Config: instructions already present in opencode.json')
+"
+else
+  cat > "$OPENCODE_CONFIG" <<EOF
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "instructions": ["instructions/sdd-pipeline.md"]
+}
+EOF
+  echo "  Config: created opencode.json with instructions"
+fi
+
+# Clean up stale global AGENTS.md from older versions (now replaced by instructions/)
+if [ -f "${OPENCODE_DIR}/AGENTS.md" ]; then
+  # Only remove if it looks like an SDD file (contains "SDD Pipeline")
+  if grep -q "SDD Pipeline" "${OPENCODE_DIR}/AGENTS.md" 2>/dev/null; then
+    rm "${OPENCODE_DIR}/AGENTS.md"
+    echo "  Cleanup: removed stale global AGENTS.md (replaced by instructions/sdd-pipeline.md)"
+  fi
+fi
+
+echo ""
 echo "============================================"
 echo "  open-sdd requirements check"
 echo "============================================"

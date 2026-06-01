@@ -289,6 +289,7 @@ cat > ".specwork/_state/${SLUG}-state.json" <<ENDJSON
   "ticket": $( [ -n "$TICKET" ] && echo "\"${TICKET}\"" || echo "null" ),
   "input_type": "${INPUT_TYPE}",
   "non_interactive": $( [ "${SDD_NON_INTERACTIVE:-0}" = "1" ] && echo "true" || echo "false" ),
+  "source_has_body": $( [ -n "$(printf '%s' "$SOURCE_CONTENT" | tail -n +3 | tr -d '[:space:]')" ] && echo "true" || echo "false" ),
   "source_title": $(printf '%s' "$TITLE" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().strip()))'),
   "spec_file": ".specwork/_spec/${SLUG}-spec.md",
   "source_file": ".specwork/_spec/${SLUG}-source.md",
