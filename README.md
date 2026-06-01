@@ -18,7 +18,7 @@ A portable reimplementation of the SDD pipeline — decoupled to work with any L
           ▼
     ┌─────────────┐
     │  /f-start   │  → pre-flight, create/select branch, write state + source.md (no spec.md yet)
-    │  (/f-auto)  │  → non-interactive alternative; runs full pipeline through open MR
+    │  (/f-auto)  │  → non-interactive alternative; runs through implement, then pauses pre-commit
     └──────┬──────┘
            ▼
     ┌─────────────┐
@@ -76,7 +76,7 @@ INDEPENDENT — vibe coding (any branch, any time, no pipeline needed):
 UTILITIES:
   /f-help              — where am I, what's next
   /f-status            — detailed pipeline progress
-  /f-auto              — run full pipeline non-interactively, up to the open MR
+  /f-auto              — run non-interactively up to pre-commit handoff
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
   /f-resync            — sync artifacts with current branch (`--rename-branch` to rename + sync)
@@ -84,9 +84,10 @@ UTILITIES:
                          (canonical spec command)
 ```
 
-> `/f-auto` runs the full chain (`/f-start` or skip if already initialized →
-> `/f-spec` → `/f-plan` → `/f-implement` → `/f-commit` → `/f-mr`) and then
-> **stops**. It never auto-runs `/f-close`.
+> `/f-auto` runs (`/f-start` or skip if already initialized → `/f-spec` →
+> `/f-plan` → `/f-implement`) and then **stops before `/f-commit`** for manual review.
+> After that handoff, run `/f-commit`; if it came from `/f-auto`, it auto-runs
+> `/f-mr` and then stops. It never auto-runs `/f-close`.
 >
 > **Open Questions** are unresolved markdown checkboxes (`- [ ]`) in `spec.md`
 > (and optionally `plan.md`) that block `/f-implement` until answered.
@@ -243,25 +244,21 @@ Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`.
 
 ### /f-auto \<ticket-or-text\>
 
-Non-interactive autopilot for the happy path. Runs the whole pipeline in
-sequence — `/f-start → /f-spec → /f-plan → /f-implement → /f-commit → /f-mr` —
-without bash prompts (`SDD_NON_INTERACTIVE=1` auto-confirms branch creation and
-the commit message). No flags: just the ticket key or free-text description.
+Non-interactive autopilot for the happy path. Runs `/f-start → /f-spec → /f-plan
+→ /f-implement` without bash prompts (`SDD_NON_INTERACTIVE=1`). Then it pauses
+before commit so you can review changes. No flags: just the ticket key or
+free-text description.
 
 It hands control back to the human at exactly two points:
 
 - **Unresolved Open Questions** (after `/f-spec`): stops and asks you to resolve
   them in the spec, then re-run.
-- **Concrete risk signal** (before `/f-commit`): if the spec contains a hard,
-  deterministic risk keyword — DB migration, auth/security, data-destructive,
-  concurrency, or breaking API change (via `engine risk-signals`) — it pauses
-  and asks whether to run the token-costly `/f-test-design` + `/f-test-impl`.
-  No signal → it flows straight through. The fuzzy triage *tier* is deliberately
-  **not** used for this — only the reliable keyword matches.
+- **Pre-commit review handoff**: after `/f-implement`, it always pauses so you
+  can verify diffs before creating a commit.
 
-It **ends at the open merge request**. It never runs `/f-close` (deletes the
-branch; a post-merge action) or `/f-mr-address` (needs human review comments
-that do not exist yet) — both are human-gated steps after the MR is open.
+After your manual `/f-commit`, if the run originated from `/f-auto`, commit
+will open/update the MR automatically (`/f-mr`) and stop there. It never runs
+`/f-close` (post-merge) or `/f-mr-address` (requires human review feedback).
 
 ### /f-start \<ticket-or-text\>
 

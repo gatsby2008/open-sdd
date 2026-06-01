@@ -502,12 +502,12 @@ Close the feature pipeline after merge.
 ```
 
 **What it executes in sequence:**
-1. `/f-start` — creates branch, writes source.md (auto-chooses suggested branch)
+1. `/f-start` — creates branch, writes source.md (**confirms branch choice** in interactive TTY sessions)
 2. `/f-spec` — drafts the spec from source
 3. **Stop if unresolved Open Questions** → alerts and exits
 4. `/f-plan` — creates technical plan
 5. `/f-implement` — prints spec + plan + target files
-6. Hands off to the LLM to implement, commit, and create MR
+6. Hands off to the LLM to implement, then **pauses before commit** for manual review
 
 ---
 
@@ -519,11 +519,15 @@ BLOCKING — Unresolved Open Questions found in spec.
 Resolve them, then re-run /f-auto or continue manually.
 ```
 
-**2. Concrete risk signal** (before commit):
+**2. Pre-commit review handoff** (after `/f-implement`):
 ```
-RISK SIGNAL — db-migration detected.
-Stop and ask the user: run test-design + test-impl now, or skip to commit?
+Auto mode paused before /f-commit so you can review changes.
+Next: run /f-commit after your review.
 ```
+
+Auto mode **always** pauses here. Any concrete risk signals found during spec
+analysis are surfaced informationally at this handoff to help you decide whether
+to run the (costly) `/f-test-design` + `/f-test-impl` steps before committing:
 
 | Risk signal | Keyword matches |
 |-------------|----------------|
@@ -533,31 +537,36 @@ Stop and ask the user: run test-design + test-impl now, or skip to commit?
 | `data-destructive` | delete data, purge, production data, truncate |
 | `concurrency` | @Transactional, race condition, distributed transaction |
 
-No signal → flows straight through to commit → MR.
+After your manual `/f-commit`, the run auto-opens the MR (`/f-mr`) and stops there.
 
 ---
 
 ## Autopilot: architectural decisions
 
 **What `/f-auto` does NOT do:**
+- ❌ Does NOT commit automatically (pauses before commit for manual review)
 - ❌ Does NOT run `/f-close` (post-merge action, deletes your branch)
 - ❌ Does NOT run `/f-mr-address` (needs review comments that don't exist yet)
-- ❌ Does NOT force test steps (asks human before costly operations)
+- ❌ Does NOT force test steps (you decide at the pre-commit handoff)
 
 **How it works:**
-- Exports `SDD_NON_INTERACTIVE=1` → all commands disable bash prompts
-- `start.sh`: auto-creates suggested branch (no branch choice prompt)
+- Exports `SDD_NON_INTERACTIVE=1` → commands skip routine bash prompts
+- `start.sh`: still confirms the branch choice (called with `--confirm-branch`) when the session is interactive (TTY)
 - `implement.sh`: auto-re-runs `/f-plan` if stale
-- `commit.sh`: auto-accepts proposed commit message
-- The LLM still implements code changes; only bash prompts are skipped
+- Stops after `/f-implement` and flags `auto_open_mr_after_commit` in state
+- `commit.sh`: on your manual `/f-commit`, auto-runs `/f-mr` when that flag is set
+- The LLM still implements code changes; only routine bash prompts are skipped
 
-**End state:** MR is open, branch is live on remote, `.specwork/` intact.
+**End state:** changes implemented, working tree paused before commit, `.specwork/` intact.
 
 ```
 /f-auto  stops here
    │
    ▼
-[f-start → spec → plan → impl → commit → mr]
+[f-start → spec → plan → impl] ── (human reviews & commits)
+                                            │
+                                            ▼
+                                  commit → mr (auto) → stops
                                             │
                            (human takes over)
                                             ▼

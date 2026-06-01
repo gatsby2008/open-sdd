@@ -118,7 +118,10 @@ commit_and_update() {
   git commit -F "$COMMIT_MSG_FILE"
   echo "Committed."
   rm -f "$COMMIT_MSG_FILE"
+  record_commit_in_state
+}
 
+record_commit_in_state() {
   LAST_COMMIT=$(git rev-parse HEAD)
   if [ -f "$STATE_FILE" ]; then
     python3 - "$STATE_FILE" "$LAST_COMMIT" <<'PY'
@@ -139,11 +142,38 @@ PY
   fi
 }
 
+maybe_autorun_mr_after_commit() {
+  [ -f "$STATE_FILE" ] || return 0
+
+  SHOULD_OPEN_MR=$(python3 - "$STATE_FILE" <<'PY' 2>/dev/null || true
+import json, sys
+from pathlib import Path
+d = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+print("1" if d.get("auto_open_mr_after_commit") else "0")
+PY
+)
+
+  if [ "$SHOULD_OPEN_MR" = "1" ]; then
+    echo ""
+    echo "Auto-pilot handoff detected: running /f-mr automatically..."
+    bash "$SCRIPT_DIR/mr.sh"
+    python3 - "$STATE_FILE" <<'PY'
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+d = json.loads(p.read_text(encoding="utf-8"))
+d["auto_open_mr_after_commit"] = False
+p.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
+PY
+  fi
+}
+
 if [ "$HAS_STAGED" = true ]; then
   if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
     echo "Non-interactive: accepting proposed commit message automatically."
     echo "  $PROPOSED"
     commit_and_update
+    maybe_autorun_mr_after_commit
   elif [ -t 0 ]; then
     echo "Proposed message:"
     echo "  $PROPOSED"
@@ -161,6 +191,8 @@ if [ "$HAS_STAGED" = true ]; then
         git commit -F "$COMMIT_MSG_FILE"
         echo "Committed."
         rm -f "$COMMIT_MSG_FILE"
+        record_commit_in_state
+        maybe_autorun_mr_after_commit
         ;;
       q|Q)
         echo "Aborted."
@@ -168,6 +200,7 @@ if [ "$HAS_STAGED" = true ]; then
         ;;
       *)
         commit_and_update
+        maybe_autorun_mr_after_commit
         ;;
     esac
   fi

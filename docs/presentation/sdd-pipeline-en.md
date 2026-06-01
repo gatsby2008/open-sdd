@@ -199,9 +199,9 @@ as a **continuous, auditable flow that works offline**.
 
 **It stops for human input at exactly two points:**
 - **Unresolved Open Questions** (after `/f-spec`)
-- **Concrete risk signal** (before commit) — DB migration, auth/security, data-destructive, concurrency, or breaking API change
+- **Pre-commit review handoff** (after `/f-implement`) — it always pauses so you can review the diff before committing
 
-**It ends at the open merge request.** It never runs `/f-close` (post-merge, deletes your branch) or `/f-mr-address` (needs review comments that don't exist yet).
+**It pauses before commit.** After your manual `/f-commit`, it auto-runs `/f-mr` (when the run came from `/f-auto`) and stops there. It never runs `/f-close` (post-merge, deletes your branch) or `/f-mr-address` (needs review comments that don't exist yet).
 
 ---
 

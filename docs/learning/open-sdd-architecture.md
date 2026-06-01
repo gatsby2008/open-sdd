@@ -291,18 +291,18 @@ high-quality human constraints outperform autonomous AI discovery
 
 ## 11. Non-Interactive Autopilot (`/f-auto`)
 
-`/f-auto` runs the entire pipeline without bash prompts:
+`/f-auto` runs the pipeline up to implementation without bash prompts:
 
 ```text
 /f-start → /f-spec → OQ check → /f-plan → /f-implement → (handoff)
 ```
 
-It sets `SDD_NON_INTERACTIVE=1` to auto-confirm branch creation and commit messages. It stops for human input at exactly two points:
+It sets `SDD_NON_INTERACTIVE=1` to skip the routine bash prompts, but still calls `/f-start` with `--confirm-branch` so branch creation is confirmed whenever running in an interactive TTY session. It stops for human input at exactly two points:
 
 - **Unresolved Open Questions** (after `/f-spec`): stops and asks the user to resolve them.
-- **Concrete risk signal** (before `/f-commit`): if `engine risk-signals` finds a hard keyword match (DB migration, auth, breaking API, etc.), it pauses to ask whether to run the optional test steps.
+- **Pre-commit review handoff**: after `/f-implement`, it always pauses so the user can review diffs before creating a commit.
 
-`/f-auto` ends at the open merge request. It never runs `/f-close` (post-merge) or `/f-mr-address` (needs human review comments).
+After that handoff, `/f-commit` can auto-run `/f-mr` (when the run originated from `/f-auto`) and then stop. `/f-auto` never runs `/f-close` (post-merge) or `/f-mr-address` (needs human review comments).
 
 ---
 

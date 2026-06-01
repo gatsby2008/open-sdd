@@ -2010,7 +2010,7 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 </code></pre>
 <p><strong>What it executes in sequence:</strong></p>
 <ol>
-<li><code>/f-start</code> — creates branch, writes source.md (auto-chooses suggested branch)</li>
+<li><code>/f-start</code> — creates branch, writes source.md (confirms branch choice in interactive TTY sessions)</li>
 <li><code>/f-spec</code> — drafts the spec from source</li>
 <li><strong>Stop if unresolved Open Questions</strong> → alerts and exits</li>
 <li><code>/f-plan</code> — creates technical plan</li>
@@ -2203,7 +2203,7 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 <p><strong>How it works:</strong></p>
 <ul>
 <li>Exports <code>SDD_NON_INTERACTIVE=1</code> → all commands disable bash prompts</li>
-<li><code>start.sh</code>: auto-creates suggested branch (no branch choice prompt)</li>
+<li><code>start.sh</code>: confirms branch choice when running in an interactive TTY (via --confirm-branch)</li>
 <li><code>implement.sh</code>: auto-re-runs <code>/f-plan</code> if stale</li>
 <li><code>commit.sh</code>: auto-accepts proposed commit message</li>
 <li>The LLM still implements code changes; only bash prompts are skipped</li>
