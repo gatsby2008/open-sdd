@@ -1,0 +1,70 @@
+# `.specwork` Artifact Map
+
+Reference for what each `.specwork/` folder/file is for, who writes it, and who reads it.
+
+## Folder-level overview
+
+| Folder | Purpose | Created by | Can be empty? |
+|---|---|---|---|
+| `.specwork/_state/` | Machine-readable pipeline state and caches | `/f-start` | Usually no (active pipeline) |
+| `.specwork/_spec/` | Human-readable source/spec artifacts | `/f-start`, `/f-spec` | No (active pipeline) |
+| `.specwork/_plan/` | Optional implementation plan artifacts | `/f-plan` | Yes (plan is optional) |
+| `.specwork/_progress/` | Runtime progress extras (escalations/context) | `/f-start` (folder), `/f-implement` (escalations) | Yes |
+| `.specwork/_test/` | Optional high-risk test-design artifacts | `/f-test-design` | Yes |
+| `.specwork/_review/` | Review and MR-address tracking artifacts | `/f-code-review`, `/f-mr-review`, `/f-mr-address` | Yes |
+| `.specwork/_handoff/` | Portable execution packs | `/f-handoff` | Yes |
+
+## Artifact contract
+
+### Semantic map (what each artifact answers)
+
+| Artifact | Answers | Contains |
+|---|---|---|
+| `spec.md` | **WHAT** + **WHY** | Feature summary, in/out scope, behavioral description, implementation context, change scope, safe constraints |
+| `source.md` | **WHERE FROM** | Raw input — Jira ticket or free text |
+| `plan.md` | **WHERE** + **HOW** | Target files, approach, risks, plan-level Open Questions |
+| `plan.json` | **MACHINE PLAN** | Same data as plan.md in JSON form (target files + machine payload) |
+| `state.json` | **WHERE ARE WE IN THE PIPELINE** | Branch, ticket, slug, artifact paths, timestamps, runtime metadata |
+| `rules.json` | **WHAT MUST NEVER BREAK** | Compiled business invariants and architectural constraints |
+| `path.json` | **WHICH PIPELINE PATH IS ADVISED** | Complexity tier (trivial/focused/standard/high-risk) + recommended steps |
+| `implementation-cache.json` | **WHAT WAS ALREADY DISCOVERED** | Repositories, related tests, similar classes, utility patterns, notes |
+| `test-design.md` | **WHAT TO TEST** | Designed test cases (high-risk flow only) |
+| `escalations.md` | **WHAT FAILED AND WHAT WAS TRIED** | Append-only retry-exhaustion and blocker log |
+| `code-review.md` | **WHAT'S WRONG** | Quality/security findings for your own branch |
+| `peer-review.md` | **WHAT'S WRONG** | Quality/security findings for peer branch/MR |
+| `mr-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution progress |
+| `execution-pack.md` | **WHAT TO EXECUTE** | Handoff contract for multi-model execution |
+
+### Operational contract (producers/consumers)
+
+| Artifact | Purpose | Producer(s) | Consumer(s) | Required? |
+|---|---|---|---|---|
+| `_state/<slug>-state.json` | Canonical pipeline identity + paths + metadata | `/f-start` | Most commands via `engine` and wrappers | Yes |
+| `_state/<slug>-rules.json` | Compiled invariants/rules | `/f-start` | `/f-spec`, `/f-plan`, `/f-implement`, `/f-handoff` | Yes |
+| `_state/<slug>-implementation-cache.json` | Discovery/cache hints | `/f-start` (seed), `/f-plan`/`/f-spec` (updates) | `/f-plan`, `/f-implement`, `/f-handoff` | Soft-required (pipeline standard) |
+| `_state/<slug>-path.json` | Triage recommendation path | `/f-spec` (triage step) | `/f-status` | Optional |
+| `_spec/<slug>-source.md` | Raw source input (Jira/free text) | `/f-start` | `/f-spec` draft mode | Yes |
+| `_spec/<slug>-spec.md` | Canonical implementation contract | `/f-spec` | `/f-plan`, `/f-implement`, `/f-handoff`, gates | Yes (post-spec) |
+| `_plan/<slug>-plan.md` | Target Files + approach + risks + OQs | `/f-plan` | `/f-implement`, `/f-handoff` | Optional |
+| `_plan/<slug>-plan.json` | Machine plan payload | `/f-plan` | `/f-implement` helpers | Optional |
+| `_progress/escalations.md` | Retry-exhaustion and blockers log | `/f-implement` (escalation paths) | `/f-handoff` | Optional |
+| `_progress/<slug>-context.md` | Extra manual context for handoff/execution | Manual/optional workflow | `/f-handoff` | Optional |
+| `_test/<slug>-test-design.md` | Designed test plan for high-risk flow | `/f-test-design` | `/f-test-impl` | Optional |
+| `_review/<slug>-code-review.md` | Findings for own-branch review | `/f-code-review` | Human follow-up | Optional |
+| `_review/<slug>-peer-review.md` | Findings for peer branch/MR | `/f-mr-review` | Human follow-up | Optional |
+| `_review/<slug>-mr-address.md` | Per-thread MR comment progress | `/f-mr-address` | `/f-mr-address` (resume), human | Optional |
+| `_handoff/<slug>-execution-pack.md` | Human-readable execution pack | `/f-handoff` | External executor/model | Optional |
+| `_handoff/<slug>-execution-pack.json` | Machine-readable execution pack | `/f-handoff` | External tooling/model | Optional |
+
+## Notes that confuse teams most
+
+- `_progress/` is expected to be empty in many runs.
+- `escalations.md` appears only when bounded retries are exhausted (or explicit escalate path is used).
+- `<slug>-context.md` is read by `/f-handoff` if present, but is not auto-generated by default.
+- `plan.md`/`plan.json` are optional by design; `/f-implement` can run in no-plan mode.
+
+## Safety / cleanup guidance
+
+- `.specwork/` is transient execution state and should remain gitignored.
+- Use `/f-close` to clean pipeline state intentionally.
+- Do not manually delete individual required artifacts mid-run unless you are intentionally resetting/repairing with `/f-start` or `/f-resync`.

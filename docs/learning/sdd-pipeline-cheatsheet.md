@@ -45,6 +45,28 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 | **`/f-mr-address`** | Work through MR review comments one thread at a time with minimal guidance per thread. Progress tracked in `.specwork/_review/`. |
 | **`/f-close`** | Wipe `.specwork/` after MR merge. Verifies MR status (via `gh`) before deleting unmerged work. Never touches source tree, commits, or docs/. |
 
+## Recovery: undo/redo with opencode
+
+When the agent implements something incorrectly, **you do not need to restart the pipeline**. opencode provides native commands that revert code changes without touching `.specwork/`:
+
+| Action | Command | What it does |
+|--------|---------|--------------|
+| Revert last step | `/undo` | Reverts changes from the agent’s last message (code + conversation). Does not touch `.specwork/`. |
+| Restore reverted step | `/redo` | Restores the message and changes that `/undo` reverted. |
+| Compact context | `/compact` | When the session gets long, compresses history to free context. Pipeline state (`.specwork/`) stays intact. |
+
+**Typical recovery flow:**
+
+```
+/f-implement → bad implementation output → /undo
+  └── code reverted, .specwork/ intact
+       ├── spec issue → /f-spec <context> → refine spec
+       ├── plan issue → /f-plan → refresh plan
+       └── execution-only issue → /f-implement again
+```
+
+Without these commands, the fallback is often `/f-close`, which wipes `.specwork/` and forces a full restart with `/f-start`.
+
 ## Context Switching & Utilities
 
 | Command | What it does |
@@ -58,10 +80,11 @@ Quick lookup for every pipeline command available in this project. Each maps to 
 
 ---
 
-**20 commands total** (+ 6 doc/ADR commands: `/doc-catalog`, `/doc-publish`, `/doc-query`, `/doc-adr`, `/adr-publish`, `/adr-query`).
+**28 commands total** (19 pipeline + 9 doc/ADR/query commands).
 
 **See also:**
 - [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview
+- [specwork-artifacts.md](specwork-artifacts.md) — `.specwork/` folders/files, producers, consumers
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A on pipeline mechanics

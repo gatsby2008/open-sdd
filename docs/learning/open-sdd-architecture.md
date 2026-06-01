@@ -13,7 +13,9 @@ A lightweight, constraint-oriented development pipeline for AI-assisted software
 * human-supervised escalation
 
 **See also:**
+- [README.md](README.md) — learning docs index and recommended reading order
 - [sdd-pipeline-cheatsheet.md](sdd-pipeline-cheatsheet.md) — pipeline command lookup
+- [specwork-artifacts.md](specwork-artifacts.md) — `.specwork/` artifact contract
 - [sdd-key-concepts.md](sdd-key-concepts.md) — cross-cutting concepts
 - [sdd-flashcards.md](sdd-flashcards.md) — deep-dive Q&A on pipeline mechanics
 - [doc-adr-cheatsheet.md](doc-adr-cheatsheet.md) — service catalog + ADR commands
@@ -471,22 +473,14 @@ repo-root/
 
 ## Artifact Reference
 
-| Artifact | Answers | Contains |
-|----------|---------|----------|
-| `spec.md` | **WHAT** + **WHY** | Feature summary, in/out scope, behavioral description, implementation context, change scope, safe constraints |
-| `source.md` | **WHERE FROM** | Raw input — Jira ticket or free text |
-| `plan.md` | **WHERE** + **HOW** | Target files, approach, risks, plan-level Open Questions |
-| `plan.json` | **MACHINE PLAN** | Same data as plan.md in JSON (target_files, risk_signals, consistency_issues) |
-| `state.json` | **WHERE ARE WE IN THE PIPELINE** | Branch, ticket, slug, artifact paths, timestamps, escalations |
-| `rules.json` | **WHAT MUST NEVER BREAK** | Compiled business invariants and architectural constraints |
-| `path.json` | **WHICH PIPELINE PATH IS ADVISED** | Complexity tier (trivial/focused/standard/high-risk) + recommended steps |
-| `implementation-cache.json` | **WHAT WAS ALREADY DISCOVERED** | Repositories, related tests, similar classes, utility patterns, notes |
-| `test-design.md` | **WHAT TO TEST** | Designed test cases (high-risk flow only) |
-| `escalations.md` | **WHAT FAILED AND WHAT WAS TRIED** | Append-only retry-exhaustion and blocker log |
-| `code-review.md` | **WHAT'S WRONG** | Quality and security findings (your own branch) |
-| `peer-review.md` | **WHAT'S WRONG** | Quality and security findings (peer's branch/MR) |
-| `mr-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution |
-| `execution-pack.md` | **WHAT TO EXECUTE** | Handoff contract for multi-model execution |
+Moved to: [specwork-artifacts.md](specwork-artifacts.md)
+
+Use that document as the source of truth for:
+
+- folder-level purpose (`_state`, `_spec`, `_plan`, `_progress`, `_review`, `_handoff`, `_test`),
+- producers/consumers per artifact,
+- required vs optional files,
+- and common confusion points (for example why `_progress/` is often empty).
 
 ---
 

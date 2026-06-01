@@ -99,6 +99,13 @@ These numbers are intentionally concrete and should be updated when they drift.
 | Surface parity checks in-repo | ✅ | ⚠️ | open-sdd includes explicit parity check scripts in `tests/`. |
 | Distribution model | Standalone package | Central skill distribution | Different operating model more than capability gap. |
 
+## Recovery workflow (`/undo` without losing pipeline state)
+
+Practical recovery details are documented in
+[`sdd-pipeline-cheatsheet.md`](sdd-pipeline-cheatsheet.md) under
+**Recovery: undo/redo with opencode**. Keeping that flow in one place avoids
+duplicating command-level recovery guidance across docs.
+
 ## Practical selection guide
 
 Choose **open-sdd** when:

@@ -84,9 +84,13 @@ UTILITIES:
                          (canonical spec command)
 ```
 
+> `/f-auto` runs the full chain (`/f-start` or skip if already initialized →
+> `/f-spec` → `/f-plan` → `/f-implement` → `/f-commit` → `/f-mr`) and then
+> **stops**. It never auto-runs `/f-close`.
+>
 > **Open Questions** are unresolved markdown checkboxes (`- [ ]`) in `spec.md`
 > (and optionally `plan.md`) that block `/f-implement` until answered.
-> `/f-spec` is the canonical way to draft them initially and to resolve them later.
+> `/f-spec` is the canonical way to draft and resolve them.
 
 ## Install
 
@@ -106,9 +110,18 @@ Re-run `install.sh` after moving open-sdd or adding new commands.
 In each consumer project where you want to use the pipeline:
 
 1. Install open-sdd globally (see Install above)
+2. *(Recommended)* Run `/init` inside the project so opencode creates a project-level `AGENTS.md` with build commands, architecture, and conventions.
 
 The first `/f-start` auto-bootstraps `.opensdd/service-rules.md`
 and `.opensdd/mr-config.json` in the project.
+
+> **How instructions are loaded.** opencode loads **two separate sources** without conflict:
+> - **Global instructions** (`~/.config/opencode/instructions/sdd-pipeline.md`) — installed by `install.sh` with the SDD pipeline rules and command mappings. Referenced from `opencode.json` via the `instructions` field.
+> - **Project memory** (`<project>/AGENTS.md`) — created by `/init` with project-specific guidance (build commands, architecture, conventions).
+>
+> The global file tells the model how to run the pipeline. The project file tells it how your codebase is structured. They complement each other. `/init` never touches the global instructions, and if a project `AGENTS.md` already exists, `/init` improves it in place.
+>
+> **Note on auto-generation:** Some proactive models (Sonnet, Opus, GPT-4) may auto-create an `AGENTS.md` at startup if none exists. This is the model's behavior, not opencode's. If you prefer to control when and how it's generated, run `/init` manually.
 
 ## One-Time Setup
 
@@ -260,6 +273,66 @@ that do not exist yet) — both are human-gated steps after the MR is open.
   so each command owns one artifact
 - No state machine — each downstream command checks its own artifact preconditions
 - Next: `/f-spec`
+
+#### Giving good input to `/f-start`
+
+The spec is only as good as what you feed the pipeline. `/f-start` doesn't write
+the spec — it captures a **source** (`source.md`) that `/f-spec` turns into one.
+Both entry points persist that source on disk, so context you provide up front
+survives the whole run (including a `/f-auto` run that later stops at a gate):
+
+- **Jira** (`/f-start MYYES-1234`) — the full issue (summary, description, etc.)
+  is fetched into `source.md`.
+- **Free text** (`/f-start "summary: … behaviour: …"`) — your description is
+  written verbatim into `source.md` (via `--source-body-file`). The richer the
+  text, the better the first draft; a bare one-liner leans mostly on what can be
+  inferred from the codebase.
+
+Because free text is preserved, a **structured block maps straight onto the
+spec's canonical sections** — give it to `/f-start` or `/f-auto` and `/f-spec`
+drafts from it:
+
+```
+/f-auto "summary: dedupe leads when applicationId is null
+behaviour: 1) given a null applicationId, skip dedupe instead of throwing
+scope: only LeadProcessor; do not touch the SNS publisher
+implementation context: LeadProcessor, LeadRepository
+safe constraints: idempotent per applicationId; no schema change"
+```
+
+### Where deeper context belongs
+
+The `/f-start` source seeds the spec, but two kinds of detail are better added
+where the pipeline can act on them:
+
+- **Target classes / files** also land in `## Implementation Context` and
+  `## Expected Change Scope` (`Expected files touched`, `Expected layers`,
+  `Avoid touching`). You can name them in the source block, but you can also:
+  1. Pass files to `/f-spec` directly — `/f-spec src/.../LeadProcessor.java
+     src/.../LeadRepository.java` — which also seeds `implementation-cache.json`.
+  2. Run `/f-plan`, which discovers targets automatically (mock-consumer tests,
+     exception handlers, reference grep). For 3+ file features, prefer discovery
+     over hand-listing.
+- **Answers to Open Questions** that surface after drafting → feed them back with
+  `/f-spec` (a file, a Jira ticket, a paste, or free text). That's the canonical
+  way to clear the gate that blocks `/f-implement`.
+
+### What makes a good source (ticket or free-text block)
+
+Aim to give material for each canonical spec section:
+
+| Spec section | What the ticket should provide |
+|---|---|
+| **Summary** | What and **why** — the problem, not just the task |
+| **Behavior** | Acceptance criteria as numbered, observable behaviors ("given X, when Y, then Z") |
+| **Scope (in/out)** | Explicit boundaries — what **not** to touch keeps the draft from sprawling |
+| **Implementation Context / Expected Change Scope** | Affected services, classes, endpoints if known |
+| **Safe Constraints** | Invariants: PII, idempotency, API backward-compat, SLA/retry, DB migration |
+| **Open Questions** | Known unknowns — state them; the pipeline turns each into a gate that blocks `/f-implement` until resolved |
+
+A vague ticket ("fix the leads bug") with no expected behavior or boundaries
+makes `/f-spec` emit mostly Open Questions and stall the run. Spend the context
+up front and the rest of the pipeline flows.
 
 ### /f-spec \<files | jira \<ticket\> | paste | free text\>
 
