@@ -73,7 +73,7 @@ Without these commands, the fallback is often `/f-close`, which wipes `.specwork
 |---------|--------------|
 | **`/f-pause`** | Stash everything (working tree + `.specwork/`) without switching branches. |
 | **`/f-resume`** | List paused pipeline branches and restore the selected one. Deduplicates stashes. |
-| **`/f-resync`** | Rename `.specwork/` artifacts after a branch rename. Sync-only (0 args: assume git rename done) or atomic (1 arg: `git branch -m` + sync). |
+| **`/f-resync`** | Resync `.specwork/` artifacts with the current branch. Default: sync-only (`/f-resync`). Atomic mode: `/f-resync --rename-branch <new-branch>` (runs `git branch -m` + sync). |
 | **`/f-handoff`** | Package spec + rules + state into a model-agnostic execution capsule for handoff to another agent. |
 | **`/f-help`** | "Where am I + what's next?" — quick navigation of the current pipeline state. |
 | **`/f-status`** | Detailed status of the active pipeline branch (artifact presence, OQ count, git state, next step). |

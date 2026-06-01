@@ -79,7 +79,7 @@ UTILITIES:
   /f-auto              — run full pipeline non-interactively, up to the open MR
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
-  /f-resync            — sync artifacts when branch was renamed
+  /f-resync            — sync artifacts with current branch (`--rename-branch` to rename + sync)
   /f-spec              — draft / refine spec with additional context
                          (canonical spec command)
 ```

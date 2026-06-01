@@ -30,21 +30,38 @@ fi
 
 # ---- step 2: parse arguments ------------------------------------------------
 
-if [ $# -gt 1 ]; then
-  die "Usage:
-  /f-resync                          Sync pipeline with current branch (no git ops).
-  /f-resync feature/IR-70-foo        Rename branch then sync (atomic)."
-fi
-
 ATOMIC=false
-if [ $# -eq 1 ]; then
-  ATOMIC=true
-  NEW_BRANCH="$1"
-fi
+NEW_BRANCH=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --rename-branch)
+      ATOMIC=true
+      shift
+      NEW_BRANCH="${1:-}"
+      [ -z "$NEW_BRANCH" ] && die "Usage: /f-resync --rename-branch <new-branch-name>"
+      shift
+      ;;
+    -h|--help)
+      echo "Usage:
+  /f-resync                                  Sync pipeline with current branch (no git ops).
+  /f-resync --rename-branch <new-branch>     Rename branch then sync (atomic)."
+      exit 0
+      ;;
+    *)
+      die "Unknown argument: $1
+Usage:
+  /f-resync
+  /f-resync --rename-branch <new-branch>"
+      ;;
+  esac
+done
 
 # ---- step 3: rename branch (atomic mode) ------------------------------------
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+OLD_BRANCH="$CURRENT_BRANCH"
 
 if [ "$ATOMIC" = true ]; then
   if [ "$CURRENT_BRANCH" != "$NEW_BRANCH" ]; then
@@ -198,7 +215,11 @@ CHANGED=false
 
 if [ "$OLD_SLUG" != "$NEW_SLUG" ]; then
   CHANGED=true
-  echo "Branch:  $([ "$ATOMIC" = true ] && echo "${CURRENT_BRANCH}" || echo "${CURRENT_BRANCH}")"
+  if [ "$ATOMIC" = true ]; then
+    echo "Branch:  $OLD_BRANCH  →  $CURRENT_BRANCH"
+  else
+    echo "Branch:  $CURRENT_BRANCH"
+  fi
   echo "Slug:    $OLD_SLUG  →  $NEW_SLUG"
 fi
 

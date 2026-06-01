@@ -73,7 +73,7 @@ UTILITIES
   /f-help       This. Shows contextual next step or overview.
   /f-pause      Stash all work (including .specwork/) to switch context.
   /f-resume     List paused branches and restore one.
-  /f-resync     Resync artifacts after branch rename.
+  /f-resync     Resync artifacts with current branch (use --rename-branch to rename + sync).
 
 ─────────────────────────────────────────────────────────────────
 
