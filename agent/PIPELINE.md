@@ -103,6 +103,46 @@ Initialize the pipeline and create/select a working branch.
    = plan, implement = code).
 7. Output: branch created, source.md path, recommend `/f-spec` as next step
 
+### /auto <ticket-or-text>
+
+Non-interactive driver for the happy path. Chains `/start → /spec → /plan →
+/implement` and then **always pauses before commit** for human review. After the
+manual `/commit`, commit auto-runs `/mr` and stops. It never runs `/close` or
+`/mr-address`.
+
+**Branch confirmation is delegated to `/start`, and `/start` always confirms the
+branch name — including under `/auto`.** The bash prompt in `start.sh` only fires
+when a human runs the script in an interactive terminal (it is gated on a TTY).
+When *you* (the agent) drive `/auto`, there is no TTY, so the bash `read` cannot
+capture your input — you must do the branch confirmation yourself, exactly as in
+the `/start` flow, **before** invoking `auto.sh`.
+
+**Flow:**
+1. **Pipeline check.** Run `PYTHONPATH=. python3 -m engine.cli precheck`.
+   - If it **succeeds** (a pipeline is already active here), skip straight to
+     step 3 — do NOT re-ask the branch or re-run `/start`.
+   - If it **fails** (fresh start), continue to step 2.
+2. **Branch confirmation (the `/start` ask).** Suggest the feature branch name
+   from the ticket/slug and ask the user: create suggested (default) / custom
+   name / stay on current. Then run `/start` with the chosen flag so the branch
+   exists before the chain begins:
+   - Default (suggested): `bash commands/start.sh <input>`
+   - Custom branch: `bash commands/start.sh <input> --branch <name>`
+   - Stay on current: `bash commands/start.sh <input> --keep`
+   This writes `source.md` + state and creates/selects the branch.
+3. **Run the chain.** Run `bash commands/auto.sh <input>`. Because the pipeline
+   is now active, `auto.sh`'s own `precheck` detects it and **skips its internal
+   `/start`** — so the branch you just confirmed is kept and there is no second
+   prompt. `auto.sh` then runs spec → Open-Questions gate → plan → implement and
+   stops before commit.
+4. **Two stops only:** unresolved Open Questions (after `/spec`) and the
+   pre-commit review handoff (after `/implement`). Surface whichever it hit and
+   hand control back. Do NOT run `/commit`, `/close`, or `/mr-address` yourself.
+
+(If a human runs `bash commands/auto.sh <input>` directly in a terminal instead
+of going through you, the TTY-gated prompt in `start.sh --confirm-branch` covers
+the branch confirmation — so the behavior is the same in both paths.)
+
 ### /plan (optional)
 
 Discover target files and write an implementation plan.
