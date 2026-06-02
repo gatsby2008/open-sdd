@@ -63,7 +63,9 @@ Initialize the pipeline and create/select a working branch.
 
 **Flow:**
 1. Detect current branch
-2. If on `main`/`develop`, require clean tree — abort if dirty
+2. If on `main`/`develop`, require clean tree — abort if dirty. Agent-memory
+   files (`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`, e.g. from `/init`) are exempt and
+   do not block start — they ride onto the new feature branch.
 3. Suggest feature branch name from ticket (e.g., `feature/JIRA-123`) or
    slugified free text
 4. **Ask the user** about branch choice:

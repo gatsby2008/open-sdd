@@ -34,8 +34,15 @@ current_branch() {
   git rev-parse --abbrev-ref HEAD 2>/dev/null || echo ""
 }
 
+# Agent harnesses drop a project-memory file at the repo root: opencode's /init
+# (and proactive models) write AGENTS.md, Claude writes CLAUDE.md, Gemini writes
+# GEMINI.md. These are legitimate, version-controllable context — not feature WIP
+# — so they must not block /f-start on a base branch. git checkout -b carries them
+# onto the new feature branch, where they get committed with the rest of the work.
 tree_is_clean() {
-  git status --porcelain 2>/dev/null | grep -q . && return 1 || return 0
+  git status --porcelain -- . \
+    ':(exclude)AGENTS.md' ':(exclude)CLAUDE.md' ':(exclude)GEMINI.md' \
+    2>/dev/null | grep -q . && return 1 || return 0
 }
 
 # ---- main -------------------------------------------------------------------
@@ -100,7 +107,9 @@ fi
 case "$CURRENT" in
   main|master|develop|development)
     if ! tree_is_clean; then
-      echo "Working tree has changes on $CURRENT. Commit or stash first."
+      echo "Working tree has changes on $CURRENT. Commit or stash first." >&2
+      echo "(Agent-memory files like AGENTS.md/CLAUDE.md/GEMINI.md are exempt and" >&2
+      echo " do not block /f-start — they ride onto the new feature branch.)" >&2
       exit 1
     fi
     BASE_BRANCH="$CURRENT"
@@ -196,6 +205,7 @@ mkdir -p ".specwork/_plan"
 # Pipeline artifacts are local to each developer and must not be committed:
 #   - .specwork/  transient pipeline runtime state
 #   - .opensdd/   per-developer pipeline config (service-rules.md, mr-config.json)
+#   - AGENTS.md / CLAUDE.md / GEMINI.md  per-developer agent memory config
 GITIGNORE=".gitignore"
 [ -f "$GITIGNORE" ] || : > "$GITIGNORE"
 
@@ -207,6 +217,12 @@ if ! grep -qE '^\.opensdd(/|$)' "$GITIGNORE" 2>/dev/null; then
   printf '\n# open-sdd pipeline config (local to each developer)\n.opensdd/\n' >> "$GITIGNORE"
   echo "Appended '.opensdd/' to .gitignore"
 fi
+for AGENT_FILE in AGENTS.md CLAUDE.md GEMINI.md; do
+  if [ -f "$AGENT_FILE" ] && ! grep -qxF "$AGENT_FILE" "$GITIGNORE" 2>/dev/null; then
+    printf '%s\n' "$AGENT_FILE" >> "$GITIGNORE"
+    echo "Appended '$AGENT_FILE' to .gitignore"
+  fi
+done
 
 TRACKED_SPECWORK=$(git ls-files .specwork 2>/dev/null | head -3)
 if [ -n "$TRACKED_SPECWORK" ]; then
@@ -230,6 +246,19 @@ if [ -n "$TRACKED_OPENSDD" ]; then
   echo "     git commit -m 'chore: untrack .opensdd/ (local pipeline config)'"
   echo ""
 fi
+for AGENT_FILE in AGENTS.md CLAUDE.md GEMINI.md; do
+  TRACKED_FILE=$(git ls-files "$AGENT_FILE" 2>/dev/null | head -1)
+  if [ -n "$TRACKED_FILE" ]; then
+    echo ""
+    echo "⚠  Warning: $AGENT_FILE is already tracked in git. Agent-memory files"
+    echo "   are local to each developer. .gitignore alone will not untrack it."
+    echo "   To untrack while keeping the local file:"
+    echo ""
+    echo "     git rm --cached $AGENT_FILE"
+    echo "     git commit -m 'chore: untrack $AGENT_FILE (local agent config)'"
+    echo ""
+  fi
+done
 
 # ---- fetch source -----------------------------------------------------------
 
