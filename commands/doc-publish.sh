@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+# shellcheck source=../lib/service-name.sh
+. "$LIB_DIR/service-name.sh"
 
 die() { echo "$*" >&2; exit 1; }
 
@@ -53,13 +56,7 @@ fi
 [ -f docs/service-info.md ] || die "docs/service-info.md not found.
 Run /doc-catalog first to generate the service catalog."
 
-SERVICE_NAME=""
-if head -1 docs/service-info.md | grep -qE '^# '; then
-  SERVICE_NAME=$(head -1 docs/service-info.md | sed 's/^# *//;s/^Service: *//i;s/[ _]/-/g' | tr '[:upper:]' '[:lower:]')
-fi
-if [ -z "$SERVICE_NAME" ]; then
-  SERVICE_NAME=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-fi
+SERVICE_NAME="$(resolve_service_name)"
 
 mkdir -p "$REGISTRY"
 cp "docs/service-info.md" "$REGISTRY/$SERVICE_NAME.md"

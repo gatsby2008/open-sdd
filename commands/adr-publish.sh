@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+# shellcheck source=../lib/service-name.sh
+. "$LIB_DIR/service-name.sh"
 
 die() { echo "$*" >&2; exit 1; }
 
@@ -40,13 +43,7 @@ esac
   || die "docs/adr/ contains no ADR files.
 Run /doc-adr first to create an ADR."
 
-SERVICE=""
-if [ -f docs/service-info.md ] && head -1 docs/service-info.md | grep -qE '^# '; then
-  SERVICE=$(head -1 docs/service-info.md | sed 's/^# *//;s/^Service: *//i;s/[ _]/-/g' | tr '[:upper:]' '[:lower:]')
-fi
-if [ -z "$SERVICE" ]; then
-  SERVICE=$(basename "$(git rev-parse --show-toplevel 2>/dev/null)" 2>/dev/null || echo "unknown")
-fi
+SERVICE="$(resolve_service_name)"
 
 DEST="$REGISTRY/$SERVICE"
 mkdir -p "$REGISTRY"
