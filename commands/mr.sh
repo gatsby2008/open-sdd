@@ -253,6 +253,10 @@ fi
 
 rm -f "$MR_BODY_FILE"
 
+# ---- publish spec to central registry (pipeline mode only) ------------------
+
+bash "$LIB_DIR/spec-publish.sh" "${SPEC_FILE:-}" || true
+
 # ---- update state.json with MR URL (pipeline mode only) ---------------------
 
 if [ -f "$STATE_FILE" ]; then
