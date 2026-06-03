@@ -445,8 +445,6 @@ documentation and architecture decisions (registered via install.sh):
 | **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`). `--with-docs` also publishes `docs/architecture/`, `docs/product/`, `docs/security/`, `docs/features/` |
 | **`/doc-query`** | Ask cross-service questions across all registered documents (catalogs + extra docs) |
 | **`/doc-freshness`** | Detect drift between docs and repo: broken links, orphan files, version mismatch, stale dates, missing endpoints |
-| **`/spec-query`** | Query product specs (product-spec.md, gap-analysis.md, feature-inventory.md) from the registry |
-| **`/sec-query`** | Query security docs (security-report.md, gl-\*-report\*.json) from the registry |
 | **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
 | **`/adr-publish`** | Publish all ADRs to the central registry (`$OPEN_SDD_DOC_HOME/adr-registry/<service>/`) |
 | **`/adr-query`** | Ask decision-history questions across all registered ADRs |
@@ -565,8 +563,6 @@ open-sdd/
 │   ├── doc-query.sh
 │   ├── doc-freshness.sh
 │   ├── doc-adr.sh
-│   ├── spec-query.sh
-│   ├── sec-query.sh
 │   ├── adr-publish.sh
 │   └── adr-query.sh
 ├── templates/

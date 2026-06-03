@@ -30,7 +30,7 @@ features. Today, **both** include:
 - `/f-pause` + `/f-resume`,
 - `/f-handoff`,
 - risk signals and triage/path classification,
-- doc/ADR/query command families (`doc-*`, `adr-*`, `spec-query`, `sec-query`),
+- doc/ADR/query command families (`doc-*`, `adr-*`),
 - automated tests.
 
 So the decision is less “feature exists vs does not exist” and more
@@ -94,7 +94,7 @@ These numbers are intentionally concrete and should be updated when they drift.
 | MR flow (`/f-mr`, `/f-mr-address`) | ✅ | ✅ | Both include MR generation/update paths. |
 | Risk signals | ✅ | ✅ | Deterministic signal detection present in both. |
 | Triage / path classification | ✅ | ✅ | Both produce path/tier guidance. |
-| Doc/ADR/query ecosystem | ✅ | ✅ | `doc-*`, `adr-*`, `spec-query`, `sec-query` in both ecosystems. |
+| Doc/ADR/query ecosystem | ✅ | ✅ | `doc-*`, `adr-*` in both ecosystems. |
 | Repo-local command scripts | ✅ (primary) | ⚠️ (skill-driven) | open-sdd centers on `commands/*.sh`; claude-tools centers on skill docs + libs. |
 | Surface parity checks in-repo | ✅ | ⚠️ | open-sdd includes explicit parity check scripts in `tests/`. |
 | Distribution model | Standalone package | Central skill distribution | Different operating model more than capability gap. |

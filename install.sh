@@ -109,10 +109,6 @@ install_doc_cmd_directive "adr-query" "Ask architecture-decision questions acros
 Run ${OPENSDD_PATH}/commands/adr-query.sh \$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the user's question, citing every claim as <service>/<ADR-file>."
 install_doc_cmd_directive "doc-freshness" "Check docs for drift against code" "\
 Run ${OPENSDD_PATH}/commands/doc-freshness.sh \$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
-install_doc_cmd_directive "spec-query" "Ask questions about product specs" "\
-Run ${OPENSDD_PATH}/commands/spec-query.sh \"\$ARGUMENTS\". It reads product specs from the registry (product-spec.md, gap-analysis.md, feature-inventory.md). Use the output to answer the user's product/spec question, citing the source file for every claim."
-install_doc_cmd_directive "sec-query" "Ask questions about security docs" "\
-Run ${OPENSDD_PATH}/commands/sec-query.sh \"\$ARGUMENTS\". It reads security docs from the registry (security-report.md, gl-*-report*.json). Use the output to answer the user's security question, citing the source file for every claim."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").

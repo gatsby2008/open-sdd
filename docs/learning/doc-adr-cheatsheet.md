@@ -114,58 +114,6 @@ Answer: consent-service consumes LeadCreated via SQS
 
 ---
 
-## Product Specs
-
-### /spec-query
-
-Reads `product-spec.md`, `gap-analysis.md`, `feature-inventory.md` from the registry (or `docs/product/` locally as fallback).
-
-```
-$ /spec-query "what high gaps are still open in leads-service?"
-
-Reading 3 product spec documents:
-  leads-service/product-spec.md
-  leads-service/gap-analysis.md
-  leads-service/feature-inventory.md
-
-Answer: 9 high gaps open — no automatic retry/circuit-breaker,
-no role-based permissions, consent records missing updated_by...
-(gap-analysis.md:77-170 — High Gaps section)
-```
-
-**Example questions:**
-- "What user stories are still unmet?"
-- "What's the status of US-20 (per-person authz)?"
-- "How many critical gaps exist and why were they deferred?"
-- "What features were added in V3.6 vs V3.7?"
-
----
-
-## Security
-
-### /sec-query
-
-Reads `docs/security/*.md` and `gl-*-report*.json` from the registry (or local).
-
-```
-$ /sec-query "what CVEs are in accepted-risk?"
-
-Reading 2 security documents:
-  leads-service/security-report.md
-  leads-service/gl-sast-report.json
-
-Answer: 3 CVEs in accepted-risk — commons-compress 1.24.0
-(test-scope via Testcontainers), snakeyaml 2.0...
-(security-report.md:34-42 — Accepted Risks table)
-```
-
-**Example questions:**
-- "What findings were closed by the bump to Boot 3.5.14?"
-- "Are there any open production findings?"
-- "How many SAST findings and how were they triaged?"
-
----
-
 ## ADRs (Architecture Decision Records)
 
 ### /doc-adr
@@ -325,8 +273,6 @@ $OPEN_SDD_DOC_HOME/
 
 # Cross-service queries
 /doc-query "which services use SQS?"
-/spec-query "what high gaps in leads?"
-/sec-query "are there open CVEs?"
 /adr-query "why did we decide X?"
 ```
 

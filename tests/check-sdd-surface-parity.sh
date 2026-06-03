@@ -21,7 +21,7 @@ grep -q 'f-refine.md' "$INSTALL_SH" || {
 }
 
 # Ensure key doc/adr command registrations exist.
-for cmd in doc-catalog doc-publish doc-query doc-adr adr-publish adr-query doc-freshness spec-query sec-query; do
+for cmd in doc-catalog doc-publish doc-query doc-adr adr-publish adr-query doc-freshness; do
   grep -q "install_doc_cmd_directive \"$cmd\"" "$INSTALL_SH" || {
     echo "PARITY FAIL: missing registration for $cmd in install.sh" >&2
     exit 1
