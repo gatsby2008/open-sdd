@@ -2,6 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+# shellcheck source=../lib/service-name.sh
+. "$LIB_DIR/service-name.sh"
 
 die() { echo "$*" >&2; exit 1; }
 
@@ -12,22 +15,14 @@ section() { echo ""; echo "=== $1 ==="; }
 # ---- stack detection --------------------------------------------------------
 
 STACK="unknown"
-SERVICE_NAME=""
 
-if [ -f pom.xml ]; then
+if [ -f pom.xml ] || [ -f build.gradle ]; then
   STACK="java"
-  SERVICE_NAME=$(grep -m1 '<artifactId>' pom.xml 2>/dev/null | sed 's/.*<artifactId>//;s/<\/artifactId>.*//' || true)
-elif [ -f build.gradle ]; then
-  STACK="java"
-  SERVICE_NAME=$(basename "$(pwd)")
 elif [ -f package.json ]; then
   STACK="frontend"
-  SERVICE_NAME=$(grep -m1 '"name"' package.json 2>/dev/null | sed 's/.*"name": *"//;s/".*//' || true)
 fi
 
-if [ -z "$SERVICE_NAME" ]; then
-  SERVICE_NAME=$(basename "$(pwd)")
-fi
+SERVICE_NAME="$(resolve_service_name)"
 
 echo "Stack: $STACK"
 echo "Service: $SERVICE_NAME"
