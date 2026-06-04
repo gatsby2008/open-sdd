@@ -182,7 +182,7 @@ echo "Working branch: $BRANCH"
 if [ ! -d ".opensdd" ]; then
   mkdir -p ".opensdd"
 fi
-if [ ! -f ".opensdd/service-rules.md" ]; then
+if [ ! -f ".opensdd/service-rules.md" ] && ! { [ -d ".opensdd/rules" ] && ls .opensdd/rules/*.md >/dev/null 2>&1; }; then
   if cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md"; then
     echo "Created .opensdd/service-rules.md"
   fi
@@ -267,7 +267,7 @@ SOURCE_CONTENT=""
 
 if [ "$INPUT_TYPE" = "jira" ] && jira_is_configured; then
   echo "Fetching Jira ticket $TICKET..."
-  if jira_write_issue_markdown "$TICKET" "$SOURCE_FILE" 2>/dev/null; then
+  if jira_write_issue_markdown "$TICKET" "$SOURCE_FILE"; then
     echo "Jira data written to $SOURCE_FILE"
     # Preserve any supplementary free text the user passed alongside the ticket.
     if [ -n "$DESC" ]; then
@@ -276,22 +276,22 @@ if [ "$INPUT_TYPE" = "jira" ] && jira_is_configured; then
     SOURCE_CONTENT=$(cat "$SOURCE_FILE")
     TITLE=$(printf '%s' "$SOURCE_CONTENT" | head -1 | sed 's/^# //')
   else
-    echo "Jira fetch failed; falling back to manual source."
-    # Never lose the user's input: keep the ticket id as the title and use the
-    # free-text description (if any) as the body. The ticket reference is kept in
-    # state.json so /f-mr and others can still link it.
-    printf '# %s\n\n%s\n' "$TICKET" "${DESC:-$TICKET}" > "$SOURCE_FILE"
-    INPUT_TYPE="freetext"
-    TITLE="$TICKET"
-    SOURCE_CONTENT=$(cat "$SOURCE_FILE")
+    echo "" >&2
+    echo "✗ Jira fetch failed for ticket $TICKET. No pipeline artifacts were created." >&2
+    echo "  Fix the error above and run /f-start again." >&2
+    exit 1
   fi
 elif [ -n "$TICKET" ]; then
-  # Ticket given but Jira is not configured — keep the id as title and the
-  # free text as the body so nothing the user typed is dropped.
-  printf '# %s\n\n%s\n' "$TICKET" "${DESC:-$TICKET}" > "$SOURCE_FILE"
-  INPUT_TYPE="freetext"
-  TITLE="$TICKET"
-  SOURCE_CONTENT=$(cat "$SOURCE_FILE")
+  # Ticket key given but Jira is not configured — hard stop.
+  echo "" >&2
+  echo "✗ Jira is not configured. Set the following environment variables and retry:" >&2
+  echo "" >&2
+  echo "  export JIRA_BASE_URL=https://<your-domain>.atlassian.net" >&2
+  echo "  export JIRA_USER=your@email.com" >&2
+  echo "  export JIRA_TOKEN=<personal-access-token>" >&2
+  echo "" >&2
+  echo "Run /f-start again once Jira is configured." >&2
+  exit 1
 else
   printf '# %s\n\n%s\n' "$INPUT" "$DESC" > "$SOURCE_FILE"
   SOURCE_CONTENT=$(cat "$SOURCE_FILE")
@@ -330,16 +330,22 @@ ENDJSON
 
 # ---- write rules.json -------------------------------------------------------
 
-if [ -f ".opensdd/service-rules.md" ]; then
-  echo "Loading service rules from .opensdd/service-rules.md..."
-  python3 - "$SLUG" "$TEMPLATES_DIR/rules.md" <<'PY'
+python3 - "$SLUG" "$TEMPLATES_DIR/rules.md" <<'PY'
 import json, sys
 from pathlib import Path
 
 slug = sys.argv[1]
 rules_md_path = Path(sys.argv[2])
 
-rules_md = Path(".opensdd/service-rules.md").read_text(encoding="utf-8")
+# Collect service rules: legacy single file + optional .opensdd/rules/*.md directory.
+service_rules = []
+legacy = Path(".opensdd/service-rules.md")
+if legacy.exists():
+    service_rules.append(legacy.read_text(encoding="utf-8"))
+rules_dir = Path(".opensdd/rules")
+if rules_dir.is_dir():
+    for f in sorted(rules_dir.glob("*.md")):
+        service_rules.append(f.read_text(encoding="utf-8"))
 
 global_rules = []
 if rules_md_path.exists():
@@ -349,22 +355,14 @@ rules = {
     "schema_version": 1,
     "id": slug,
     "global_rules": global_rules,
-    "service_rules": [rules_md],
+    "service_rules": service_rules,
 }
-
 Path(f".specwork/_state/{slug}-rules.json").write_text(
     json.dumps(rules, indent=2) + "\n", encoding="utf-8"
 )
 PY
-else
-  cat > ".specwork/_state/${SLUG}-rules.json" <<ENDJSON
-{
-  "schema_version": 1,
-  "id": "${SLUG}",
-  "global_rules": [],
-  "service_rules": []
-}
-ENDJSON
+if [ -f ".opensdd/service-rules.md" ] || { [ -d ".opensdd/rules" ] && ls .opensdd/rules/*.md >/dev/null 2>&1; }; then
+  echo "Service rules loaded."
 fi
 
 # ---- write implementation-cache.json ----------------------------------------
