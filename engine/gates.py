@@ -179,8 +179,8 @@ def detect_risk_signals(spec_path: Path) -> dict[str, list[str]]:
         "component-api": r"\b(?:component\s+api|props?\s+(?:interface|type|shape)|breaking\s+change\s+in\s+component|rename\s+prop|remove\s+prop|change\s+(?:prop|render)\s+(?:type|signature))\b",
         "state-management": r"\b(?:state\s+management|redux|zustand|context\s+api|mobx|recoil|jotai|migration\s+(?:from|to)\s+(?:redux|zustand|context)|replace\s+(?:redux|zustand|context))\b",
         "accessibility": r"\b(?:a11y|accessibility|aria[-_]\w*|screen\s+reader|keyboard\s+navigat|focus\s+trap|role\s*=|tab\s*index|wcag|contrast\s+ratio)\b",
-        "routing": r"\b(?:routing|navigation|react-router|next\.router|useRouter|navigate|redirect|route\s+(?:structure|change|restructure))\b",
-        "data-fetching": r"\b(?:data\s+fetching|useSWR|react-query|tanstack\s+query|apollo\s+client|graphql|useQuery|useMutation|ssr|server-side\s+rendering|hydration|getServerSideProps|getStaticProps|getStaticPaths)\b",
+        "routing": r"\b(?:routing|navigation|react-router|next\.router|userouter|navigate|redirect|route\s+(?:structure|change|restructure))\b",
+        "data-fetching": r"\b(?:data\s+fetching|useswr|react-query|tanstack\s+query|apollo\s+client|graphql|usequery|usemutation|ssr|server-side\s+rendering|hydration|getserversideprops|getstaticprops|getstaticpaths)\b",
         "ui-migration": r"\b(?:ui[- ]library\s+(?:upgrade|migration|bump)|migrat(?:e|ion)\s+(?:from|to)\s+(?:material|antd|chakra|tailwind|bootstrap|shadcn|styled|emotion)|design\s+system\s+update|theming\s+overhaul|dark\s+mode)\b",
     }
     hits: dict[str, list[str]] = {}

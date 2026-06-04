@@ -257,6 +257,56 @@ class GatesTestCase(unittest.TestCase):
         signals = detect_risk_signals(Path("nonexistent.md"))
         self.assertEqual(signals, {})
 
+    def test_risk_signals_frontend_routing(self):
+        spec = SPECWORK / "_spec" / "routing-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# routing\n\nRestructure navigation with react-router nested routes.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        self.assertIn("routing", signals)
+
+    def test_risk_signals_frontend_data_fetching(self):
+        spec = SPECWORK / "_spec" / "fetch-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# fetch\n\nReplace manual fetches with react-query useQuery hooks.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        self.assertIn("data-fetching", signals)
+
+    def test_risk_signals_frontend_component_api(self):
+        spec = SPECWORK / "_spec" / "comp-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# comp\n\nBreaking change in component: rename prop onClose to onDismiss.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        self.assertIn("component-api", signals)
+
+    def test_risk_signals_frontend_state_management(self):
+        spec = SPECWORK / "_spec" / "state-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# state\n\nMigrate from Redux to Zustand for the cart store.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        self.assertIn("state-management", signals)
+
+    def test_risk_signals_frontend_accessibility(self):
+        spec = SPECWORK / "_spec" / "a11y-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# a11y\n\nAdd aria-label and keyboard navigation for screen readers.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        self.assertIn("accessibility", signals)
+
+    def test_risk_signals_frontend_ui_migration(self):
+        spec = SPECWORK / "_spec" / "ui-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# ui\n\nDesign system update: migrate from Bootstrap to Tailwind.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        self.assertIn("ui-migration", signals)
+
+    def test_risk_signals_no_frontend_in_backend_spec(self):
+        spec = SPECWORK / "_spec" / "backend-spec.md"
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec.write_text("# backend\n\nAdd a repository method to fetch orders by status.", encoding="utf-8")
+        signals = detect_risk_signals(spec)
+        for fe in ("component-api", "state-management", "accessibility", "routing", "data-fetching", "ui-migration"):
+            self.assertNotIn(fe, signals)
+
     # --- check_spec_consistency ---
 
     def test_no_contradictions(self):
