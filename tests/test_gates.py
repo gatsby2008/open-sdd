@@ -15,6 +15,11 @@ from engine.gates import (
     detect_stack,
     detect_risk_signals,
     check_spec_consistency,
+    ticket_from_branch,
+    count_open_questions,
+    get_resolved_oqs,
+    format_staleness_error,
+    audit_artifacts,
     SPECWORK,
 )
 
@@ -331,6 +336,49 @@ class GatesTestCase(unittest.TestCase):
     def test_missing_spec_returns_empty(self):
         flagged = check_spec_consistency(Path("missing.md"))
         self.assertEqual(flagged, [])
+
+    # --- ticket_from_branch ---
+
+    def test_ticket_strict_jira(self):
+        self.assertEqual(ticket_from_branch("feature/IR-70"), ("IR-70", "jira"))
+        self.assertEqual(ticket_from_branch("feature/MYYES-1234-x"), ("MYYES-1234", "jira"))
+
+    def test_ticket_loose_is_freetext(self):
+        self.assertEqual(ticket_from_branch("feature/IR-70.1"), ("IR-70.1", "freetext"))
+
+    def test_ticket_none(self):
+        self.assertEqual(ticket_from_branch("feature/add-thing"), ("", "freetext"))
+
+    # --- count / resolved open questions ---
+
+    def test_count_open_questions(self):
+        self._write_spec("oq", (
+            "# oq\n\n## Open Questions\n\n"
+            "- [ ] Q1?\n- [x] Q2? — yes\n- [X] Q3 no sep\n\n"
+            "## Behavior\n\n- [ ] not an OQ\n"
+        ))
+        self.assertEqual(count_open_questions("oq"), (1, 2))
+
+    def test_count_open_questions_missing_spec(self):
+        self.assertEqual(count_open_questions("nope"), (0, 0))
+
+    def test_get_resolved_oqs(self):
+        self._write_spec("oq", (
+            "# oq\n\n## Open Questions\n\n- [ ] Q1?\n- [x] Q2? — do it this way\n"
+        ))
+        resolved = get_resolved_oqs("oq")
+        self.assertEqual(resolved["Q2?"], "do it this way")
+        self.assertNotIn("Q1?", resolved)
+
+    # --- audit_artifacts ---
+
+    def test_audit_artifacts(self):
+        self._write_spec("demo", "# demo\n")
+        audit = audit_artifacts("demo")
+        self.assertTrue(audit["spec_file"]["exists"])
+        self.assertIsNotNone(audit["spec_file"]["mtime"])
+        self.assertFalse(audit["plan_file"]["exists"])
+        self.assertIn("state_file", audit)
 
 
 if __name__ == "__main__":

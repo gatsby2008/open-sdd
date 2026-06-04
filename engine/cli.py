@@ -29,6 +29,7 @@ COMMANDS = [
     "implement-check", "implement-done", "implement-plan",
     "resolve-slug", "detect-stack", "risk-signals",
     "bump-spec-ts", "coverage-check", "extract-reference-targets",
+    "count-oqs", "audit",
 ]
 
 
@@ -382,6 +383,27 @@ def cmd_extract_reference_targets(args: list[str]) -> int:
     return 0
 
 
+def cmd_count_oqs(args: list[str]) -> int:
+    from engine.gates import count_open_questions
+    slug = args[0] if args else resolve_slug()
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    open_n, resolved_n = count_open_questions(slug)
+    print(f"{open_n} {resolved_n}")
+    return 0
+
+
+def cmd_audit(args: list[str]) -> int:
+    from engine.gates import audit_artifacts
+    slug = args[0] if args else resolve_slug()
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    print(json.dumps(audit_artifacts(slug), indent=2))
+    return 0
+
+
 def cmd_coverage_check(args: list[str]) -> int:
     # Strict test-coverage gate: a changed production class with no matching test
     # blocks the commit. Stack-aware (java/frontend); conservative on what counts
@@ -452,6 +474,8 @@ def main() -> int:
         "extract-reference-targets": cmd_extract_reference_targets,
         "bump-spec-ts": cmd_bump_spec_ts,
         "coverage-check": cmd_coverage_check,
+        "count-oqs": cmd_count_oqs,
+        "audit": cmd_audit,
     }
 
     handler = dispatch.get(command)
