@@ -446,8 +446,8 @@ def cmd_stash_list(args: list[str]) -> int:
 def cmd_stash_stale(args: list[str]) -> int:
     from engine.stash import list_kept_and_stale
     _, stale = list_kept_and_stale()
-    for ref, _branch in stale:
-        print(ref)
+    for ref, branch in stale:
+        print(f"{ref}\t{branch}")
     return 0
 
 

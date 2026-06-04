@@ -15,9 +15,11 @@ fmt_bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 
 # ---- step 1: find pipeline stashes ------------------------------------------
 
-STASHES=$(git stash list --format="%gd %s" 2>/dev/null | grep "f-pause:" || true)
+# Filtering + dedup live in the engine (stash-list = newest per branch; stash-stale
+# = older duplicates). Both emit "<ref>\t<branch>".
+KEPT=$(PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli stash-list 2>/dev/null)
 
-if [ -z "$STASHES" ]; then
+if [ -z "$KEPT" ]; then
   die "No paused pipeline branches found.
 
 To pause a pipeline branch, run /f-pause while on the branch that
@@ -26,25 +28,23 @@ fi
 
 # ---- step 2: parse stashes into array ---------------------------------------
 
-declare -A SEEN_BRANCHES
 declare -A DUP_REFS_FOR
 STASH_REFS=()
 STASH_BRANCHES=()
 DUP_COUNT=0
 
-while IFS= read -r line; do
-  ref=${line%% *}
-  branch=${line#*f-pause: }
-  if [[ -z "${SEEN_BRANCHES[$branch]:-}" ]]; then
-    SEEN_BRANCHES[$branch]=1
-    STASH_REFS+=("$ref")
-    STASH_BRANCHES+=("$branch")
-    DUP_REFS_FOR[$branch]=""
-  else
-    DUP_COUNT=$((DUP_COUNT + 1))
-    DUP_REFS_FOR[$branch]="${DUP_REFS_FOR[$branch]:-} $ref"
-  fi
-done <<< "$STASHES"
+while IFS=$'\t' read -r ref branch; do
+  [ -n "$ref" ] || continue
+  STASH_REFS+=("$ref")
+  STASH_BRANCHES+=("$branch")
+  DUP_REFS_FOR[$branch]=""
+done <<< "$KEPT"
+
+while IFS=$'\t' read -r ref branch; do
+  [ -n "$ref" ] || continue
+  DUP_COUNT=$((DUP_COUNT + 1))
+  DUP_REFS_FOR[$branch]="${DUP_REFS_FOR[$branch]:-} $ref"
+done <<< "$(PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli stash-stale 2>/dev/null)"
 
 TOTAL=${#STASH_REFS[@]}
 
