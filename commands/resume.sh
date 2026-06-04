@@ -28,23 +28,20 @@ fi
 
 # ---- step 2: parse stashes into array ---------------------------------------
 
-declare -A DUP_REFS_FOR
+# No associative arrays here — macOS ships bash 3.2 (declare -A is bash 4+).
+# STALE holds the older duplicate stashes as "<ref>\t<branch>" lines; step 7
+# filters it by the resumed branch.
 STASH_REFS=()
 STASH_BRANCHES=()
-DUP_COUNT=0
 
 while IFS=$'\t' read -r ref branch; do
   [ -n "$ref" ] || continue
   STASH_REFS+=("$ref")
   STASH_BRANCHES+=("$branch")
-  DUP_REFS_FOR[$branch]=""
 done <<< "$KEPT"
 
-while IFS=$'\t' read -r ref branch; do
-  [ -n "$ref" ] || continue
-  DUP_COUNT=$((DUP_COUNT + 1))
-  DUP_REFS_FOR[$branch]="${DUP_REFS_FOR[$branch]:-} $ref"
-done <<< "$(PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli stash-stale 2>/dev/null)"
+STALE=$(PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli stash-stale 2>/dev/null || true)
+DUP_COUNT=$(printf '%s' "$STALE" | grep -c . || true)
 
 TOTAL=${#STASH_REFS[@]}
 
@@ -135,13 +132,12 @@ fi
 
 # ---- step 7: drop stale duplicate stashes for the resumed branch ----------
 
-dups="${DUP_REFS_FOR[$SELECTED_BRANCH]:-}"
-if [ -n "$dups" ]; then
-  for ref in $dups; do
-    echo "  Dropping stale duplicate stash $ref ..."
-    git stash drop "$ref" 2>/dev/null || true
-  done
-fi
+while IFS=$'\t' read -r ref branch; do
+  [ -n "$ref" ] || continue
+  [ "$branch" = "$SELECTED_BRANCH" ] || continue
+  echo "  Dropping stale duplicate stash $ref ..."
+  git stash drop "$ref" 2>/dev/null || true
+done <<< "$STALE"
 
 echo ""
 echo "Resumed $SELECTED_BRANCH."

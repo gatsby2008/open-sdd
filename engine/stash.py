@@ -23,11 +23,17 @@ def parse_stash_list(output: str) -> list[tuple[str, str]]:
 
 
 def pipeline_stashes(output: str) -> list[tuple[str, str]]:
-    """``[(ref, branch), ...]`` for f-pause stashes, in input order (newest-first)."""
+    """``[(ref, branch), ...]`` for f-pause stashes, in input order (newest-first).
+
+    Matches ``f-pause: `` anywhere in the message — git prefixes the stash subject
+    with ``On <branch>: ``, so the marker is not at the start (the original shell
+    used a substring ``grep``).
+    """
     out = []
     for ref, msg in parse_stash_list(output):
-        if msg.startswith(PAUSE_PREFIX):
-            out.append((ref, msg[len(PAUSE_PREFIX):].strip()))
+        idx = msg.find(PAUSE_PREFIX)
+        if idx != -1:
+            out.append((ref, msg[idx + len(PAUSE_PREFIX):].strip()))
     return out
 
 

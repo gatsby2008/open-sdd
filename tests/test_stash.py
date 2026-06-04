@@ -26,6 +26,12 @@ class TestStash(unittest.TestCase):
         self.assertEqual(kept, [("stash@{0}", "feature/alpha"), ("stash@{2}", "feature/beta")])
         self.assertEqual(stale, [("stash@{3}", "feature/alpha")])
 
+    def test_matches_git_on_branch_prefix(self):
+        # git prefixes the stash subject with "On <branch>: ", so the f-pause
+        # marker is not at the start — it must still be detected.
+        out = "stash@{0} On feature/demo: f-pause: feature/demo\n"
+        self.assertEqual(pipeline_stashes(out), [("stash@{0}", "feature/demo")])
+
     def test_empty(self):
         self.assertEqual(pipeline_stashes(""), [])
         self.assertEqual(deduplicate([]), ([], []))
