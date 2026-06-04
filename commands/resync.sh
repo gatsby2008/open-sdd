@@ -163,29 +163,8 @@ fi
 NEW_STATE=".specwork/_state/${NEW_SLUG}-state.json"
 
 if [ -f "$NEW_STATE" ]; then
-  python3 - "$NEW_STATE" "$NEW_SLUG" "$OLD_SLUG" "$CURRENT_BRANCH" "$TICKET" "$INPUT_TYPE" <<'PY'
-import json, sys
-from pathlib import Path
-
-path, new_slug, old_slug, branch, ticket, input_type = (
-    Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6]
-)
-
-d = json.loads(path.read_text(encoding="utf-8"))
-
-# Rewrite paths referencing old slug
-for k, v in list(d.items()):
-    if isinstance(v, str) and old_slug in v:
-        d[k] = v.replace(old_slug, new_slug)
-
-# Set explicit fields
-d["id"] = new_slug
-d["branch"] = branch
-d["ticket"] = ticket if ticket else None
-d["input_type"] = input_type
-
-path.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
-PY
+  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli rename-slug \
+    "$NEW_STATE" "$NEW_SLUG" "$OLD_SLUG" "$CURRENT_BRANCH" "$TICKET" "$INPUT_TYPE"
 fi
 
 # ---- step 8: print summary --------------------------------------------------

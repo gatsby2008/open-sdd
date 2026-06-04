@@ -10,6 +10,7 @@ from engine.persistence import (
     load_cache, save_cache,
     load_plan, save_plan,
     load_spec, load_source,
+    rename_slug_in_state,
     SPECWORK,
 )
 
@@ -104,6 +105,29 @@ class PersistenceTestCase(unittest.TestCase):
 
     def test_load_source_missing_returns_none(self):
         self.assertIsNone(load_source("nonexistent"))
+
+    def test_rename_slug_in_state(self):
+        p = self.root / "old-state.json"
+        p.write_text(json.dumps({
+            "id": "old", "branch": "feature/old", "ticket": None,
+            "input_type": "freetext", "spec_file": ".specwork/_spec/old-spec.md",
+            "source_title": "keep me",
+        }), encoding="utf-8")
+        d = rename_slug_in_state(str(p), "ir-70-new", "old", "feature/IR-70-new", "IR-70", "jira")
+        self.assertEqual(d["id"], "ir-70-new")
+        self.assertEqual(d["branch"], "feature/IR-70-new")
+        self.assertEqual(d["ticket"], "IR-70")
+        self.assertEqual(d["input_type"], "jira")
+        self.assertEqual(d["spec_file"], ".specwork/_spec/ir-70-new-spec.md")
+        self.assertEqual(d["source_title"], "keep me")
+
+    def test_rename_slug_no_double_up(self):
+        p = self.root / "c-state.json"
+        p.write_text(json.dumps({
+            "id": "consent", "spec_file": ".specwork/_spec/consent-spec.md",
+        }), encoding="utf-8")
+        d = rename_slug_in_state(str(p), "ir-70-consent", "consent", "feature/x", "IR-70", "jira")
+        self.assertEqual(d["spec_file"], ".specwork/_spec/ir-70-consent-spec.md")
 
 
 if __name__ == "__main__":

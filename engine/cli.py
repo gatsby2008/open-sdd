@@ -30,6 +30,9 @@ COMMANDS = [
     "resolve-slug", "detect-stack", "risk-signals",
     "bump-spec-ts", "coverage-check", "extract-reference-targets",
     "count-oqs", "audit",
+    "derive-branch", "worktree-clean", "worktree-dirty",
+    "commit-subject", "mr-title", "branch-classify", "requires-clean-tree",
+    "stash-list", "stash-stale", "rename-slug",
 ]
 
 
@@ -383,6 +386,80 @@ def cmd_extract_reference_targets(args: list[str]) -> int:
     return 0
 
 
+def cmd_derive_branch(args: list[str]) -> int:
+    import re
+    from engine.gates import ticket_from_branch, _current_branch
+    branch = args[0] if args else _current_branch()
+    if not branch:
+        print("COULD_NOT_RESOLVE_BRANCH", file=sys.stderr)
+        return 1
+    unprefixed = re.sub(r"^(feature|hotfix|release|bugfix)/", "", branch)
+    slug = re.sub(r"[^a-z0-9]+", "-", unprefixed.lower()).strip("-")
+    tkt, itype = ticket_from_branch(branch)
+    print(json.dumps({"branch": branch, "slug": slug, "ticket": tkt, "input_type": itype}, indent=2))
+    return 0
+
+
+def cmd_worktree_clean(args: list[str]) -> int:
+    from engine.worktree import is_clean
+    return 0 if is_clean("--exclude-agent-files" in args) else 1
+
+
+def cmd_worktree_dirty(args: list[str]) -> int:
+    from engine.worktree import dirty_files
+    for f in dirty_files("--exclude-agent-files" in args):
+        print(f)
+    return 0
+
+
+def cmd_commit_subject(args: list[str]) -> int:
+    from engine.titles import commit_subject
+    print(commit_subject(args[0], args[1], " ".join(args[2:])))
+    return 0
+
+
+def cmd_mr_title(args: list[str]) -> int:
+    from engine.titles import mr_title
+    print(mr_title(args[0], args[1], " ".join(args[2:])))
+    return 0
+
+
+def cmd_branch_classify(args: list[str]) -> int:
+    from engine.branches import classify_branch
+    print(classify_branch(args[0]))
+    return 0
+
+
+def cmd_requires_clean_tree(args: list[str]) -> int:
+    from engine.branches import requires_clean_tree
+    return 0 if requires_clean_tree(args[0]) else 1
+
+
+def cmd_stash_list(args: list[str]) -> int:
+    from engine.stash import list_kept_and_stale
+    kept, _ = list_kept_and_stale()
+    for ref, branch in kept:
+        print(f"{ref}\t{branch}")
+    return 0
+
+
+def cmd_stash_stale(args: list[str]) -> int:
+    from engine.stash import list_kept_and_stale
+    _, stale = list_kept_and_stale()
+    for ref, _branch in stale:
+        print(ref)
+    return 0
+
+
+def cmd_rename_slug(args: list[str]) -> int:
+    from engine.persistence import rename_slug_in_state
+    if len(args) < 6:
+        print("Usage: rename-slug <state_path> <new_slug> <old_slug> <branch> <ticket> <input_type>", file=sys.stderr)
+        return 2
+    rename_slug_in_state(args[0], args[1], args[2], args[3], args[4], args[5])
+    return 0
+
+
 def cmd_count_oqs(args: list[str]) -> int:
     from engine.gates import count_open_questions
     slug = args[0] if args else resolve_slug()
@@ -476,6 +553,16 @@ def main() -> int:
         "coverage-check": cmd_coverage_check,
         "count-oqs": cmd_count_oqs,
         "audit": cmd_audit,
+        "derive-branch": cmd_derive_branch,
+        "worktree-clean": cmd_worktree_clean,
+        "worktree-dirty": cmd_worktree_dirty,
+        "commit-subject": cmd_commit_subject,
+        "mr-title": cmd_mr_title,
+        "branch-classify": cmd_branch_classify,
+        "requires-clean-tree": cmd_requires_clean_tree,
+        "stash-list": cmd_stash_list,
+        "stash-stale": cmd_stash_stale,
+        "rename-slug": cmd_rename_slug,
     }
 
     handler = dispatch.get(command)
