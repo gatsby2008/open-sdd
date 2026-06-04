@@ -175,8 +175,7 @@ if [ "$MODE" = "refine" ]; then
   fi
 fi
 
-DIRTY=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-if [ "$DIRTY" -gt 0 ] && [ "$MODE" = "refine" ]; then
+if ! PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli worktree-clean 2>/dev/null && [ "$MODE" = "refine" ]; then
   WARNINGS+="⚠  Working tree has uncommitted changes"$'\n'
   WARNINGS+="    Review them against the new spec before committing."$'\n'
 fi

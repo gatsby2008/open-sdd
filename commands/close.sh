@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 die() { echo "$*" >&2; exit 1; }
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -33,7 +35,7 @@ echo ""
 
 # ---- revert all local changes -----------------------------------------------
 
-if [ -n "$(git status --porcelain)" ]; then
+if ! PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli worktree-clean 2>/dev/null; then
   echo "Reverting all local changes..."
   # Preserve .gitignore modifications (start.sh may have added entries for
   # .specwork/, .opensdd/, AGENTS.md, etc. to protect them from git clean).

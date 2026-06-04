@@ -114,11 +114,9 @@ echo ""
 
 COMMIT_MSG_FILE=".specwork/_state/${SLUG}-commit-msg.txt"
 
-if [ -n "$TICKET" ]; then
-  PROPOSED="[$TICKET] feat: $SPEC_TITLE"
-else
-  PROPOSED="feat: $SPEC_TITLE"
-fi
+# mr-title brackets the ticket when present and omits it otherwise — matching the
+# previous inline behavior. `feat` is the proposed default; the user can edit it.
+PROPOSED="$(engine mr-title "$BRANCH" feat "$SPEC_TITLE")"
 
 commit_and_update() {
   echo "$PROPOSED" > "$COMMIT_MSG_FILE"

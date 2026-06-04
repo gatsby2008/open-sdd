@@ -40,9 +40,8 @@ current_branch() {
 # — so they must not block /f-start on a base branch. git checkout -b carries them
 # onto the new feature branch, where they get committed with the rest of the work.
 tree_is_clean() {
-  git status --porcelain -- . \
-    ':(exclude)AGENTS.md' ':(exclude)CLAUDE.md' ':(exclude)GEMINI.md' \
-    2>/dev/null | grep -q . && return 1 || return 0
+  # worktree-clean returns 0 when clean, 1 when dirty (agent-memory files exempt).
+  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli worktree-clean --exclude-agent-files 2>/dev/null
 }
 
 # ---- main -------------------------------------------------------------------
