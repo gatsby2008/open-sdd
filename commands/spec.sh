@@ -28,6 +28,9 @@ engine precheck >/dev/null 2>&1 \
 SLUG=$(resolve_slug 2>/dev/null || echo "")
 [ -n "$SLUG" ] || die "Could not resolve slug from current branch. Run /f-start first."
 
+source "$LIB_DIR/non_interactive.sh"
+hydrate_non_interactive_from_state "$SLUG"
+
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 SOURCE_FILE=".specwork/_spec/${SLUG}-source.md"
@@ -376,6 +379,25 @@ if [ -f "$SPEC_FILE" ] && [ -n "$ABS_SPEC" ]; then
     echo "Open Questions are at: \`${ABS_SPEC}:${OQ_LINE}\`"
     echo ""
   fi
+fi
+
+if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
+  cat <<INSTRUCTIONS
+
+--- Non-interactive mode: mandatory continuation ---
+After writing the spec, run these steps without pausing:
+
+1. PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli bump-spec-ts $SLUG
+
+2. PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli check $SLUG
+   - GATES_PASSED     → run plan.sh, then implement.sh:
+         bash $SCRIPT_DIR/plan.sh
+         bash $SCRIPT_DIR/implement.sh
+   - UNRESOLVED_OQS  → report them and stop here.
+         Re-run /f-spec with the answers to unblock.
+
+Do NOT ask for confirmation between these steps.
+INSTRUCTIONS
 fi
 
 if [ -n "$WARNINGS" ]; then
