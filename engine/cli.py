@@ -28,7 +28,7 @@ COMMANDS = [
     "precheck", "check", "triage", "status", "pause", "resume", "help",
     "implement-check", "implement-done", "implement-plan",
     "resolve-slug", "detect-stack", "risk-signals",
-    "bump-spec-ts",
+    "bump-spec-ts", "coverage-check",
 ]
 
 
@@ -367,6 +367,38 @@ def cmd_risk_signals(args: list[str]) -> int:
     return 0
 
 
+def cmd_coverage_check(args: list[str]) -> int:
+    # Strict test-coverage gate: a changed production class with no matching test
+    # blocks the commit. Stack-aware (java/frontend); conservative on what counts
+    # as testable (DTOs/config/entities excluded). Escape hatch is a per-class
+    # waiver-with-reason file. Unknown/node stacks pass cleanly. rc 1 = blocked.
+    from engine import coverage
+    from engine.gates import detect_stack
+    slug = args[0] if args else (resolve_slug() or None)
+    stack = detect_stack()
+    if stack not in ("java", "frontend"):
+        return 0
+    offenders = coverage.classes_missing_tests(
+        coverage.changed_files(), coverage.all_repo_files(), stack,
+        waived=coverage.load_waivers(slug),
+    )
+    if not offenders:
+        return 0
+    waiver_file = coverage.waiver_paths(slug)[0]
+    print(f"✗ Blocked: {len(offenders)} changed class(es) lack a matching test:", file=sys.stderr)
+    for o in offenders:
+        print(f"    - {o}", file=sys.stderr)
+    print(
+        f"\nAdd a test for each, or waive a class with no testable surface in\n  {waiver_file}",
+        file=sys.stderr,
+    )
+    print(
+        '  e.g. { "' + offenders[0] + '": "pure config, no testable logic" }',
+        file=sys.stderr,
+    )
+    return 1
+
+
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -403,6 +435,7 @@ def main() -> int:
         "detect-stack": cmd_detect_stack,
         "risk-signals": cmd_risk_signals,
         "bump-spec-ts": cmd_bump_spec_ts,
+        "coverage-check": cmd_coverage_check,
     }
 
     handler = dispatch.get(command)

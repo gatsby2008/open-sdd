@@ -67,6 +67,13 @@ else
   exit 1
 fi
 
+# ---- test-coverage gate (STRICT) --------------------------------------------
+# A changed production class with no matching test blocks the commit. Stack-aware
+# (java/frontend); pure data/wiring types are excluded. Escape hatch is a per-class
+# waiver-with-reason in .specwork/_test/<slug>-coverage-waivers.json (pipeline) or
+# .sdd-coverage-waivers.json (standalone). Runs before the costly test suite.
+engine coverage-check "$SLUG" || die "Test-coverage gate failed. Add tests or waive (see message above)."
+
 # ---- quality gate: run tests ------------------------------------------------
 # Only reached when there is something to commit.
 

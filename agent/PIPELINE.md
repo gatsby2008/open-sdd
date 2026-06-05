@@ -65,6 +65,9 @@ be mangled by shell parsing, pass `--input-file <path>` to read the
 full description from a file verbatim, bypassing shell quoting entirely.
 
 **Flow:**
+0. **Run `/init` if needed.** If none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
+   exist, run `/init` to bootstrap agent-memory files. If any already exist,
+   skip — `/init` escanea el proyecto y puede ser lento.
 1. Detect current branch
 2. If on `main`/`develop`, require clean tree — abort if dirty. Agent-memory
    files (`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`, e.g. from `/init`) are exempt and
