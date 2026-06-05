@@ -385,18 +385,33 @@ if [ "${SDD_NON_INTERACTIVE:-0}" = "1" ]; then
   cat <<INSTRUCTIONS
 
 --- Non-interactive mode: mandatory continuation ---
-After writing the spec, run these steps without pausing:
+After writing the spec, run these steps in order without pausing:
 
 1. PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli bump-spec-ts $SLUG
 
 2. PYTHONPATH="$ENGINE_ROOT" python3 -m engine.cli check $SLUG
-   - GATES_PASSED     → run plan.sh, then implement.sh:
-         bash $SCRIPT_DIR/plan.sh
-         bash $SCRIPT_DIR/implement.sh
-   - UNRESOLVED_OQS  → report them and stop here.
-         Re-run /f-spec with the answers to unblock.
+   - UNRESOLVED_OQS  → report them and STOP. Re-run /f-spec with the answers.
+   - GATES_PASSED    → continue:
 
-Do NOT ask for confirmation between these steps.
+3. bash $SCRIPT_DIR/plan.sh
+
+4. bash $SCRIPT_DIR/implement.sh
+
+5. Set the auto-MR flag in state.json:
+       python3 -c "
+import json
+from pathlib import Path
+p = Path('.specwork/_state/${SLUG}-state.json')
+if p.exists():
+    d = json.loads(p.read_text())
+    d['auto_open_mr_after_commit'] = True
+    p.write_text(json.dumps(d, indent=2) + '\n')
+"
+
+6. STOP HERE — print the handoff message below and do NOT run /f-commit:
+   "Auto mode paused before /f-commit. Review the changes, then run /f-commit."
+
+Do NOT run /f-commit automatically. The pre-commit review is a hard stop.
 INSTRUCTIONS
 fi
 
