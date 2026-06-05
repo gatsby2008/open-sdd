@@ -9,16 +9,30 @@ die() { echo "$*" >&2; exit 1; }
 
 # ---- parse args -------------------------------------------------------------
 
-# Only the ticket key or free-text description — nothing else. No --with-tests
-# flag: auto mode always pauses before commit for manual review, so whether to
-# run the costly test steps is a decision the user makes during that handoff —
-# keeping the call as simple as the rest of the pipeline: /f-auto <ticket-or-text>.
+# /f-auto <ticket-or-text> [--choose A|C|<branch-name>] [--input-file <path>]
+# The --choose flag is for agent-driven flows where there is no TTY. It is
+# forwarded to start.sh to set the branch without an interactive prompt.
+# Without --choose, start.sh always prompts for a branch (requires a TTY).
+# --input-file reads the ticket/description from a file, bypassing shell
+# quoting issues with special characters (quotes, JSON, etc.).
+CHOOSE_FLAG=()
 case "${1:-}" in
-  --help|-h) echo "Usage: f-auto <ticket-or-text>"; exit 0 ;;
+  --help|-h) echo "Usage: f-auto <ticket-or-text> [--choose A|C|<branch-name>] [--input-file <path>]"; exit 0 ;;
 esac
 
-TICKET="$*"
-[ -n "$TICKET" ] || die "Usage: f-auto <ticket-or-text>"
+POSITIONAL=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --choose) shift; CHOOSE_FLAG=(--choose "${1:-}"); [ -z "${1:-}" ] && die "Error: --choose requires A, C, or a branch name"; shift ;;
+    --input-file) shift; INPUT_FILE="${1:-}"; [ -z "$INPUT_FILE" ] && die "Error: --input-file requires a file path"; shift ;;
+    *) POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
+TICKET="${POSITIONAL[*]:-}"
+if [ -z "$TICKET" ] && [ -z "${INPUT_FILE:-}" ]; then
+  die "Usage: f-auto <ticket-or-text> [--choose A|C|<branch-name>] [--input-file <path>]"
+fi
 
 # Filled in after f-spec (step 2b) from the spec's concrete risk signals.
 RISK_SIGNALS=""
@@ -28,7 +42,11 @@ export SDD_NON_INTERACTIVE=1
 echo "============================================"
 echo " SDD Auto-Pilot  |  Non-Interactive Mode"
 echo "============================================"
-echo "  Ticket:  $TICKET"
+if [ -n "${INPUT_FILE:-}" ]; then
+  echo "  Input:    $INPUT_FILE"
+else
+  echo "  Ticket:  $TICKET"
+fi
 echo "============================================"
 echo ""
 
@@ -42,7 +60,13 @@ echo "--- [1/5] f-start / pipeline detect ---"
 if engine precheck >/dev/null 2>&1; then
   echo "Existing pipeline detected — skipping /f-start and keeping current branch."
 else
-  bash "$SCRIPT_DIR/start.sh" "$TICKET" --confirm-branch || die "f-start failed"
+  if [ -n "${INPUT_FILE:-}" ]; then
+    # shellcheck disable=SC2068
+    bash "$SCRIPT_DIR/start.sh" --input-file "$INPUT_FILE" ${CHOOSE_FLAG[@]+"${CHOOSE_FLAG[@]}"} || die "f-start failed"
+  else
+    # shellcheck disable=SC2068
+    bash "$SCRIPT_DIR/start.sh" "$TICKET" ${CHOOSE_FLAG[@]+"${CHOOSE_FLAG[@]}"} || die "f-start failed"
+  fi
 fi
 echo ""
 

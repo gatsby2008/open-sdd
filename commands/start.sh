@@ -49,16 +49,18 @@ tree_is_clean() {
 
 BRANCH_FLAG=""
 CUSTOM_BRANCH=""
-CONFIRM_BRANCH=0
+CHOOSE_OVERRIDE=""
 INPUT=""        # full raw positional input (ticket + free text), for diagnostics
 FIRST_POS=""    # first positional token — used to detect a leading Jira ticket
 DESC=""         # supplementary free text typed after a ticket (or, when there
                 # is no ticket, the whole description)
+INPUT_FILE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep)    BRANCH_FLAG="keep"; shift ;;
     --branch)  BRANCH_FLAG="branch"; shift; CUSTOM_BRANCH="${1:-}"; [ -z "$CUSTOM_BRANCH" ] && { echo "Error: --branch requires a name"; exit 1; }; shift ;;
-    --confirm-branch) CONFIRM_BRANCH=1; shift ;;
+    --choose)  BRANCH_FLAG="choose"; shift; CHOOSE_OVERRIDE="${1:-}"; [ -z "$CHOOSE_OVERRIDE" ] && { echo "Error: --choose requires A, C, or a branch name"; exit 1; }; shift ;;
+    --input-file) shift; INPUT_FILE="${1:-}"; [ -z "$INPUT_FILE" ] && { echo "Error: --input-file requires a file path"; exit 1; }; shift ;;
     *)
       if [ -z "$FIRST_POS" ]; then
         FIRST_POS="$1"
@@ -71,8 +73,16 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# --input-file overrides positional args: reads full text from file,
+# bypassing shell quoting issues with special characters.
+if [ -n "$INPUT_FILE" ]; then
+  [ ! -f "$INPUT_FILE" ] && { echo "Error: --input-file not found: $INPUT_FILE"; exit 1; }
+  INPUT=$(cat "$INPUT_FILE")
+  FIRST_POS=$(head -1 "$INPUT_FILE")
+fi
+
 [ -z "$INPUT" ] && {
-  echo "Usage: /f-start <TICKET-123|description> [extra description] [--branch <name>] [--keep]"
+  echo "Usage: /f-start <TICKET-123|description> [extra description] [--branch <name>] [--keep] [--input-file <path>]"
   exit 1
 }
 
@@ -129,9 +139,52 @@ if ! PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli precheck -
   exit 1
 fi
 
+# ---- Jira preflight (before creating any artifacts) -------------------------
+
+JIRA_JSON=""
+if [ "$INPUT_TYPE" = "jira" ]; then
+  if ! jira_is_configured; then
+    echo "" >&2
+    echo "✗ Jira is not configured. Set the following environment variables and retry:" >&2
+    echo "" >&2
+    echo "  export JIRA_BASE_URL=https://<your-domain>.atlassian.net" >&2
+    echo "  export JIRA_USER=your@email.com" >&2
+    echo "  export JIRA_TOKEN=<personal-access-token>" >&2
+    echo "" >&2
+    echo "Run /f-start again once Jira is configured." >&2
+    exit 1
+  fi
+  echo "Fetching Jira ticket $TICKET..."
+  JIRA_JSON=$(jira_fetch_issue_json "$TICKET") || {
+    echo "" >&2
+    echo "✗ Cannot reach Jira for ticket $TICKET. No pipeline artifacts were created." >&2
+    echo "  Fix the connection or credentials and run /f-start again." >&2
+    exit 1
+  }
+fi
+
 # ---- branch decision --------------------------------------------------------
 
-if [ "$BRANCH_FLAG" = "branch" ]; then
+if [ "$BRANCH_FLAG" = "choose" ]; then
+  # Agent-driven choice: --choose A|C|<branch-name>. Avoids needing a TTY.
+  case "$CHOOSE_OVERRIDE" in
+    A|a)
+      BRANCH="$SUGGESTED_BRANCH"
+      git checkout -b "$BRANCH"
+      ;;
+    C|c)
+      BRANCH="$CURRENT"
+      SLUG=$(slug_from_branch "$BRANCH")
+      echo "Staying on $BRANCH (slug: $SLUG)."
+      ;;
+    *)
+      # Treat as a branch name directly (e.g. --choose feature/my-fix)
+      BRANCH="$CHOOSE_OVERRIDE"
+      git checkout -b "$BRANCH"
+      SLUG=$(slug_from_branch "$BRANCH")
+      ;;
+  esac
+elif [ "$BRANCH_FLAG" = "branch" ]; then
   BRANCH="$CUSTOM_BRANCH"
   git checkout -b "$BRANCH"
   SLUG=$(slug_from_branch "$BRANCH")
@@ -140,18 +193,15 @@ elif [ "$BRANCH_FLAG" = "keep" ]; then
   SLUG=$(slug_from_branch "$BRANCH")
   echo "Staying on $BRANCH (slug: $SLUG)."
 else
-  CHOICE="A"
-  if [ -t 0 ] && { [ "${SDD_NON_INTERACTIVE:-0}" != "1" ] || [ "$CONFIRM_BRANCH" = "1" ]; }; then
-    echo ""
-    echo "Suggested branch: $SUGGESTED_BRANCH"
-    echo ""
-    echo "  A) Create '$SUGGESTED_BRANCH' from current HEAD ($BASE_BRANCH)"
-    echo "  B) Enter a custom branch name"
-    echo "  C) Keep working on current branch ($CURRENT)"
-    echo ""
-    printf "Choice [A/B/C]: "
-    read -r CHOICE
-  fi
+  echo ""
+  echo "Suggested branch: $SUGGESTED_BRANCH"
+  echo ""
+  echo "  A) Create '$SUGGESTED_BRANCH' from current HEAD ($BASE_BRANCH)"
+  echo "  B) Enter a custom branch name"
+  echo "  C) Keep working on current branch ($CURRENT)"
+  echo ""
+  printf "Choice [A/B/C]: "
+  read -r CHOICE
   case "$CHOICE" in
     A|a)
       BRANCH="$SUGGESTED_BRANCH"
@@ -265,33 +315,20 @@ done
 SOURCE_FILE=".specwork/_spec/${SLUG}-source.md"
 SOURCE_CONTENT=""
 
-if [ "$INPUT_TYPE" = "jira" ] && jira_is_configured; then
-  echo "Fetching Jira ticket $TICKET..."
-  if jira_write_issue_markdown "$TICKET" "$SOURCE_FILE"; then
-    echo "Jira data written to $SOURCE_FILE"
-    # Preserve any supplementary free text the user passed alongside the ticket.
-    if [ -n "$DESC" ]; then
-      printf '\n## Additional context (from /f-start)\n\n%s\n' "$DESC" >> "$SOURCE_FILE"
-    fi
-    SOURCE_CONTENT=$(cat "$SOURCE_FILE")
-    TITLE=$(printf '%s' "$SOURCE_CONTENT" | head -1 | sed 's/^# //')
-  else
-    echo "" >&2
-    echo "✗ Jira fetch failed for ticket $TICKET. No pipeline artifacts were created." >&2
-    echo "  Fix the error above and run /f-start again." >&2
-    exit 1
+if [ "$INPUT_TYPE" = "jira" ]; then
+  # JIRA_JSON was fetched and validated before branch creation
+  printf '%s\n' "$JIRA_JSON" | jira_render_issue_markdown > "$SOURCE_FILE"
+  echo "Jira data written to $SOURCE_FILE"
+  if [ -n "$DESC" ]; then
+    printf '\n## Additional context (from /f-start)\n\n%s\n' "$DESC" >> "$SOURCE_FILE"
   fi
-elif [ -n "$TICKET" ]; then
-  # Ticket key given but Jira is not configured — hard stop.
-  echo "" >&2
-  echo "✗ Jira is not configured. Set the following environment variables and retry:" >&2
-  echo "" >&2
-  echo "  export JIRA_BASE_URL=https://<your-domain>.atlassian.net" >&2
-  echo "  export JIRA_USER=your@email.com" >&2
-  echo "  export JIRA_TOKEN=<personal-access-token>" >&2
-  echo "" >&2
-  echo "Run /f-start again once Jira is configured." >&2
-  exit 1
+  SOURCE_CONTENT=$(cat "$SOURCE_FILE")
+  TITLE=$(printf '%s' "$SOURCE_CONTENT" | head -1 | sed 's/^# //')
+elif [ -n "$INPUT_FILE" ]; then
+  # --input-file: source is the file content verbatim (no shell quoting issues)
+  cp "$INPUT_FILE" "$SOURCE_FILE"
+  SOURCE_CONTENT=$(cat "$SOURCE_FILE")
+  echo "Input file copied to $SOURCE_FILE"
 else
   printf '# %s\n\n%s\n' "$INPUT" "$DESC" > "$SOURCE_FILE"
   SOURCE_CONTENT=$(cat "$SOURCE_FILE")

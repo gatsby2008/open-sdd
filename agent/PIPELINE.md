@@ -57,9 +57,12 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 
 ## Commands
 
-### /start <ticket-or-text>
+### /start <ticket-or-text> [--input-file <path>]
 
-Initialize the pipeline and create/select a working branch.
+Initialize the pipeline and create/select a working branch. When the
+description contains special characters (JSON, quotes, etc.) that would
+be mangled by shell parsing, pass `--input-file <path>` to read the
+full description from a file verbatim, bypassing shell quoting entirely.
 
 **Flow:**
 1. Detect current branch
@@ -105,12 +108,17 @@ Initialize the pipeline and create/select a working branch.
    = plan, implement = code).
 7. Output: branch created, source.md path, recommend `/f-spec` as next step
 
-### /auto <ticket-or-text>
+### /auto <ticket-or-text> [--input-file <path>]
 
 Non-interactive driver for the happy path. Chains `/start → /spec → /plan →
 /implement` and then **always pauses before commit** for human review. After the
 manual `/commit`, commit auto-runs `/mr` and stops. It never runs `/close` or
 `/mr-address`.
+
+When the description contains special characters (JSON, quotes, etc.) that would
+be mangled by shell quoting, use `--input-file <path>` to pass the description
+from a file instead. The agent writes the file (handling any content) and passes
+the path — no quoting issues.
 
 **Branch confirmation is delegated to `/start`, and `/start` always confirms the
 branch name — including under `/auto`.** The bash prompt in `start.sh` only fires

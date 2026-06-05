@@ -35,13 +35,20 @@ echo ""
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "Reverting all local changes..."
+  # Preserve .gitignore modifications (start.sh may have added entries for
+  # .specwork/, .opensdd/, AGENTS.md, etc. to protect them from git clean).
+  GITIGNORE_SAVED=$(cat .gitignore 2>/dev/null || true)
+  # Revert all tracked files to committed state
   git restore .
-  git clean -fd
+  # Re-apply .gitignore so pipeline entries are not lost
+  [ -n "$GITIGNORE_SAVED" ] && printf '%s\n' "$GITIGNORE_SAVED" > .gitignore
+  # Remove untracked implementation files, preserving non-pipeline configs
+  git clean -fd --exclude=.opencode --exclude=AGENTS.md --exclude=CLAUDE.md --exclude=GEMINI.md
   echo "Done."
   echo ""
 fi
 
-# ---- delete .specwork -------------------------------------------------------
+# ---- delete pipeline artifacts (.specwork + .opensdd) -----------------------
 
 if [ -d ".specwork" ]; then
   echo "Deleting .specwork/ ..."
@@ -49,6 +56,12 @@ if [ -d ".specwork" ]; then
   if [ -d ".specwork" ]; then
     die "Could not fully remove .specwork/ — remove it manually before retrying."
   fi
+  echo "Done."
+  echo ""
+fi
+if [ -d ".opensdd" ]; then
+  echo "Deleting .opensdd/ ..."
+  rm -rf .opensdd/
   echo "Done."
   echo ""
 fi
