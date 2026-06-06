@@ -367,6 +367,21 @@ def cmd_risk_signals(args: list[str]) -> int:
     return 0
 
 
+def cmd_extract_reference_targets(args: list[str]) -> int:
+    # Print one symbol per line from the spec: backtick tokens and /-prefixed
+    # paths found on destructive-change trigger lines, excluding negated lines
+    # and the Safe Constraints section. Used by /f-plan to scope reference-update
+    # searches. No symbols → no output, rc 0.
+    from engine.gates import extract_reference_targets
+    slug = args[0] if args else resolve_slug()
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    for symbol in extract_reference_targets(SPECWORK / "_spec" / f"{slug}-spec.md"):
+        print(symbol)
+    return 0
+
+
 def cmd_coverage_check(args: list[str]) -> int:
     # Strict test-coverage gate: a changed production class with no matching test
     # blocks the commit. Stack-aware (java/frontend); conservative on what counts
@@ -434,6 +449,7 @@ def main() -> int:
         "resolve-slug": cmd_resolve_slug,
         "detect-stack": cmd_detect_stack,
         "risk-signals": cmd_risk_signals,
+        "extract-reference-targets": cmd_extract_reference_targets,
         "bump-spec-ts": cmd_bump_spec_ts,
         "coverage-check": cmd_coverage_check,
     }

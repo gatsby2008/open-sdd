@@ -279,41 +279,7 @@ resolve_test_path() {
 # - backticked tokens  `Foo`, `OrderService`
 # - /-prefixed paths   /api/v1/x, /consumers
 extract_reference_targets() {
-  python3 - "$1" <<'PY'
-import re, sys
-from pathlib import Path
-text = Path(sys.argv[1]).read_text(encoding="utf-8")
-trigger = re.compile(
-    r'\b(renam\w*|remov\w*|delet\w*|deprecat\w*|replac\w*|migrat\w*|drop|retire|legacy)\b',
-    re.IGNORECASE,
-)
-# Guard 2: preserving / negating language. The trigger word is present but the
-# line says NOT to touch the symbol ("Do NOT remove the `@Size` constraint").
-negation = re.compile(
-    r"\b(?:not|never|without|keep|keeps|keeping|kept|preserv\w*|retain\w*|"
-    r"maintain\w*|unchanged|untouched|intact)\b|n't",
-    re.IGNORECASE,
-)
-symbols = set()
-in_safe_constraints = False  # Guard 1: skip the whole Safe Constraints section
-for line in text.splitlines():
-    heading = re.match(r'^\s*##\s+(.*)', line)
-    if heading:
-        in_safe_constraints = heading.group(1).strip().lower().startswith("safe constraints")
-        continue
-    if in_safe_constraints:
-        continue
-    if not trigger.search(line):
-        continue
-    if negation.search(line):
-        continue
-    symbols.update(re.findall(r'`([^`]+)`', line))
-    symbols.update(re.findall(r'/[a-zA-Z][\w\-/{}]*', line))
-# Only emit candidates that look like real symbols
-candidates = sorted(s for s in symbols if len(s) >= 3 and ' ' not in s)
-for s in candidates:
-    print(s)
-PY
+  engine extract-reference-targets "$SLUG"
 }
 
 # Guard 3: per-symbol hit cap. A real rename/removal touches a handful of files;

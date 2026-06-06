@@ -191,6 +191,40 @@ def detect_risk_signals(spec_path: Path) -> dict[str, list[str]]:
     return hits
 
 
+def extract_reference_targets(spec_path: Path) -> list[str]:
+    """Return symbols (backtick tokens and /-prefixed paths) that appear on
+    lines containing a destructive-change trigger word, excluding lines that
+    are negated ('Do NOT remove ...') and the Safe Constraints section."""
+    if not spec_path.exists():
+        return []
+    text = spec_path.read_text(encoding="utf-8")
+    trigger = re.compile(
+        r"\b(renam\w*|remov\w*|delet\w*|deprecat\w*|replac\w*|migrat\w*|drop|retire|legacy)\b",
+        re.IGNORECASE,
+    )
+    negation = re.compile(
+        r"\b(?:not|never|without|keep|keeps|keeping|kept|preserv\w*|retain\w*|"
+        r"maintain\w*|unchanged|untouched|intact)\b|n't",
+        re.IGNORECASE,
+    )
+    symbols: set[str] = set()
+    in_safe_constraints = False
+    for line in text.splitlines():
+        heading = re.match(r"^\s*##\s+(.*)", line)
+        if heading:
+            in_safe_constraints = heading.group(1).strip().lower().startswith("safe constraints")
+            continue
+        if in_safe_constraints:
+            continue
+        if not trigger.search(line):
+            continue
+        if negation.search(line):
+            continue
+        symbols.update(re.findall(r"`([^`]+)`", line))
+        symbols.update(re.findall(r"/[a-zA-Z][\w\-/{}]*", line))
+    return sorted(s for s in symbols if len(s) >= 3 and " " not in s)
+
+
 def check_spec_consistency(spec_path: Path) -> list[str]:
     if not spec_path.exists():
         return []
