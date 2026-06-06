@@ -116,8 +116,6 @@ Install-DocCmdDirective -Name "doc-adr" -Description "Create an Architecture Dec
 Install-DocCmdDirective -Name "adr-publish" -Description "Publish ADRs to central registry" -Directive "Run ${OPENSDD_PATH}/commands/adr-publish.sh `$ARGUMENTS. If the argument is 'list', print the registered ADRs. Otherwise sync docs/adr/*.md to the registry."
 Install-DocCmdDirective -Name "adr-query" -Description "Ask architecture-decision questions across ADRs" -Directive "Run ${OPENSDD_PATH}/commands/adr-query.sh `$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the question, citing every claim as <service>/<ADR-file>."
 Install-DocCmdDirective -Name "doc-freshness" -Description "Check docs for drift against code" -Directive "Run ${OPENSDD_PATH}/commands/doc-freshness.sh `$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
-Install-DocCmdDirective -Name "spec-query" -Description "Ask questions about product specs" -Directive "Run ${OPENSDD_PATH}/commands/spec-query.sh \"`$ARGUMENTS\". It reads product specs from the registry (product-spec.md, gap-analysis.md, feature-inventory.md). Use the output to answer the user's product/spec question, citing the source file for every claim."
-Install-DocCmdDirective -Name "sec-query" -Description "Ask questions about security docs" -Directive "Run ${OPENSDD_PATH}/commands/sec-query.sh \"`$ARGUMENTS\". It reads security docs from the registry (security-report.md, gl-*-report*.json). Use the output to answer the user's security question, citing the source file for every claim."
 
 # Remove stale commands from previous versions
 Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContinue | Out-Null
@@ -125,7 +123,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContin
   Remove-Item -Path (Join-Path $CMD_DIR "f-$_.md") -ErrorAction SilentlyContinue | Out-Null
 }
 
-Write-Host "open-sdd: 29 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 27 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------
