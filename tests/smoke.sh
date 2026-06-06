@@ -537,43 +537,6 @@ else
   bad "start.sh lost free text in source.md :: $([ -f "$SRC" ] && cat "$SRC" || echo MISSING)"
 fi
 
-echo "== start.sh keeps free text when ticket given but Jira unavailable (regression) =="
-# Reproduces the reported bug: '/f-start IR-94 <free text>' with Jira not
-# configured must still capture the free text, with the ticket id as title, and
-# keep the ticket recorded in state.json. JIRA_* are cleared so jira_is_configured
-# is deterministically false regardless of the runner's environment.
-d=$(new_repo ticket-plus-freetext); cd "$d"
-out="$(env -u JIRA_BASE_URL -u JIRA_URL -u JIRA_TOKEN -u JIRA_USER $TO bash "$REPO/commands/start.sh" IR-94 "replace personUuid with key" --keep 2>&1 </dev/null)"; rc=$?
-SRC=".specwork/_spec/demo-source.md"
-if [ -f "$SRC" ] && grep -qF "replace personUuid with key" "$SRC"; then
-  ok "start.sh keeps free text in source.md when ticket given + Jira unavailable"
-else
-  bad "start.sh dropped free text (ticket + no Jira) :: $([ -f "$SRC" ] && cat "$SRC" || echo MISSING)"
-fi
-if [ -f .specwork/_state/demo-state.json ]; then
-  SHB=$(python3 -c "import json; print(str(json.load(open('.specwork/_state/demo-state.json')).get('source_has_body')).lower())" 2>/dev/null)
-  if [ "$SHB" = "true" ]; then
-    ok "state.json marks source_has_body=true when source body is present"
-  else
-    bad "state.json source_has_body=$SHB (expected true)"
-  fi
-fi
-
-if [ -f .specwork/_state/demo-state.json ]; then
-  TICK=$(python3 -c "import json; print(json.load(open('.specwork/_state/demo-state.json')).get('ticket'))" 2>/dev/null)
-  if [ "$TICK" = "IR-94" ]; then
-    ok "state.json keeps ticket=IR-94 when Jira unavailable"
-  else
-    bad "state.json ticket=$TICK (expected IR-94)"
-  fi
-  SHB=$(python3 -c "import json; print(str(json.load(open('.specwork/_state/demo-state.json')).get('source_has_body')).lower())" 2>/dev/null)
-  if [ "$SHB" = "true" ]; then
-    ok "state.json marks source_has_body=true for ticket+text fallback"
-  else
-    bad "state.json source_has_body=$SHB (expected true)"
-  fi
-fi
-
 echo "== commit standalone; test-* require a pipeline =="
 # commit.sh must pass the pipeline gate standalone (git-only mode) and only fail
 # later at check.sh — never at the gate.

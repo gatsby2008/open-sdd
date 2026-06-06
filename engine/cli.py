@@ -28,7 +28,7 @@ COMMANDS = [
     "precheck", "check", "triage", "status", "pause", "resume", "help",
     "implement-check", "implement-done", "implement-plan",
     "resolve-slug", "detect-stack", "risk-signals",
-    "bump-spec-ts", "coverage-check",
+    "bump-spec-ts", "coverage-check", "extract-reference-targets",
 ]
 
 
