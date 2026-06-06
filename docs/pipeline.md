@@ -66,6 +66,7 @@ INDEPENDENT — vibe coding (any branch, any time, no pipeline needed):
   /f-commit            — semantic commit messages
   /f-mr                — MR description & creation
   /f-code-review       — stack-aware quality + security review
+  /f-undo              — discard uncommitted changes, reversibly (--restore / --hard)
                          → see docs/learning/vibe-coding.md
 
   /f-handoff           — package artifacts for another agent (needs an active pipeline)
@@ -76,6 +77,7 @@ UTILITIES:
   /f-auto              — run non-interactively up to pre-commit handoff
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
+  /f-undo              — discard a failed/unwanted implementation, keep .specwork/ (reversible; --hard to force)
   /f-resync            — sync artifacts with current branch (`--rename-branch` to rename + sync)
   /f-spec              — draft / refine spec with additional context
                          (canonical spec command)
@@ -344,5 +346,6 @@ spec has resolved Open Questions worth preserving as ADRs.
 /f-resume → switch back to the recorded branch and restore paused feature work
 ```
 
-To **discard a failed implementation** but keep the pipeline state to re-spec,
-see the revert runbook in [concepts.md](concepts.md#reverting-a-failed-implementation).
+To **discard a failed implementation** but keep the pipeline state to re-spec, use
+**`/f-undo`** (reversible by default; `--restore` to recover, `--hard` to force).
+See the runbook in [concepts.md](concepts.md#reverting-a-failed-implementation).

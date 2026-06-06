@@ -15,7 +15,7 @@ Open-source. Self-contained. Everything lives in this repo.
 
 ## Install
 
-open-sdd is **fully self-contained**. Registers all 28 commands (19 pipeline + 9
+open-sdd is **fully self-contained**. Registers all 29 commands (20 pipeline + 9
 doc/adr) as custom commands with tab-completion:
 
 ```bash
@@ -42,8 +42,10 @@ You don't need the full pipeline to get the quality helpers. Three commands are
 | **`/f-commit`** | Semantic commit message |
 | **`/f-mr`** | MR description & creation |
 | **`/f-code-review`** | Stack-aware quality + security review of your own diff |
+| **`/f-undo`** | Discard uncommitted changes — reversible (`--restore` to recover, `--hard` to force) |
 
-The vibe loop: code freely → `/f-code-review` (optional) → `/f-commit` → `/f-mr`.
+The vibe loop: code freely → `/f-code-review` (optional) → `/f-commit` → `/f-mr`
+(and `/f-undo` to roll back uncommitted changes at any point).
 See [docs/learning/vibe-coding.md](docs/learning/vibe-coding.md).
 
 ### Full pipeline

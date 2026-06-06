@@ -186,24 +186,32 @@ You reach the pre-`/f-commit` review, see the implementation is wrong, and want 
 **discard the code changes but keep the pipeline state** (`.specwork/`) so you can
 re-spec and re-implement.
 
-There is **no native revert command** — `/f-close` does the opposite (wipes
-`.specwork/`, leaves the code). Use git. The safety net is that **`.specwork/` is
-gitignored** (`/f-start` enforces it), so `git clean -fd` skips it — only
-`git clean -fdx` would remove ignored files.
-
-At this point all changes are uncommitted: modified classes are *tracked*, new
-classes/tests from `/f-implement` are *untracked but not ignored*.
+Use **`/f-undo`** — it discards the changes while preserving `.specwork/`:
 
 ```bash
-git clean -fdn                  # 1. DRY RUN — list what would be deleted; nothing removed yet
-git restore .                   # 2. revert edits to tracked files
-git clean -fd                   # 3. delete new untracked files (.specwork/ survives — ignored)
-git status --ignored --short    # 4. confirm only .specwork/ remains
+/f-undo            # reversible: stash the implementation
+/f-undo --restore  # changed your mind — bring it back (redo)
+/f-undo --hard     # irreversible discard (asks you to re-run with --force)
 ```
 
-> Reversible alternative: `git stash --include-untracked` clears the tree but
-> keeps everything in a stash (also respects `.gitignore`, so `.specwork/` stays).
-> `git stash drop` to discard, `git stash pop` to recover.
+`/f-close` does the *opposite* (wipes `.specwork/`, leaves the code), so it is not
+the tool here.
+
+### What `/f-undo` does under the hood (manual fallback)
+
+The safety net is that **`.specwork/` is gitignored** (`/f-start` enforces it), so
+it never enters a stash and `git clean -fd` skips it — only `git clean -fdx` would
+remove ignored files. At this point all changes are uncommitted: modified classes
+are *tracked*, new classes/tests from `/f-implement` are *untracked but not
+ignored*. The reversible default is a stash; by hand:
+
+```bash
+git clean -fdn                       # DRY RUN — list what would be deleted; nothing removed
+git stash push --include-untracked   # reversible: stash code changes (.specwork/ stays)
+# …or, to discard irreversibly:
+git restore . && git clean -fd       # revert tracked edits + delete new files
+git status --ignored --short         # confirm only .specwork/ remains
+```
 
 Then re-spec from the preserved state:
 

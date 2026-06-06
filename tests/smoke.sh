@@ -595,6 +595,25 @@ for w in test-design test-impl; do
   fi
 done
 
+echo "== undo: reversible roundtrip, preserves .specwork/ =="
+d=$(new_repo undo-demo); cd "$d"
+printf '.specwork/\n' > .gitignore; git add .gitignore; git commit -q -m gi
+echo base > Svc.java; git add Svc.java; git commit -q -m base
+mkdir -p .specwork/_state; echo '{}' > .specwork/_state/demo-state.json
+echo IMPL >> Svc.java        # tracked modification
+echo new > New.java          # untracked, not ignored
+out="$(bash "$REPO/commands/undo.sh" --preview 2>&1 </dev/null)"
+printf '%s' "$out" | grep -qF "Would discard 2" && ok "undo --preview lists affected" || bad "undo --preview :: ${out:0:120}"
+bash "$REPO/commands/undo.sh" >/dev/null 2>&1 </dev/null
+[ -z "$(git status --porcelain)" ] && ok "undo clears the working tree" || bad "undo left changes behind"
+[ -f .specwork/_state/demo-state.json ] && ok "undo preserves .specwork/" || bad "undo wiped .specwork/"
+bash "$REPO/commands/undo.sh" --restore >/dev/null 2>&1 </dev/null
+{ grep -qF IMPL Svc.java && [ -f New.java ]; } && ok "undo --restore recovers changes" || bad "undo --restore failed to recover"
+out="$(bash "$REPO/commands/undo.sh" --hard 2>&1 </dev/null)"; rc=$?
+{ [ "$rc" -eq 2 ] && grep -qF IMPL Svc.java; } && ok "undo --hard refuses without --force" || bad "undo --hard guard (rc=$rc)"
+bash "$REPO/commands/undo.sh" --hard --force >/dev/null 2>&1 </dev/null
+{ ! grep -qF IMPL Svc.java && [ -f .specwork/_state/demo-state.json ]; } && ok "undo --hard --force discards, keeps .specwork/" || bad "undo --hard --force"
+
 echo "== triage updates state.json and path.json =="
 d=$(new_repo triage-state); cd "$d"
 mkdir -p .specwork/_state .specwork/_spec
