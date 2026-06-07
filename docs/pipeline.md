@@ -304,6 +304,7 @@ documentation and architecture decisions (registered via install.sh):
 | **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
 | **`/adr-publish`** | Publish all ADRs to the central registry (`$OPEN_SDD_DOC_HOME/adr-registry/<service>/`) |
 | **`/adr-query`** | Ask decision-history questions across all registered ADRs |
+| **`/spec-query`** | Ask feature/spec questions across specs published by `/f-mr` (`spec-registry/<service>/`) |
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.

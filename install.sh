@@ -108,6 +108,8 @@ install_doc_cmd_directive "adr-publish" "Publish ADRs to central registry" "\
 Run ${OPENSDD_PATH}/commands/adr-publish.sh \$ARGUMENTS. If the argument is 'list', print the registered ADRs. Otherwise sync docs/adr/*.md to the central registry."
 install_doc_cmd_directive "adr-query" "Ask architecture-decision questions across ADRs" "\
 Run ${OPENSDD_PATH}/commands/adr-query.sh \$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the user's question, citing every claim as <service>/<ADR-file>."
+install_doc_cmd_directive "spec-query" "Ask feature/spec questions across the spec registry" "\
+Run ${OPENSDD_PATH}/commands/spec-query.sh \"\$ARGUMENTS\". It prints every spec published by /f-mr. Use that output to answer the user's feature/spec question (behavior, scope, constraints, open questions), citing every claim as <service>/<spec-file>."
 install_doc_cmd_directive "doc-freshness" "Check docs for drift against code" "\
 Run ${OPENSDD_PATH}/commands/doc-freshness.sh \$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
@@ -121,7 +123,7 @@ rm -f "${CMD_DIR}/f-refine.md"
 rm -f "${CMD_DIR}/f-doc-adr.md" "${CMD_DIR}/f-doc-catalog.md" "${CMD_DIR}/f-doc-publish.md" "${CMD_DIR}/f-doc-query.md"
 rm -f "${CMD_DIR}/f-adr-publish.md" "${CMD_DIR}/f-adr-query.md"
 
-echo "open-sdd: 27 commands installed to $CMD_DIR"
+echo "open-sdd: 28 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
 # Global SDD instructions file (avoids confusion with project-level AGENTS.md)

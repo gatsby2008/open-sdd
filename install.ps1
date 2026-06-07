@@ -115,6 +115,7 @@ Install-DocCmdDirective -Name "doc-query" -Description "Ask cross-service archit
 Install-DocCmdDirective -Name "doc-adr" -Description "Create an Architecture Decision Record" -Directive "Run ${OPENSDD_PATH}/commands/doc-adr.sh `$ARGUMENTS to find the next ADR number and gather context. Use the output to draft an ADR, confirm with the user, write to docs/adr/, and offer to commit."
 Install-DocCmdDirective -Name "adr-publish" -Description "Publish ADRs to central registry" -Directive "Run ${OPENSDD_PATH}/commands/adr-publish.sh `$ARGUMENTS. If the argument is 'list', print the registered ADRs. Otherwise sync docs/adr/*.md to the registry."
 Install-DocCmdDirective -Name "adr-query" -Description "Ask architecture-decision questions across ADRs" -Directive "Run ${OPENSDD_PATH}/commands/adr-query.sh `$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the question, citing every claim as <service>/<ADR-file>."
+Install-DocCmdDirective -Name "spec-query" -Description "Ask feature/spec questions across the spec registry" -Directive "Run ${OPENSDD_PATH}/commands/spec-query.sh `$ARGUMENTS. It prints every spec published by /f-mr. Use that output to answer the user's feature/spec question (behavior, scope, constraints, open questions), citing every claim as <service>/<spec-file>."
 Install-DocCmdDirective -Name "doc-freshness" -Description "Check docs for drift against code" -Directive "Run ${OPENSDD_PATH}/commands/doc-freshness.sh `$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
 
 # Remove stale commands from previous versions
@@ -123,7 +124,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContin
   Remove-Item -Path (Join-Path $CMD_DIR "f-$_.md") -ErrorAction SilentlyContinue | Out-Null
 }
 
-Write-Host "open-sdd: 27 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 28 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------

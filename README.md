@@ -15,7 +15,7 @@ Open-source. Self-contained. Everything lives in this repo.
 
 ## Install
 
-open-sdd is **fully self-contained**. Registers all 27 commands (20 pipeline + 7
+open-sdd is **fully self-contained**. Registers all 28 commands (20 pipeline + 8
 doc/adr) as custom commands with tab-completion:
 
 ```bash

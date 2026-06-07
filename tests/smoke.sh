@@ -609,6 +609,16 @@ assert_json ".specwork/_state/tri-test-state.json"  "complexity"  "LOW"      "tr
 skip0=$(python3 -c "import json; print(json.load(open('.specwork/_state/tri-test-path.json'))['skip'][0])" 2>/dev/null || echo "__MISSING__")
 [ "$skip0" = "f-plan" ] && ok "triage path skips plan for focused (skip[0]=$skip0)" || bad "triage path skips plan (skip[0]=$skip0, want f-plan)"
 
+echo "== spec-query: reads the spec registry published by /f-mr =="
+SPEC_REG="$SCRATCH_ROOT/spec-reg"
+mkdir -p "$SPEC_REG/spec-registry/lead-service"
+printf '# demo\n## Behavior\nSkip dedupe when applicationId is null.\n' > "$SPEC_REG/spec-registry/lead-service/dedupe-spec.md"
+out="$(OPEN_SDD_DOC_HOME="$SPEC_REG" bash "$REPO/commands/spec-query.sh" "what does dedupe do?" 2>&1 </dev/null)"
+printf '%s' "$out" | grep -qF "lead-service/dedupe-spec.md" && ok "spec-query lists the published spec" || bad "spec-query missing spec :: ${out:0:160}"
+printf '%s' "$out" | grep -qF "Skip dedupe when applicationId is null" && ok "spec-query prints the spec body" || bad "spec-query body missing"
+out="$(OPEN_SDD_DOC_HOME="$SCRATCH_ROOT/empty-reg" bash "$REPO/commands/spec-query.sh" "x" 2>&1 </dev/null)"
+printf '%s' "$out" | grep -qF "No specs found" && ok "spec-query graceful on empty registry" || bad "spec-query empty-registry path"
+
 echo "== status.sh shows clickable OQ path =="
 d=$(new_repo status-oclk); cd "$d"
 mkdir -p .specwork/_state .specwork/_spec
