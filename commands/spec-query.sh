@@ -6,8 +6,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Match lib/spec-publish.sh's path exactly so we read what /f-mr wrote.
-REGISTRY="${OPEN_SDD_DOC_HOME:-$HOME/.claude}/spec-registry"
+# Same registry root as doc-query/adr-query and lib/spec-publish.sh, so we read
+# exactly what /f-mr wrote.
+REGISTRY="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/spec-registry"
 
 FILES=()
 while IFS= read -r f; do
