@@ -18,8 +18,8 @@ done < <(find "$REGISTRY" -name '*-spec.md' -type f 2>/dev/null)
 if [ ${#FILES[@]} -eq 0 ]; then
   echo "No specs found in $REGISTRY/"
   echo ""
-  echo "Specs are published automatically by /f-mr when a .specwork spec exists."
-  echo "Run the pipeline through /f-mr in a project, then re-run this query."
+  echo "Publish a spec with /spec-publish <path>, or run the pipeline through /f-mr"
+  echo "(which publishes automatically when a .specwork spec exists), then re-run this query."
   exit 0
 fi
 
