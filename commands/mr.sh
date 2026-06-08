@@ -177,6 +177,22 @@ else
   PLAN_TEXT="No plan file found."
 fi
 
+# ---- publish spec to docs/specs/ (in-repo, pipeline mode only) --------------
+# Snapshot the final spec into the repo and commit it BEFORE push, so it lands
+# inside the MR diff and history. Standalone-safe (skips when no .specwork spec)
+# and idempotent (only commits when the file is new or changed). Independent of
+# and complementary to the external spec-registry publish below — both run.
+
+if [ -n "${SPEC_FILE:-}" ] && [ -f "$SPEC_FILE" ]; then
+  mkdir -p docs/specs
+  cp "$SPEC_FILE" "docs/specs/${SLUG}-spec.md"
+  git add "docs/specs/${SLUG}-spec.md"
+  if ! git diff --cached --quiet -- "docs/specs/${SLUG}-spec.md"; then
+    git commit -m "docs: publish spec to docs/specs/${SLUG}-spec.md"
+    echo "Published spec to docs/specs/${SLUG}-spec.md"
+  fi
+fi
+
 # ---- push branch ------------------------------------------------------------
 
 echo ""
