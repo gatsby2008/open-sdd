@@ -40,8 +40,9 @@ current_branch() {
 # — so they must not block /f-start on a base branch. git checkout -b carries them
 # onto the new feature branch, where they get committed with the rest of the work.
 tree_is_clean() {
-  # worktree-clean returns 0 when clean, 1 when dirty (agent-memory files exempt).
-  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli worktree-clean --exclude-agent-files 2>/dev/null
+  git status --porcelain -- . \
+    ':(exclude)AGENTS.md' ':(exclude)CLAUDE.md' ':(exclude)GEMINI.md' \
+    2>/dev/null | grep -q . && return 1 || return 0
 }
 
 # ---- main -------------------------------------------------------------------
@@ -192,9 +193,6 @@ elif [ "$BRANCH_FLAG" = "keep" ]; then
   SLUG=$(slug_from_branch "$BRANCH")
   echo "Staying on $BRANCH (slug: $SLUG)."
 else
-  # No branch flag: prompt interactively. This needs a real terminal — an
-  # agent/headless caller has no TTY for `read`, so fail loudly with the
-  # non-interactive equivalents instead of looping on an empty "Invalid choice".
   if [ ! -t 0 ]; then
     echo "✗ No branch flag given and no interactive terminal to prompt for one." >&2
     echo "  Re-run with one of:" >&2
@@ -246,7 +244,7 @@ fi
 # .claude/rules/*.md. When present, sync them into the personal (gitignored)
 # .opensdd/service-rules.md inside a managed block; content outside the block is
 # preserved for personal, local-only rules. Fall back to the template only when
-# neither the shared rules nor a personal file/dir exists.
+# neither the shared rules nor a personal file exists.
 if ls .claude/rules/*.md >/dev/null 2>&1; then
   python3 - <<'PY'
 from pathlib import Path
@@ -275,7 +273,7 @@ personal = personal.strip()
 target.write_text(block + ("\n\n" + personal + "\n" if personal else "\n"), encoding="utf-8")
 print("Synced .opensdd/service-rules.md from .claude/rules/")
 PY
-elif [ ! -f ".opensdd/service-rules.md" ] && ! { [ -d ".opensdd/rules" ] && ls .opensdd/rules/*.md >/dev/null 2>&1; }; then
+elif [ ! -f ".opensdd/service-rules.md" ]; then
   if cp "$TEMPLATES_DIR/service-rules.md" ".opensdd/service-rules.md"; then
     echo "Created .opensdd/service-rules.md"
   fi
