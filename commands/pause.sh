@@ -30,9 +30,7 @@ echo "Slug:   $SLUG"
 
 # ---- step 2: check for actual changes ---------------------------------------
 
-HAS_CHANGES=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-
-if [ "$HAS_CHANGES" -eq 0 ] && [ ! -d ".specwork" ]; then
+if PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli worktree-clean 2>/dev/null && [ ! -d ".specwork" ]; then
   die "Nothing to pause — working tree is clean and no .specwork/ artifacts found."
 fi
 

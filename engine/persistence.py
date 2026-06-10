@@ -22,6 +22,29 @@ def save_state(slug: str, data: dict[str, Any]):
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
+def rename_slug_in_state(
+    state_path: str, new_slug: str, old_slug: str, branch: str, ticket: str, input_type: str
+) -> dict[str, Any]:
+    """Rewrite a state.json for a slug/branch rename (resync step 7).
+
+    First replaces ``old_slug``→``new_slug`` in every string field (internal
+    paths), then sets the authoritative id/branch/ticket/input_type. Replacement
+    runs first so a new slug that contains the old one doesn't double-up.
+    ``source_title`` is left untouched. Returns the updated dict.
+    """
+    p = Path(state_path)
+    d = json.loads(p.read_text(encoding="utf-8"))
+    for k, v in list(d.items()):
+        if isinstance(v, str) and old_slug in v:
+            d[k] = v.replace(old_slug, new_slug)
+    d["id"] = new_slug
+    d["branch"] = branch
+    d["ticket"] = ticket if ticket else None
+    d["input_type"] = input_type
+    p.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
+    return d
+
+
 def load_rules(slug: str) -> Optional[dict[str, Any]]:
     path = SPECWORK / "_state" / f"{slug}-rules.json"
     if not path.exists():

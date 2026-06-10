@@ -138,6 +138,86 @@ def check_branch_match(slug: str) -> Optional[str]:
     return None
 
 
+def ticket_from_branch(branch: str) -> tuple[str, str]:
+    """Return ``(ticket, input_type)`` from a branch name.
+
+    Strict canonical Jira key (IR-70, MYYES-1234) → ``(KEY, "jira")``; dotted
+    variant (IR-70.1), not API-queryable → ``(KEY, "freetext")``; no match →
+    ``("", "freetext")``.
+    """
+    unprefixed = re.sub(r"^(feature|hotfix|release|bugfix)/", "", branch).upper()
+    strict = re.match(r"^([A-Z]+-[0-9]+)(?:-|$)", unprefixed)
+    if strict:
+        return strict.group(1), "jira"
+    loose = re.match(r"^([A-Z]+-[0-9.]+)(?:-|$)", unprefixed)
+    if loose:
+        return loose.group(1), "freetext"
+    return "", "freetext"
+
+
+def _oq_section(slug: str) -> str:
+    spec = SPECWORK / "_spec" / f"{slug}-spec.md"
+    if not spec.exists():
+        return ""
+    text = spec.read_text(encoding="utf-8")
+    m = re.search(r"(?ms)^## Open Questions\b(.*?)(?=^## |\Z)", text)
+    return m.group(1) if m else ""
+
+
+def count_open_questions(slug: str) -> tuple[int, int]:
+    """Return ``(open, resolved)`` OQ counts from the spec (``[ ]`` vs ``[x]``)."""
+    section = _oq_section(slug)
+    open_n = len([l for l in section.splitlines() if re.match(r"^\s*-\s*\[\s*\]", l)])
+    resolved_n = len([l for l in section.splitlines() if re.match(r"^\s*-\s*\[[xX]\]", l)])
+    return open_n, resolved_n
+
+
+def get_resolved_oqs(slug: str) -> dict[str, str]:
+    """Return ``{question: answer}`` for resolved OQs (``- [x] q — a``)."""
+    out: dict[str, str] = {}
+    for l in _oq_section(slug).splitlines():
+        m = re.match(r"^\s*-\s*\[[xX]\]\s*(.+)$", l)
+        if not m:
+            continue
+        body = m.group(1).strip()
+        if "—" in body:
+            q, a = body.split("—", 1)
+            out[q.strip()] = a.strip()
+        else:
+            out[body] = ""
+    return out
+
+
+def format_staleness_error(slug: str) -> str:
+    """Human-readable staleness message, or "" when the plan is fresh/absent."""
+    if not check_plan_staleness(slug):
+        return ""
+    return (
+        f"Plan is stale: .specwork/_plan/{slug}-plan.md is older than the spec "
+        f"(the spec changed after the plan was written). Re-run /f-plan to refresh it, "
+        f"or delete the plan to force a rebuild."
+    )
+
+
+def audit_artifacts(slug: str) -> dict:
+    """Existence + mtime for every artifact of a slug, keyed by artifact name."""
+    artifacts = {
+        "state_file": SPECWORK / "_state" / f"{slug}-state.json",
+        "rules_file": SPECWORK / "_state" / f"{slug}-rules.json",
+        "cache_file": SPECWORK / "_state" / f"{slug}-implementation-cache.json",
+        "path_file": SPECWORK / "_state" / f"{slug}-path.json",
+        "spec_file": SPECWORK / "_spec" / f"{slug}-spec.md",
+        "source_file": SPECWORK / "_spec" / f"{slug}-source.md",
+        "plan_file": SPECWORK / "_plan" / f"{slug}-plan.md",
+        "context_file": SPECWORK / "_progress" / f"{slug}-context.md",
+    }
+    result = {}
+    for name, p in artifacts.items():
+        exists = p.exists()
+        result[name] = {"path": str(p), "exists": exists, "mtime": p.stat().st_mtime if exists else None}
+    return result
+
+
 def detect_stack() -> str:
     if any(Path(f).exists() for f in ["build.gradle", "build.gradle.kts", "pom.xml"]):
         return "java"

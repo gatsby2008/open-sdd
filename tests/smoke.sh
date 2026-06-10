@@ -526,6 +526,31 @@ else
   bad "start.sh duplicated entries (.opensdd=$oc)"
 fi
 
+echo "== start.sh syncs .opensdd/service-rules.md from .claude/rules/ =="
+d=$(new_repo rules-sync); cd "$d"
+mkdir -p .claude/rules
+printf '%s\n' "# Domain A" "" "## Invariants" "" "- alpha invariant." > .claude/rules/a.md
+printf '%s\n' "# Domain B" "" "## Invariants" "" "- bravo invariant." > .claude/rules/b.md
+out="$($TO bash "$REPO/commands/start.sh" "rules sync ticket" --keep 2>&1 </dev/null)"; rc=$?
+if [ -f .opensdd/service-rules.md ] \
+   && grep -qF "BEGIN imported from .claude/rules" .opensdd/service-rules.md \
+   && grep -qF "alpha invariant." .opensdd/service-rules.md \
+   && grep -qF "bravo invariant." .opensdd/service-rules.md; then
+  ok "start.sh syncs .claude/rules/ into .opensdd/service-rules.md"
+else
+  bad "start.sh did not sync .claude/rules/ :: ${out:0:200}"
+fi
+
+# Re-sync: personal content outside the managed block survives; block not duplicated.
+printf '\n%s\n' "- my personal local rule." >> .opensdd/service-rules.md
+out="$($TO bash "$REPO/commands/start.sh" "rules resync ticket" --keep 2>&1 </dev/null)"; rc=$?
+blocks=$(grep -cF "BEGIN imported from .claude/rules" .opensdd/service-rules.md)
+if [ "$blocks" = "1" ] && grep -qF "my personal local rule." .opensdd/service-rules.md; then
+  ok "start.sh re-sync preserves personal rules and does not duplicate the block"
+else
+  bad "start.sh re-sync wrong (blocks=$blocks) :: $(head -5 .opensdd/service-rules.md)"
+fi
+
 echo "== start.sh preserves free text in source.md (regression) =="
 # Plain free-text input must land in the source body, not an empty file.
 d=$(new_repo freetext-source); cd "$d"
