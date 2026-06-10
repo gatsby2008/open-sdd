@@ -62,7 +62,7 @@ worth a durable spec:
 /f-mr                  # validate, push, create the MR
 ```
 
-Or drive it non-interactively to the pre-commit handoff in one call:
+Or drive it non-interactively through to the MR in one call:
 
 ```bash
 /f-auto "summary: … behaviour: … scope: … safe constraints: …"

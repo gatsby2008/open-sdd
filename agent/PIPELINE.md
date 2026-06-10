@@ -114,9 +114,8 @@ full description from a file verbatim, bypassing shell quoting entirely.
 ### /auto <ticket-or-text> [--input-file <path>]
 
 Non-interactive driver for the happy path. Chains `/start → /spec → /plan →
-/implement` and then **always pauses before commit** for human review. After the
-manual `/commit`, commit auto-runs `/mr` and stops. It never runs `/close` or
-`/mr-address`.
+/implement → /commit → /mr` non-interactively, then stops once the MR is open. It
+never runs `/close` or `/mr-address`.
 
 When the description contains special characters (JSON, quotes, etc.) that would
 be mangled by shell quoting, use `--input-file <path>` to pass the description
@@ -147,10 +146,12 @@ the `/start` flow, **before** invoking `auto.sh`.
    is now active, `auto.sh`'s own `precheck` detects it and **skips its internal
    `/start`** — so the branch you just confirmed is kept and there is no second
    prompt. `auto.sh` then runs spec → Open-Questions gate → plan → implement and
-   stops before commit.
-4. **Two stops only:** unresolved Open Questions (after `/spec`) and the
-   pre-commit review handoff (after `/implement`). Surface whichever it hit and
-   hand control back. Do NOT run `/commit`, `/close`, or `/mr-address` yourself.
+   returns control to you.
+4. **Finish the run.** After `auto.sh` returns, run `/commit` then `/mr` (commit
+   auto-continues to `/mr` via pipeline state) and **STOP at the open MR**. The
+   only hard stop along the way is unresolved Open Questions (after `/spec`); if
+   `auto.sh` flagged risk signals you may run the optional test steps before
+   `/commit`. Never run `/close` or `/mr-address` yourself.
 
 (If a human runs `bash commands/auto.sh <input>` directly in a terminal instead
 of going through you, the TTY-gated prompt in `start.sh --confirm-branch` covers

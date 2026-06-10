@@ -408,10 +408,10 @@ if p.exists():
     p.write_text(json.dumps(d, indent=2) + '\n')
 "
 
-6. STOP HERE — print the handoff message below and do NOT run /f-commit:
-   "Auto mode paused before /f-commit. Review the changes, then run /f-commit."
+6. Run /f-commit — it runs the coverage gate, commits, and (with the flag set
+   above) continues automatically to /f-mr. STOP at the open MR.
 
-Do NOT run /f-commit automatically. The pre-commit review is a hard stop.
+Do NOT run /f-close or /f-mr-address — those are post-merge, human-gated steps.
 INSTRUCTIONS
 fi
 

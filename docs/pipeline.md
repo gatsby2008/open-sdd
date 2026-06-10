@@ -74,7 +74,7 @@ INDEPENDENT — vibe coding (any branch, any time, no pipeline needed):
 UTILITIES:
   /f-help              — where am I, what's next
   /f-status            — detailed pipeline progress
-  /f-auto              — run non-interactively up to pre-commit handoff
+  /f-auto              — run non-interactively through to the open MR
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
   /f-undo              — discard a failed/unwanted implementation, keep .specwork/ (reversible; --hard to force)
@@ -165,15 +165,13 @@ Non-interactive autopilot for the happy path. Runs `/f-start → /f-spec → /f-
 before commit so you can review changes. No flags: just the ticket key or
 free-text description.
 
-It hands control back to the human at exactly two points:
+It hands control back to the human at one hard stop:
 
 - **Unresolved Open Questions** (after `/f-spec`): stops and asks you to resolve
   them in the spec, then re-run.
-- **Pre-commit review handoff**: after `/f-implement`, it always pauses so you
-  can verify diffs before creating a commit.
 
-After your manual `/f-commit`, if the run originated from `/f-auto`, commit
-will open/update the MR automatically (`/f-mr`) and stop there. It never runs
+Otherwise it runs straight through: after `/f-implement` it runs `/f-commit`,
+which opens/updates the MR automatically (`/f-mr`) and stops there. It never runs
 `/f-close` (post-merge) or `/f-mr-address` (requires human review feedback).
 
 ### /f-start \<ticket-or-text\>

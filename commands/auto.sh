@@ -95,8 +95,8 @@ if [ -n "$SLUG" ]; then
 
   # Concrete risk signals (deterministic keyword matches — db-migration, auth,
   # data-destructive, concurrency, breaking-api), NOT the fuzzy triage tier.
-  # Auto mode always pauses before commit, so these are surfaced informationally
-  # at the handoff to help the user decide whether to run the (costly) test steps.
+  # Surfaced informationally at the implement→commit handoff to help decide
+  # whether to run the (costly) test steps before committing.
   RISK_SIGNALS=$(engine risk-signals "$SLUG" 2>/dev/null || true)
 fi
 
@@ -114,7 +114,7 @@ echo ""
 
 # ---- step 5: handoff to commit+mr -------------------------------------------
 
-echo "--- [5/5] handoff: stop before f-commit ---"
+echo "--- [5/5] implementation complete — handing off to commit + MR ---"
 if [ -n "$SLUG" ] && [ -f ".specwork/_state/${SLUG}-state.json" ]; then
   python3 - "$SLUG" <<'PY'
 import json, sys
@@ -134,13 +134,13 @@ if [ -n "$RISK_SIGNALS" ]; then
 $RISK_SIGNALS
 EOF
 fi
-echo "Auto mode paused before /f-commit so you can review changes."
+echo "Implementation complete — next is /f-commit (which continues to /f-mr)."
 echo ""
 
 # ---- done --------------------------------------------------------------------
 
 echo "============================================"
-echo "  Auto mode paused"
+echo "  Auto: implementation complete"
 echo "============================================"
 echo "  Branch:  $(git rev-parse --abbrev-ref HEAD)"
 echo "  Slug:    ${SLUG:-unknown}"
@@ -148,6 +148,5 @@ echo "  Spec:    .specwork/_spec/${SLUG:-?}-spec.md"
 echo "  Plan:    .specwork/_plan/${SLUG:-?}-plan.md"
 echo "============================================"
 echo ""
-echo "Next: run /f-commit after your review."
-echo "When this run comes from /f-auto, /f-commit will open/update the MR automatically."
+echo "Next: run /f-commit — it continues to /f-mr automatically."
 echo "Do NOT run /f-close until the MR is merged."
