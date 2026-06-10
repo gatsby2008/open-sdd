@@ -32,7 +32,10 @@ def parse_porcelain(output: str, exclude_agent_files: bool = False) -> list[str]
 
 
 def _git_porcelain() -> str:
-    return subprocess.check_output(["git", "status", "--porcelain"]).decode()
+    try:
+        return subprocess.check_output(["git", "status", "--porcelain"]).decode()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return ""
 
 
 def dirty_files(exclude_agent_files: bool = False) -> list[str]:

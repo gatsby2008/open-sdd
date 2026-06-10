@@ -15,6 +15,7 @@ from engine.gates import (
     detect_stack,
     detect_risk_signals,
     check_spec_consistency,
+    extract_reference_targets,
     ticket_from_branch,
     count_open_questions,
     get_resolved_oqs,
@@ -147,6 +148,56 @@ class GatesTestCase(unittest.TestCase):
         (SPECWORK / "_state" / "stale-state.json").write_text(
             json.dumps(state), encoding="utf-8")
         self.assertTrue(check_plan_staleness("stale"))
+
+    # --- format_staleness_error ---
+
+    def test_format_staleness_error_empty_when_fresh(self):
+        (SPECWORK / "_plan").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        plan = SPECWORK / "_plan" / "fresh-plan.md"
+        plan.write_text("plan", encoding="utf-8")
+        (SPECWORK / "_state" / "fresh-state.json").write_text(
+            json.dumps({"spec_write_timestamp": int(plan.stat().st_mtime) - 100}),
+            encoding="utf-8")
+        self.assertEqual(format_staleness_error("fresh"), "")
+
+    def test_format_staleness_error_message_when_stale(self):
+        (SPECWORK / "_plan").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        plan = SPECWORK / "_plan" / "stalemsg-plan.md"
+        plan.write_text("plan", encoding="utf-8")
+        (SPECWORK / "_state" / "stalemsg-state.json").write_text(
+            json.dumps({"spec_write_timestamp": int(plan.stat().st_mtime) + 100}),
+            encoding="utf-8")
+        msg = format_staleness_error("stalemsg")
+        self.assertIn("Plan is stale", msg)
+        self.assertIn("stalemsg-plan.md", msg)
+
+    # --- extract_reference_targets ---
+
+    def test_extract_reference_targets_finds_destructive_symbols(self):
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec = SPECWORK / "_spec" / "refs-spec.md"
+        spec.write_text(
+            "## Behavior\n\nRemove the `LegacyService` class and delete `OldMapper`.\n",
+            encoding="utf-8")
+        symbols = extract_reference_targets(spec)
+        self.assertIn("LegacyService", symbols)
+        self.assertIn("OldMapper", symbols)
+
+    def test_extract_reference_targets_excludes_negated_and_safe_constraints(self):
+        (SPECWORK / "_spec").mkdir(parents=True, exist_ok=True)
+        spec = SPECWORK / "_spec" / "refs2-spec.md"
+        spec.write_text(
+            "## Behavior\n\nDo NOT remove `KeepThis`.\n\n"
+            "## Safe Constraints\n\nDelete `SafeOnly` is mentioned here.\n",
+            encoding="utf-8")
+        symbols = extract_reference_targets(spec)
+        self.assertNotIn("KeepThis", symbols)
+        self.assertNotIn("SafeOnly", symbols)
+
+    def test_extract_reference_targets_missing_spec(self):
+        self.assertEqual(extract_reference_targets(Path("nope.md")), [])
 
     # --- check_required_artifacts ---
 

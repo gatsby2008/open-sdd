@@ -53,10 +53,12 @@ echo ""
 # ---- step 1: start ----------------------------------------------------------
 
 echo "--- [1/5] f-start / pipeline detect ---"
-# start.sh's --confirm-branch prompt is TTY-gated, so it only fires for a human
-# running this script in a terminal. An agent driving /f-auto must confirm the
-# branch itself FIRST (see the /auto section in agent/PIPELINE.md) and run
-# start.sh; by the time it gets here a pipeline exists and precheck skips start.
+# start.sh's interactive A/B/C branch prompt only fires when no
+# --choose/--branch/--keep flag is passed AND stdin is a terminal, so it only
+# applies to a human running this script directly. An agent driving /f-auto must
+# confirm the branch itself FIRST (see the /auto section in agent/PIPELINE.md)
+# and run start.sh with an explicit --choose/--branch/--keep; by the time it gets
+# here a pipeline exists and precheck skips start.
 if engine precheck >/dev/null 2>&1; then
   echo "Existing pipeline detected — skipping /f-start and keeping current branch."
 else

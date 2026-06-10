@@ -297,12 +297,12 @@ high-quality human constraints outperform autonomous AI discovery
 /f-start → /f-spec → OQ check → /f-plan → /f-implement → (handoff)
 ```
 
-It sets `SDD_NON_INTERACTIVE=1` to skip the routine bash prompts, but still calls `/f-start` with `--confirm-branch` so branch creation is confirmed whenever running in an interactive TTY session. It stops for human input at exactly two points:
+It sets `SDD_NON_INTERACTIVE=1` to skip the routine bash prompts. Branch confirmation still happens: when a human drives it, `start.sh`'s interactive A/B/C prompt fires (it runs whenever no `--choose/--branch/--keep` flag is passed and stdin is a terminal); when the agent drives it, the agent confirms the branch in chat and then calls `start.sh` with an explicit `--choose A`/`--branch`/`--keep`. It then runs straight through `/f-spec → /f-plan → /f-implement → /f-commit → /f-mr` and stops at the open MR, pausing for human input at only two points:
 
-- **Unresolved Open Questions** (after `/f-spec`): stops and asks the user to resolve them.
-- **Pre-commit review handoff**: after `/f-implement`, it always pauses so the user can review diffs before creating a commit.
+- **Unresolved Open Questions** (after `/f-spec`): hard stop — asks the user to resolve them, then re-run.
+- **Risk-signal test gate** (after `/f-implement`): only when the spec touched a risk area, it asks whether to run the optional `/f-test-design` + `/f-test-impl` steps before committing. With no risk signals it does not pause — it proceeds straight to `/f-commit`.
 
-After that handoff, `/f-commit` can auto-run `/f-mr` (when the run originated from `/f-auto`) and then stop. `/f-auto` never runs `/f-close` (post-merge) or `/f-mr-address` (needs human review comments).
+It does **not** stop before `/f-commit`. `/f-commit` auto-continues to `/f-mr` (via pipeline state) and the run ends at the open MR. `/f-auto` never runs `/f-close` (post-merge) or `/f-mr-address` (needs human review comments).
 
 ---
 

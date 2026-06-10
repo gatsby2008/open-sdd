@@ -87,13 +87,15 @@ Do not create for:
 | `/f-test-impl` | `bash $OPEN_SDD_ROOT/commands/test-impl.sh` |
 | `/f-commit` | `bash $OPEN_SDD_ROOT/commands/commit.sh` |
 | `/f-auto` | `bash $OPEN_SDD_ROOT/commands/auto.sh` |
-| `/f-auto <ticket> [--with-tests]` | `bash $OPEN_SDD_ROOT/commands/auto.sh <ticket> [--with-tests]` |
+| `/f-auto <ticket>` | `bash $OPEN_SDD_ROOT/commands/auto.sh <ticket>` |
 | `/f-spec` | `bash $OPEN_SDD_ROOT/commands/spec.sh` |
 | `/f-spec <args>` | `bash $OPEN_SDD_ROOT/commands/spec.sh <args>` |
 | `/f-resync` | `bash $OPEN_SDD_ROOT/commands/resync.sh` |
 | `/f-resync <name>` | `bash $OPEN_SDD_ROOT/commands/resync.sh <name>` |
 | `/f-code-review` | `bash $OPEN_SDD_ROOT/commands/code-review.sh` |
 | `/f-code-review --recheck` | `bash $OPEN_SDD_ROOT/commands/code-review.sh --recheck` |
+| `/f-mr-review <branch\|mr-url\|mr-iid>` | `bash $OPEN_SDD_ROOT/commands/mr-review.sh <arg>` |
+| `/f-undo` | `bash $OPEN_SDD_ROOT/commands/undo.sh` (reversible; `--restore` to recover, `--hard --force` to discard) |
 | `/f-help` | `bash $OPEN_SDD_ROOT/commands/help.sh` |
 | `/f-help overview` | `bash $OPEN_SDD_ROOT/commands/help.sh overview` |
 | `/f-mr-address` | `bash $OPEN_SDD_ROOT/commands/mr-address.sh` |
@@ -109,6 +111,10 @@ Do not create for:
 | `/adr-publish` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh` |
 | `/adr-publish list` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh list` |
 | `/adr-query <question>` | `bash $OPEN_SDD_ROOT/commands/adr-query.sh <question>` |
+| `/spec-publish` | `bash $OPEN_SDD_ROOT/commands/spec-publish.sh` |
+| `/spec-publish <path>` | `bash $OPEN_SDD_ROOT/commands/spec-publish.sh <path>` |
+| `/spec-publish list` | `bash $OPEN_SDD_ROOT/commands/spec-publish.sh list` |
+| `/spec-query <question>` | `bash $OPEN_SDD_ROOT/commands/spec-query.sh <question>` |
 | `/doc-freshness` | `bash $OPEN_SDD_ROOT/commands/doc-freshness.sh` — detect drift between docs and code |
 | `/doc-freshness <path>` | `bash $OPEN_SDD_ROOT/commands/doc-freshness.sh <path>` — check docs in another repo |
 

@@ -3,8 +3,9 @@ import re
 from pathlib import Path
 from typing import Optional
 
-
-SPECWORK = Path(".specwork")
+# Single source of truth for the working-dir root, shared with persistence.py
+# (re-exported here so callers importing it from engine.gates keep working).
+from engine.persistence import SPECWORK
 
 
 def _current_branch() -> Optional[str]:

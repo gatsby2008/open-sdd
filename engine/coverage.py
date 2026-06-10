@@ -195,7 +195,7 @@ def all_repo_files() -> list[str]:
     return sorted(paths)
 
 
-def waiver_paths(slug) -> list[str]:
+def waiver_paths(slug: str | None) -> list[str]:
     """Candidate waiver files: per-feature (pipeline) and repo-root (standalone)."""
     paths = []
     if slug:
@@ -204,7 +204,7 @@ def waiver_paths(slug) -> list[str]:
     return paths
 
 
-def _read_waiver_file(path: str) -> set:
+def _read_waiver_file(path: str) -> set[str]:
     p = Path(path)
     if not p.exists():
         return set()
@@ -219,7 +219,7 @@ def _read_waiver_file(path: str) -> set:
     return set()
 
 
-def load_waivers(slug=None) -> set:
+def load_waivers(slug: str | None = None) -> set[str]:
     """Waived paths from the per-feature file and/or the repo-root fallback."""
     waived = set()
     for path in waiver_paths(slug):

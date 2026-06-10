@@ -31,19 +31,31 @@ behavior = section("Behavior", spec).lower()
 impl_ctx = section("Implementation Context", spec).lower()
 scope    = section("Expected Change Scope", spec).lower()
 
+# NOTE: keep this list in sync with engine/cli.py::triage (high_kw).
 HIGH_KW = (
     "async", "completablefuture", "executorservice", "@async",
     "transactional", "retry", "retrytemplate",
     "event", "sns", "sqs", "kafka", "consumer", "producer",
     "auth", "authentication", "authorization", "security",
     "migration", "flyway", "liquibase", "breaking", "concurrency",
+    # Frontend high-risk keywords
+    "state management", "redux", "zustand", "context api",
+    "routing", "navigation", "react-router", "next.router",
+    "accessibility", "a11y", "aria",
+    "ssr", "hydration", "code splitting",
+    "data fetching", "useSWR", "react-query", "tanstack query",
+    "component migration", "ui library", "design system",
+    "i18n", "localization",
+    "theming", "dark mode",
 )
 TRIVIAL_KW = ("typo", "rename", "copy change", "wording", "message change")
 
 matched_high = [k for k in HIGH_KW if k in behavior or k in impl_ctx]
 matched_triv = [k for k in TRIVIAL_KW if k in behavior]
 
-known_layers = ("service", "controller", "repository", "config", "tests", "integration")
+# NOTE: keep this list in sync with engine/cli.py::triage (known_layers).
+known_layers = ("service", "controller", "repository", "config", "tests", "integration",
+                "component", "page", "store", "hook", "screen", "layout", "util")
 layers_match = re.search(r"expected layers[^\n]*?:\s*([^\n]+)", scope)
 layers = [L for L in known_layers if layers_match and L in layers_match.group(1)]
 num_layers = len(layers)

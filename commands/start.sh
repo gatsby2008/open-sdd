@@ -192,6 +192,17 @@ elif [ "$BRANCH_FLAG" = "keep" ]; then
   SLUG=$(slug_from_branch "$BRANCH")
   echo "Staying on $BRANCH (slug: $SLUG)."
 else
+  # No branch flag: prompt interactively. This needs a real terminal — an
+  # agent/headless caller has no TTY for `read`, so fail loudly with the
+  # non-interactive equivalents instead of looping on an empty "Invalid choice".
+  if [ ! -t 0 ]; then
+    echo "✗ No branch flag given and no interactive terminal to prompt for one." >&2
+    echo "  Re-run with one of:" >&2
+    echo "    --choose A           # create the suggested branch ($SUGGESTED_BRANCH)" >&2
+    echo "    --choose C | --keep  # stay on the current branch ($CURRENT)" >&2
+    echo "    --branch <name>      # create a custom branch" >&2
+    exit 1
+  fi
   echo ""
   echo "Suggested branch: $SUGGESTED_BRANCH"
   echo ""

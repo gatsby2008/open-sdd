@@ -2203,7 +2203,7 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 <p><strong>How it works:</strong></p>
 <ul>
 <li>Exports <code>SDD_NON_INTERACTIVE=1</code> → all commands disable bash prompts</li>
-<li><code>start.sh</code>: confirms branch choice when running in an interactive TTY (via --confirm-branch)</li>
+<li><code>start.sh</code>: confirms branch choice — its interactive A/B/C prompt fires when no <code>--choose/--branch/--keep</code> flag is passed and stdin is a terminal; the agent passes <code>--choose A</code>/<code>--branch</code>/<code>--keep</code> after confirming in chat</li>
 <li><code>implement.sh</code>: auto-re-runs <code>/f-plan</code> if stale</li>
 <li><code>commit.sh</code>: auto-accepts proposed commit message</li>
 <li>The LLM still implements code changes; only bash prompts are skipped</li>

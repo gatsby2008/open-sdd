@@ -15,7 +15,7 @@ it relies on see [concepts.md](concepts.md).
           ▼
     ┌─────────────┐
     │  /f-start   │  → pre-flight, create/select branch, write state + source.md (no spec.md yet)
-    │  (/f-auto)  │  → non-interactive alternative; runs through implement, then pauses pre-commit
+    │  (/f-auto)  │  → non-interactive alternative; runs straight through to the open MR
     └──────┬──────┘
            ▼
     ┌─────────────┐
@@ -65,8 +65,9 @@ it relies on see [concepts.md](concepts.md).
 INDEPENDENT — vibe coding (any branch, any time, no pipeline needed):
   /f-commit            — semantic commit messages
   /f-mr                — MR description & creation
-  /f-code-review       — stack-aware quality + security review
-  /f-undo              — discard uncommitted changes, reversibly (--restore / --hard)
+  /f-code-review       — stack-aware quality + security review (your own branch)
+  /f-mr-review         — stack-aware peer review of someone else's branch or MR
+  /f-undo              — discard uncommitted changes, reversibly (--restore to recover, --hard --force to discard)
                          → see docs/learning/vibe-coding.md
 
   /f-handoff           — package artifacts for another agent (needs an active pipeline)
@@ -77,16 +78,17 @@ UTILITIES:
   /f-auto              — run non-interactively through to the open MR
   /f-pause             — stash work without switching branches
   /f-resume            — restore paused work
-  /f-undo              — discard a failed/unwanted implementation, keep .specwork/ (reversible; --hard to force)
+  /f-undo              — discard a failed/unwanted implementation, keep .specwork/ (reversible; --hard --force to discard permanently)
   /f-resync            — sync artifacts with current branch (`--rename-branch` to rename + sync)
   /f-spec              — draft / refine spec with additional context
                          (canonical spec command)
 ```
 
 > `/f-auto` runs (`/f-start` or skip if already initialized → `/f-spec` →
-> `/f-plan` → `/f-implement`) and then **stops before `/f-commit`** for manual review.
-> After that handoff, run `/f-commit`; if it came from `/f-auto`, it auto-runs
-> `/f-mr` and then stops. It never auto-runs `/f-close`.
+> `/f-plan` → `/f-implement` → `/f-commit` → `/f-mr`) **straight through to the
+> open MR**. It only pauses for unresolved Open Questions (after `/f-spec`) or,
+> when the spec hit a risk area, to ask about the optional test steps (after
+> `/f-implement`). It never auto-runs `/f-close` or `/f-mr-address`.
 >
 > **Open Questions** are unresolved markdown checkboxes (`- [ ]`) in `spec.md`
 > (and optionally `plan.md`) that block `/f-implement` until answered.
@@ -161,25 +163,29 @@ up front and the rest of the pipeline flows.
 ### /f-auto \<ticket-or-text\>
 
 Non-interactive autopilot for the happy path. Runs `/f-start → /f-spec → /f-plan
-→ /f-implement` without bash prompts (`SDD_NON_INTERACTIVE=1`). Then it pauses
-before commit so you can review changes. No flags: just the ticket key or
-free-text description.
+→ /f-implement → /f-commit → /f-mr` without bash prompts
+(`SDD_NON_INTERACTIVE=1`) and **stops once the MR is open**. No flags: just the
+ticket key or free-text description.
 
-It hands control back to the human at one hard stop:
+It pauses to hand control back to the human in only two cases:
 
-- **Unresolved Open Questions** (after `/f-spec`): stops and asks you to resolve
+- **Unresolved Open Questions** (after `/f-spec`) — hard stop: asks you to resolve
   them in the spec, then re-run.
+- **Risk signals** (after `/f-implement`) — if the spec touched a risk area
+  (db-migration, auth, breaking-api, data-destructive, concurrency, …), it stops
+  and asks whether to run the optional `/f-test-design` + `/f-test-impl` steps
+  (token-costly) before committing. With no risk signals it does **not** stop —
+  it runs straight through `/f-commit` and `/f-mr`.
 
-Otherwise it runs straight through: after `/f-implement` it runs `/f-commit`,
-which opens/updates the MR automatically (`/f-mr`) and stops there. It never runs
-`/f-close` (post-merge) or `/f-mr-address` (requires human review feedback).
+It never runs `/f-close` (post-merge) or `/f-mr-address` (requires human review
+feedback).
 
 ### /f-start \<ticket-or-text\>
 
 - Can start from any branch
 - Offers a new working branch based on current HEAD, or stay on current branch
-- Writes `.specwork/_state/<slug>-state.json`, `_spec/<slug>-source.md`,
-  `_state/<slug>-rules.json`, `_state/<slug>-implementation-cache.json`
+- Writes `.specwork/_state/<slug>-state.json`, `.specwork/_spec/<slug>-source.md`,
+  `.specwork/_state/<slug>-rules.json`, `.specwork/_state/<slug>-implementation-cache.json`
 - Does **NOT** create `spec.md` — that is `/f-spec`'s job, kept separate
   so each command owns one artifact
 - No state machine — each downstream command checks its own artifact preconditions
@@ -209,6 +215,9 @@ which opens/updates the MR automatically (`/f-mr`) and stops there. It never run
   surface, and spec-consistency check
 - Drafts `.specwork/_plan/<slug>-plan.md` with Target Files, Approach,
   Risks, and Open Questions
+- Also writes `.specwork/_plan/<slug>-plan.json` — the machine-readable
+  companion (Target Files + per-target progress) that `/f-implement` and
+  `/f-mr` consume; absent it, `/f-implement` falls back to inline discovery
 - Seeds `.specwork/_state/<slug>-implementation-cache.json`
 - **Gate**: blocks if spec has unresolved Open Questions
 - **Staleness**: after `/f-spec` or manual spec edit, the plan goes
@@ -257,6 +266,17 @@ which opens/updates the MR automatically (`/f-mr`) and stops there. It never run
 - Detects pack hints (JPA, concurrency, API contracts, logging)
 - Writes report to `.specwork/_review/<slug>-code-review.md`
 - Supports `--recheck` to compare against previous report
+
+### /f-mr-review \<branch | mr-url | mr-iid\>
+
+- **Peer review** of someone else's committed changes — a branch or a merge request
+- Unlike `/f-code-review` (which reviews your own working tree), it resolves a
+  *remote* diff via `glab` (MR link/IID) or `git` (branch name) and never touches
+  your working tree
+- Same review engine as `/f-code-review`: stack-aware quality + security findings
+  with `file:line` citations and an advisory test-coverage check
+- Writes the report to `.specwork/_review/<slug>-peer-review.md`
+- **Read-only**: never checks out, commits, pushes, or comments on the MR
 
 ### /f-mr
 
@@ -347,5 +367,6 @@ spec has resolved Open Questions worth preserving as ADRs.
 ```
 
 To **discard a failed implementation** but keep the pipeline state to re-spec, use
-**`/f-undo`** (reversible by default; `--restore` to recover, `--hard` to force).
+**`/f-undo`** (reversible by default; `--restore` to recover, `--hard --force` to
+discard permanently).
 See the runbook in [concepts.md](concepts.md#reverting-a-failed-implementation).

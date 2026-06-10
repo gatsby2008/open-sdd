@@ -551,7 +551,7 @@ After your manual `/f-commit`, the run auto-opens the MR (`/f-mr`) and stops the
 
 **How it works:**
 - Exports `SDD_NON_INTERACTIVE=1` → commands skip routine bash prompts
-- `start.sh`: still confirms the branch choice (called with `--confirm-branch`) when the session is interactive (TTY)
+- `start.sh`: still confirms the branch choice — its interactive A/B/C prompt fires when no `--choose/--branch/--keep` flag is passed and stdin is a terminal; the agent passes `--choose A`/`--branch`/`--keep` after confirming in chat
 - `implement.sh`: auto-re-runs `/f-plan` if stale
 - Stops after `/f-implement` and flags `auto_open_mr_after_commit` in state
 - `commit.sh`: on your manual `/f-commit`, auto-runs `/f-mr` when that flag is set

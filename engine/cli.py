@@ -10,45 +10,31 @@ Will become the backend for commands/*.sh wrappers.
 import json
 import sys
 import time
-from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
-from engine.state import PipelineState, load_pipeline_state, save_pipeline_state
+from engine.state import load_pipeline_state, save_pipeline_state
 from engine.gates import (
     resolve_slug, check_open_questions, check_required_artifacts, check_plan_staleness,
-    require_specwork, SPECWORK,
+    require_specwork, detect_stack, detect_risk_signals, SPECWORK,
 )
 from engine.persistence import load_plan, save_plan, load_cache, save_cache
-
-
-COMMANDS = [
-    "start", "plan", "implement", "commit", "mr", "close",
-    "test-design", "test-impl", "code-review", "handoff",
-    "precheck", "check", "triage", "status", "pause", "resume", "help",
-    "implement-check", "implement-done", "implement-plan",
-    "resolve-slug", "detect-stack", "risk-signals",
-    "bump-spec-ts", "coverage-check", "extract-reference-targets",
-    "count-oqs", "audit",
-    "derive-branch", "worktree-clean", "worktree-dirty",
-    "commit-subject", "mr-title", "branch-classify", "requires-clean-tree",
-    "stash-list", "stash-stale", "rename-slug",
-]
 
 
 # Advisory flows per ticket type — used by triage to print the recommended
 # path. NOT enforced (no step machine); each command is independently
 # artifact-gated. Keep this table in sync with /f-help and docs/learning.
+#
+# triage() only ever produces "trivial", "focused", "standard", "high-risk".
+# "feature" is kept solely as the fallback default (see FLOW_MAP.get below and
+# the PipelineState.ticket_type default), used for any state whose type was not
+# reassigned by triage.
 FLOW_MAP: dict[str, list[str]] = {
-    "feature":      ["spec", "plan", "implement", "commit", "mr", "close"],
-    "bugfix":       ["spec", "implement", "commit", "mr", "close"],
-    "refactor":     ["plan", "implement", "commit", "mr", "close"],
-    "chore":        ["implement", "commit", "mr", "close"],
-    "high-risk":    ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"],
-    "standard":     ["plan", "implement", "commit", "mr", "close"],
-    "focused":      ["implement", "commit", "mr", "close"],
-    "trivial":      ["commit", "mr", "close"],
-    "security_fix": ["spec", "implement", "commit", "mr", "close"],
+    "feature":   ["spec", "plan", "implement", "commit", "mr", "close"],
+    "high-risk": ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"],
+    "standard":  ["plan", "implement", "commit", "mr", "close"],
+    "focused":   ["implement", "commit", "mr", "close"],
+    "trivial":   ["commit", "mr", "close"],
 }
 
 
@@ -90,7 +76,6 @@ def cmd_triage(args: list[str]) -> int:
 
 
 def triage(slug: str) -> int:
-    from engine.gates import detect_risk_signals
     from engine.persistence import load_spec
 
     spec = load_spec(slug)
@@ -108,6 +93,7 @@ def triage(slug: str) -> int:
     scope_match = re.search(r"(?ms)^## Expected Change Scope\b(.*?)(?=^## |\Z)", spec)
     scope = scope_match.group(1).lower() if scope_match else ""
 
+    # NOTE: keep this list in sync with commands/triage.sh (HIGH_KW).
     high_kw = (
         "async", "completablefuture", "executorservice", "@async",
         "transactional", "retry", "retrytemplate",
@@ -129,6 +115,7 @@ def triage(slug: str) -> int:
     matched_high = [k for k in high_kw if k in spec_text or k in impl_ctx]
     matched_triv = [k for k in trivial_kw if k in spec_text]
 
+    # NOTE: keep this list in sync with commands/triage.sh (known_layers).
     known_layers = ("service", "controller", "repository", "config", "tests", "integration",
                     "component", "page", "store", "hook", "screen", "layout", "util")
     layers_match = re.search(r"expected layers[^\n]*?:\s*([^\n]+)", scope)
@@ -340,7 +327,6 @@ def cmd_implement_plan(args: list[str]) -> int:
 
 
 def cmd_detect_stack(args: list[str]) -> int:
-    from engine.gates import detect_stack
     print(detect_stack())
     return 0
 
@@ -360,7 +346,6 @@ def cmd_risk_signals(args: list[str]) -> int:
     # concurrency. These are keyword matches, not the fuzzy triage tier — /f-auto
     # uses them to decide whether to pause and ask about the test steps. No
     # signals → no output, rc 0.
-    from engine.gates import detect_risk_signals
     slug = args[0] if args else resolve_slug()
     if not slug:
         print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
@@ -487,7 +472,6 @@ def cmd_coverage_check(args: list[str]) -> int:
     # as testable (DTOs/config/entities excluded). Escape hatch is a per-class
     # waiver-with-reason file. Unknown/node stacks pass cleanly. rc 1 = blocked.
     from engine import coverage
-    from engine.gates import detect_stack
     slug = args[0] if args else (resolve_slug() or None)
     stack = detect_stack()
     if stack not in ("java", "frontend"):
@@ -528,50 +512,48 @@ def cmd_bump_spec_ts(args: list[str]) -> int:
     return 0
 
 
+# Single source of truth for supported subcommands. Every entry has a handler;
+# COMMANDS is derived from it so the two can never drift. The pipeline's
+# user-facing verbs (start, plan, implement, commit, mr, close, …) are handled by
+# the commands/*.sh wrappers, NOT here — they are intentionally absent.
+DISPATCH = {
+    "precheck": cmd_precheck,
+    "triage": cmd_triage,
+    "status": cmd_status,
+    "check": cmd_check,
+    "implement-check": cmd_implement_check,
+    "implement-done": cmd_implement_done,
+    "implement-plan": cmd_implement_plan,
+    "resolve-slug": cmd_resolve_slug,
+    "detect-stack": cmd_detect_stack,
+    "risk-signals": cmd_risk_signals,
+    "extract-reference-targets": cmd_extract_reference_targets,
+    "bump-spec-ts": cmd_bump_spec_ts,
+    "coverage-check": cmd_coverage_check,
+    "count-oqs": cmd_count_oqs,
+    "audit": cmd_audit,
+    "derive-branch": cmd_derive_branch,
+    "worktree-clean": cmd_worktree_clean,
+    "worktree-dirty": cmd_worktree_dirty,
+    "commit-subject": cmd_commit_subject,
+    "mr-title": cmd_mr_title,
+    "branch-classify": cmd_branch_classify,
+    "requires-clean-tree": cmd_requires_clean_tree,
+    "stash-list": cmd_stash_list,
+    "stash-stale": cmd_stash_stale,
+    "rename-slug": cmd_rename_slug,
+}
+
+COMMANDS = list(DISPATCH)
+
+
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+    if len(sys.argv) < 2 or sys.argv[1] not in DISPATCH:
         print(f"Usage: python3 -m engine.cli <{'|'.join(COMMANDS)}> [args...]")
         print(f"Commands: {', '.join(COMMANDS)}")
         return 1
 
-    command = sys.argv[1]
-    args = sys.argv[2:]
-
-    dispatch = {
-        "precheck": cmd_precheck,
-        "triage": cmd_triage,
-        "status": cmd_status,
-        "check": cmd_check,
-        "implement-check": cmd_implement_check,
-        "implement-done": cmd_implement_done,
-        "implement-plan": cmd_implement_plan,
-        "resolve-slug": cmd_resolve_slug,
-        "detect-stack": cmd_detect_stack,
-        "risk-signals": cmd_risk_signals,
-        "extract-reference-targets": cmd_extract_reference_targets,
-        "bump-spec-ts": cmd_bump_spec_ts,
-        "coverage-check": cmd_coverage_check,
-        "count-oqs": cmd_count_oqs,
-        "audit": cmd_audit,
-        "derive-branch": cmd_derive_branch,
-        "worktree-clean": cmd_worktree_clean,
-        "worktree-dirty": cmd_worktree_dirty,
-        "commit-subject": cmd_commit_subject,
-        "mr-title": cmd_mr_title,
-        "branch-classify": cmd_branch_classify,
-        "requires-clean-tree": cmd_requires_clean_tree,
-        "stash-list": cmd_stash_list,
-        "stash-stale": cmd_stash_stale,
-        "rename-slug": cmd_rename_slug,
-    }
-
-    handler = dispatch.get(command)
-    if handler:
-        return handler(args)
-
-    print(f"Command '{command}' not yet implemented via Python backend.", file=sys.stderr)
-    print(f"Currently implemented: {', '.join(dispatch.keys())}", file=sys.stderr)
-    return 1
+    return DISPATCH[sys.argv[1]](sys.argv[2:])
 
 
 if __name__ == "__main__":

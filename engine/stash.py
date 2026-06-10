@@ -37,7 +37,9 @@ def pipeline_stashes(output: str) -> list[tuple[str, str]]:
     return out
 
 
-def deduplicate(pipeline_list: list[tuple[str, str]]):
+def deduplicate(
+    pipeline_list: list[tuple[str, str]],
+) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Return ``(kept, stale)``: first (newest) per branch kept, the rest are stale."""
     seen = set()
     kept, stale = [], []
@@ -51,9 +53,12 @@ def deduplicate(pipeline_list: list[tuple[str, str]]):
 
 
 def _git_stash_list() -> str:
-    return subprocess.check_output(["git", "stash", "list", "--format=%gd %s"]).decode()
+    try:
+        return subprocess.check_output(["git", "stash", "list", "--format=%gd %s"]).decode()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return ""
 
 
-def list_kept_and_stale():
+def list_kept_and_stale() -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
     """Live ``(kept, stale)`` pipeline stashes from the current repo."""
     return deduplicate(pipeline_stashes(_git_stash_list()))

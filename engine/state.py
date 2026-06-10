@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, fields, asdict
 from pathlib import Path
 from typing import Optional
 
@@ -77,7 +77,6 @@ class PipelineState:
         # The implementation cache lives in its own file (see persistence.save_cache),
         # never in state.json. Drop any stray "cache" key so it doesn't leak into extra.
         data.pop("cache", None)
-        from dataclasses import fields
         valid = {f.name for f in fields(cls)}
         # preserve "slug" (canonical) but accept "id" as legacy fallback
         if "slug" not in data and "id" in data:

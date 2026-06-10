@@ -29,7 +29,7 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 4. **GIT SAFETY** — Never commit code that fails tests. Never force-push.
    Never push to `main`/`develop` without confirmation.
 5. **GATES** — Open Questions block progression. Stale plan blocks
-   `/implement`. Missing spec blocks everything.
+   `/f-implement`. Missing spec blocks everything.
 6. **CLICKABLE PATHS** — When displaying a spec/plan path (e.g. for Open
    Questions), always use an **absolute path wrapped in single backticks**
    with `:line_number` suffix. This makes the link clickable in most
@@ -57,7 +57,7 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 
 ## Commands
 
-### /start <ticket-or-text> [--input-file <path>]
+### /f-start <ticket-or-text> [--input-file <path>]
 
 Initialize the pipeline and create/select a working branch. When the
 description contains special characters (JSON, quotes, etc.) that would
@@ -79,17 +79,17 @@ full description from a file verbatim, bypassing shell quoting entirely.
    - Enter a custom branch name
    - Stay on current branch
 5. Run the script with the appropriate flags:
+   - Default (suggested): `bash commands/start.sh <input> --choose A`
    - Custom branch: `bash commands/start.sh <input> --branch <name>`
    - Stay on current: `bash commands/start.sh <input> --keep`
-   - Default (suggested): `bash commands/start.sh <input>`
 6. The script writes `source.md` and the state files but **does NOT create
-   `spec.md`**. /start owns source capture; /spec owns spec generation.
+   `spec.md`**. /f-start owns source capture; /f-spec owns spec generation.
 7. **Do NOT run `triage.sh` here.** Triage reads `## Behavior` and
    `## Implementation Context` from the spec; `spec.md` does not exist
-   yet, so triage has nothing to classify. Triage runs from inside `/spec`
+   yet, so triage has nothing to classify. Triage runs from inside `/f-spec`
    after the first draft is written.
 8. **STOP.** Tell the user the pipeline is initialized and recommend
-   `/spec` (or `bash commands/spec.sh`) as the next step. Show the
+   `/f-spec` (or `bash commands/spec.sh`) as the next step. Show the
    `source.md` path with the absolute working directory substituted in
    (run `pwd` if unsure), e.g. `` Source: `/abs/path/repo/.specwork/_spec/<slug>-source.md` ``.
    Do NOT continue to `/f-implement` or any next step automatically.
@@ -111,53 +111,60 @@ full description from a file verbatim, bypassing shell quoting entirely.
    = plan, implement = code).
 7. Output: branch created, source.md path, recommend `/f-spec` as next step
 
-### /auto <ticket-or-text> [--input-file <path>]
+### /f-auto <ticket-or-text> [--input-file <path>]
 
-Non-interactive driver for the happy path. Chains `/start → /spec → /plan →
-/implement → /commit → /mr` non-interactively, then stops once the MR is open. It
-never runs `/close` or `/mr-address`.
+Non-interactive driver for the happy path. Chains `/f-start → /f-spec → /f-plan →
+/f-implement → /f-commit → /f-mr` non-interactively, then stops once the MR is open. It
+never runs `/f-close` or `/f-mr-address`.
 
 When the description contains special characters (JSON, quotes, etc.) that would
 be mangled by shell quoting, use `--input-file <path>` to pass the description
 from a file instead. The agent writes the file (handling any content) and passes
 the path — no quoting issues.
 
-**Branch confirmation is delegated to `/start`, and `/start` always confirms the
-branch name — including under `/auto`.** The bash prompt in `start.sh` only fires
+**Branch confirmation is delegated to `/f-start`, and `/f-start` always confirms the
+branch name — including under `/f-auto`.** The bash prompt in `start.sh` only fires
 when a human runs the script in an interactive terminal (it is gated on a TTY).
-When *you* (the agent) drive `/auto`, there is no TTY, so the bash `read` cannot
+When *you* (the agent) drive `/f-auto`, there is no TTY, so the bash `read` cannot
 capture your input — you must do the branch confirmation yourself, exactly as in
-the `/start` flow, **before** invoking `auto.sh`.
+the `/f-start` flow, **before** invoking `auto.sh`.
 
 **Flow:**
 1. **Pipeline check.** Run `PYTHONPATH=. python3 -m engine.cli precheck`.
    - If it **succeeds** (a pipeline is already active here), skip straight to
-     step 3 — do NOT re-ask the branch or re-run `/start`.
+     step 3 — do NOT re-ask the branch or re-run `/f-start`.
    - If it **fails** (fresh start), continue to step 2.
-2. **Branch confirmation (the `/start` ask).** Suggest the feature branch name
+2. **Branch confirmation (the `/f-start` ask).** Suggest the feature branch name
    from the ticket/slug and ask the user: create suggested (default) / custom
-   name / stay on current. Then run `/start` with the chosen flag so the branch
+   name / stay on current. Then run `/f-start` with the chosen flag so the branch
    exists before the chain begins:
-   - Default (suggested): `bash commands/start.sh <input>`
+   - Default (suggested): `bash commands/start.sh <input> --choose A`
    - Custom branch: `bash commands/start.sh <input> --branch <name>`
    - Stay on current: `bash commands/start.sh <input> --keep`
    This writes `source.md` + state and creates/selects the branch.
 3. **Run the chain.** Run `bash commands/auto.sh <input>`. Because the pipeline
    is now active, `auto.sh`'s own `precheck` detects it and **skips its internal
-   `/start`** — so the branch you just confirmed is kept and there is no second
+   `/f-start`** — so the branch you just confirmed is kept and there is no second
    prompt. `auto.sh` then runs spec → Open-Questions gate → plan → implement and
    returns control to you.
-4. **Finish the run.** After `auto.sh` returns, run `/commit` then `/mr` (commit
-   auto-continues to `/mr` via pipeline state) and **STOP at the open MR**. The
-   only hard stop along the way is unresolved Open Questions (after `/spec`); if
-   `auto.sh` flagged risk signals you may run the optional test steps before
-   `/commit`. Never run `/close` or `/mr-address` yourself.
+4. **Finish the run (no stop at commit).** After `auto.sh` returns:
+   - If `auto.sh` flagged **risk signals**, STOP and ask the user whether to run
+     the optional `/f-test-design` + `/f-test-impl` steps (token-costly) before
+     committing. With **no** risk signals, do **not** pause here.
+   - Then run `/f-commit` then `/f-mr` (commit auto-continues to `/f-mr` via
+     pipeline state) and **STOP at the open MR**.
+
+   So the run pauses for the human in only two cases: unresolved Open Questions
+   (after `/f-spec`, a hard stop) and the risk-signal test gate (after
+   `/f-implement`). It never stops at `/f-commit`. Never run `/f-close` or
+   `/f-mr-address` yourself.
 
 (If a human runs `bash commands/auto.sh <input>` directly in a terminal instead
-of going through you, the TTY-gated prompt in `start.sh --confirm-branch` covers
-the branch confirmation — so the behavior is the same in both paths.)
+of going through you, `start.sh`'s interactive A/B/C prompt — which fires when no
+`--choose/--branch/--keep` flag is passed and stdin is a terminal — covers the
+branch confirmation, so the behavior is the same in both paths.)
 
-### /plan (optional)
+### /f-plan (optional)
 
 Discover target files and write an implementation plan.
 
@@ -174,12 +181,13 @@ Discover target files and write an implementation plan.
    - **unknown**: run spec-body heuristics only (consistency check, risk)
 5. For java/node/frontend, run reference-update grep and spec consistency check
 6. Run risk signal detection via `detect_risk_signals`
-7. Write `plan.md` with Target Files table, Approach steps, Open Questions,
-   Risk Assessment
+7. Write `plan.md` (human-readable: Target Files table, Approach steps, Open
+   Questions, Risk Assessment) and `plan.json` (machine-readable companion:
+   Target Files + per-target progress, consumed by `/f-implement` and `/f-mr`)
 8. Append discovered facts to `implementation-cache.json`
 9. Output: summary of target files by tag
 
-### /implement
+### /f-implement
 
 Implement the next focused change from the spec.
 
@@ -198,10 +206,10 @@ Implement the next focused change from the spec.
 7. On persistent failure, append to `_progress/escalations.md` and stop
 8. Update `implementation-cache.json`
 9. Assess complexity:
-   - LOW → recommend `/commit`
-   - HIGH → recommend `/test-design` + `/test-impl` then `/commit`
+   - LOW → recommend `/f-commit`
+   - HIGH → recommend `/f-test-design` + `/f-test-impl` then `/f-commit`
 
-### /commit
+### /f-commit
 
 Stage all changes, generate a semantic commit message, confirm with user.
 
@@ -227,7 +235,7 @@ Commit discipline: one logical change per commit. Examples:
 [JIRA-123] test: add unit and integration tests for consent flow
 ```
 
-### /mr
+### /f-mr
 
 Generate MR description, push, create/update MR via GitHub CLI.
 
@@ -240,7 +248,7 @@ Generate MR description, push, create/update MR via GitHub CLI.
 7. (Script) Store MR URL in state.json
 8. Confirm MR URL and next step (close.sh after merge)
 
-### /close
+### /f-close
 
 Close the feature pipeline and clean up. The script handles dirty tree,
 MR status, and optional branch cleanup.
@@ -253,7 +261,7 @@ MR status, and optional branch cleanup.
 6. (Script) Offer branch cleanup: delete + switch, keep + switch, or stay
 7. Confirm: "Feature pipeline closed."
 
-### /pause
+### /f-pause
 
 Stash all work including `.specwork/` artifacts without switching branches. Use when context-switching away mid-pipeline.
 
@@ -262,9 +270,9 @@ Stash all work including `.specwork/` artifacts without switching branches. Use 
 3. `git add -A` (all tracked + untracked, excluding gitignored)
 4. `git add -f .specwork/` (force-add gitignored pipeline artifacts)
 5. `git stash push --message "f-pause: <branch>"` — only stashes what was staged, NOT all ignored files (node_modules, build/, etc.)
-6. Confirm: "Paused `<branch>` → stash saved. Resume later with `/resume`."
+6. Confirm: "Paused `<branch>` → stash saved. Resume later with `/f-resume`."
 
-### /resume
+### /f-resume
 
 List paused pipeline branches and restore the selected one. Filters stashes by `f-pause:` prefix.
 
@@ -275,9 +283,9 @@ List paused pipeline branches and restore the selected one. Filters stashes by `
 5. Verify current working tree is clean — abort if dirty
 6. `git switch <branch> || git switch -c <branch>`
 7. `git stash pop <ref>`
-8. Confirm: "Resumed `<branch>`. Run `/implement` or `/status` to continue."
+8. Confirm: "Resumed `<branch>`. Run `/f-implement` or `/f-status` to continue."
 
-### /status
+### /f-status
 
 Show a compact snapshot of the current pipeline branch.
 
@@ -287,13 +295,13 @@ Show a compact snapshot of the current pipeline branch.
 4. Check `git status` for dirty/clean tree
 5. Show recent commits (last 3)
 6. Determine next best step using trigger evaluation:
-   - Missing state → `/start`
-   - Missing spec → `/start`
+   - Missing state → `/f-start`
+   - Missing spec → `/f-start`
    - Unresolved OQs → resolve them first
-   - Staged changes → `/commit`
-   - Dirty tree → `/implement`
-   - Commits ahead of base → `/mr`
-   - Default: `/plan` (recommended, can skip) → `/implement`
+   - Staged changes → `/f-commit`
+   - Dirty tree → `/f-implement`
+   - Commits ahead of base → `/f-mr`
+   - Default: `/f-plan` (recommended, can skip) → `/f-implement`
 
 Output format (compact):
 ```
@@ -305,7 +313,7 @@ Next:   /f-plan (recommended, can skip)
         /f-implement
 ```
 
-### /test-design
+### /f-test-design
 
 Design test cases for the current implementation changes. Optional — not required in the pipeline.
 
@@ -315,9 +323,9 @@ Design test cases for the current implementation changes. Optional — not requi
 4. Present structured test case design grouped by category: unit / integration / edge cases / missing coverage
 5. Each design must include at least one integration-level scenario per touched endpoint, listener, or top-level component
 
-**Does not persist artifacts** — output is consumed in the same session by `/test-impl`.
+**Does not persist artifacts** — output is consumed in the same session by `/f-test-impl`.
 
-### /test-impl
+### /f-test-impl
 
 Implement test files for changed source code. Optional — not required in the pipeline.
 
@@ -329,15 +337,15 @@ Implement test files for changed source code. Optional — not required in the p
 4. For existing test files, list as UPDATE candidates; for missing ones, list as CREATE
 5. **Hard rule**: generated tests must verify concrete behavior (return values, persistence calls, events, exceptions) — never just nullity or emptiness checks
 
-### /spec [files ... | jira <ticket> | <free text>]
+### /f-spec [files ... | jira <ticket> | <free text>]
 
-Single command for both drafting the spec for the first time and refining it later. Replaces the deprecated `/spec-refine` (wrapper still forwards here).
+Single command for both drafting the spec for the first time and refining it later. Replaces the deprecated `/spec-refine`, which has been removed.
 
 **ALWAYS run `bash commands/spec.sh` first** — it handles mode detection (draft vs refine), input parsing, staleness warnings, and prints session context. Do NOT pre-check spec.md presence yourself; let the script auto-detect the mode and print the instructions. The script's output tells you what to do next (draft the spec content, or integrate new context into the existing spec).
 
-Mode is auto-detected by `spec.md` presence: if the file does not exist (start.sh did not create it), `/spec` runs in **draft mode** and creates it from `source.md` + `templates/spec.md`; if the file exists, `/spec` runs in **refine mode** and integrates new context.
+Mode is auto-detected by `spec.md` presence: if the file does not exist (start.sh did not create it), `/f-spec` runs in **draft mode** and creates it from `source.md` + `templates/spec.md`; if the file exists, `/f-spec` runs in **refine mode** and integrates new context.
 
-**Idempotency contract:** `/spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp` or writing the spec. Calling `/spec` twice in a row with the same input is therefore safe.
+**Idempotency contract:** `/f-spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp` or writing the spec. Calling `/f-spec` twice in a row with the same input is therefore safe.
 
 After running the script, follow its instructions:
 
@@ -361,15 +369,15 @@ After running the script, follow its instructions:
     - **Draft mode only**: run `commands/triage.sh <slug>` to classify
       the ticket and print the result (type, complexity, path, reason).
       Triage reads `## Behavior` and `## Implementation Context`, so it
-      can only run after the first draft creates the spec body. `/start`
+      can only run after the first draft creates the spec body. `/f-start`
       does not create spec.md at all, so triage has nothing to read until
-      `/spec` runs in draft mode. Skip triage in refine mode (the ticket
+      `/f-spec` runs in draft mode. Skip triage in refine mode (the ticket
       was already classified on the first draft).
     - **Refine mode**: spec changes don't move the pipeline — they just
       invalidate downstream artifacts. `spec_write_timestamp` is enough;
-      `/implement`'s staleness gate blocks until `/plan` refreshes `plan.md`.
+      `/f-implement`'s staleness gate blocks until `/f-plan` refreshes `plan.md`.
     - **Recommend next step** (both modes): if OQs remain, tell the user
-      to resolve them and re-run `/spec`. Otherwise, recommend `/f-plan`
+      to resolve them and re-run `/f-spec`. Otherwise, recommend `/f-plan`
       (3+ files / high-risk) or `/f-implement` (small / inline discovery).
       In refine mode where `plan.md` already exists, flag it as stale
       and recommend `/f-plan` first.
@@ -389,7 +397,7 @@ The pipeline has no state machine — there is no advance-step. Each
 command independently checks artifact preconditions (spec.md exists,
 OQs resolved, plan not stale, etc.) and decides whether to run.
 
-### /resync
+### /f-resync
 
 Resync SDD artifacts under `.specwork/` when the branch was renamed. Two modes:
 
@@ -405,7 +413,7 @@ Resync SDD artifacts under `.specwork/` when the branch was renamed. Two modes:
 7. Print change summary
 8. **Does not touch the remote** — prints instructions for `git push`
 
-### /code-review
+### /f-code-review
 
 Run a stack-aware quality and security review on the current branch diff.
 
@@ -444,10 +452,10 @@ PASS | PASS WITH WARNINGS | FAIL
 
 `--recheck` mode: compare current diff against previous report, show resolved/still-open/new findings.
 
-### /mr-review <branch | mr-url | mr-iid>
+### /f-mr-review <branch | mr-url | mr-iid>
 
 Peer review someone else's committed changes — a branch or a merge request.
-Unlike `/code-review`, which reviews your working tree, `/mr-review` resolves a
+Unlike `/f-code-review`, which reviews your working tree, `/f-mr-review` resolves a
 remote diff and reviews it without ever touching your working tree.
 
 1. Run `bash commands/mr-review.sh <arg>` — the script classifies the argument
@@ -457,33 +465,33 @@ remote diff and reviews it without ever touching your working tree.
    (or `$HOME/.local/share/sdd/peer-reviews/<slug>-<date>.md`).
 2. The script prints the review instructions, stack routing, pack hints, and the
    full diff.
-3. Perform the review using the same engine as `/code-review` — stack-aware
+3. Perform the review using the same engine as `/f-code-review` — stack-aware
    quality and security review, evidence-based findings with file:line citations.
 4. Update the report file with your findings.
 5. **Read-only rule**: never checkout, switch branches, commit, push, or comment
    on the MR. This is a peer review — the user takes findings into their review
    by hand.
 
-### /help
+### /f-help
 
 
 
 Inspect the current pipeline state and show the contextual next step.
 
 Two modes:
-- `/help` — detect state (setup, ready, in-progress, review-ready, blocked) and print pipeline diagram with next action
-- `/help overview` — print full pipeline reference with all commands explained
+- `/f-help` — detect state (setup, ready, in-progress, review-ready, blocked) and print pipeline diagram with next action
+- `/f-help overview` — print full pipeline reference with all commands explained
 
 Evaluation triggers (top-to-bottom):
-1. No state → `/start`
+1. No state → `/f-start`
 2. Branch mismatch state → blocked, switch branches
-3. No spec → `/start`
+3. No spec → `/f-start`
 4. Unresolved OQs → resolve them
-5. Dirty tree → `/implement`
-6. Commits ahead of base → `/mr`
-7. Default: `/plan` (or `/implement` for simple changes)
+5. Dirty tree → `/f-implement`
+6. Commits ahead of base → `/f-mr`
+7. Default: `/f-plan` (or `/f-implement` for simple changes)
 
-### /mr-address
+### /f-mr-address
 
 Work through MR review comments one thread at a time. Tracks progress in `.specwork/_review/<slug>-mr-address.md`.
 
@@ -495,7 +503,7 @@ Work through MR review comments one thread at a time. Tracks progress in `.specw
 6. At end, print summary (fixed / replied / deferred / skipped)
 7. If files changed, offer commit and optional push
 
-### /handoff
+### /f-handoff
 
 Package spec + rules + cache into a model-agnostic execution pack for another agent.
 
@@ -511,18 +519,42 @@ Package spec + rules + cache into a model-agnostic execution pack for another ag
 5. Build JSON summary at `.specwork/_handoff/<slug>-execution-pack.json`
 6. No-enrichment rule: only package existing artifacts, never generate new content
 
+## Companion commands (Doc / ADR)
+
+Beyond the pipeline, open-sdd registers companion commands for cross-service
+documentation and architecture decisions. These are **not** `/f-`-prefixed and run
+independently of any active `.specwork/` pipeline. Each maps to a script under
+`commands/` — run the script, then act on its output (confirm with the user before
+writing files). Suggest them when relevant: e.g. after `/f-mr` resolves Open
+Questions worth preserving, recommend `/doc-adr open-questions`.
+
+| Command | Script | What it does |
+|---------|--------|--------------|
+| `/doc-catalog` | `doc-catalog.sh` | Scan the service, generate/update `docs/service-info.md` |
+| `/doc-publish` | `doc-publish.sh` | Publish the catalog to the central registry (`--with-docs` for extra docs) |
+| `/doc-query` | `doc-query.sh` | Answer cross-service questions across all registered catalogs |
+| `/doc-freshness` | `doc-freshness.sh` | Detect drift between docs and code (links, versions, endpoints, staleness) |
+| `/doc-adr` | `doc-adr.sh` | Create an Architecture Decision Record in `docs/adr/` |
+| `/adr-publish` | `adr-publish.sh` | Publish ADRs to the central registry (`list` to inspect) |
+| `/adr-query` | `adr-query.sh` | Answer architecture-decision questions across all registered ADRs |
+| `/spec-publish` | `spec-publish.sh` | Publish a hand-written / standalone spec to the spec registry |
+| `/spec-query` | `spec-query.sh` | Answer feature/spec questions across published specs |
+
 ## Gates reference
 
-All implemented in `lib/gates.sh`:
+The blocking pipeline gates live in `lib/gates.sh`:
 
 | Gate | Function | Failure behavior |
 |------|----------|-----------------|
 | Open Questions | `check_open_questions` | Abort, list unresolved items |
-| Plan staleness | `check_plan_staleness` | Abort, recommend re-run `/plan` |
+| Plan staleness | `check_plan_staleness` | Abort, recommend re-run `/f-plan` |
 | Required artifacts | `check_required_artifacts` | Abort, list missing files |
-| Branch match | `check_branch_match` | Abort, show recorded vs current branch |
 | Risk signals | `detect_risk_signals` | Advisory — annotates plan. Signals: db-migration, auth-security, breaking-api, data-destructive, concurrency (backend) + component-api, state-management, accessibility, routing, data-fetching, ui-migration (frontend) |
 | Spec consistency | `check_spec_consistency` | Appends plan Open Questions |
+
+Branch-match is **not** a blocking gate: `/f-status` and `/f-help` surface a
+recorded-vs-current branch mismatch inline (and the engine exposes
+`check_branch_match` in `engine/gates.py` for callers that want it).
 
 ## Stack detection
 

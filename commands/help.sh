@@ -52,6 +52,10 @@ FEATURE PIPELINE
   /f-code-review
     [optional] Stack-aware code quality and security review.
 
+  /f-mr-review <branch | mr-url | mr-iid>
+    [optional] Stack-aware peer review of someone else's branch or MR.
+    Read-only — resolves a remote diff and never touches your working tree.
+
   /f-mr
     Generate MR description, push, create/update MR.
 
@@ -71,8 +75,10 @@ UTILITIES
 
   /f-status     Full pipeline status.
   /f-help       This. Shows contextual next step or overview.
+  /f-auto       Run the pipeline non-interactively through to the open MR.
   /f-pause      Stash all work (including .specwork/) to switch context.
   /f-resume     List paused branches and restore one.
+  /f-undo       Discard uncommitted changes, reversibly (--restore to recover, --hard --force to discard).
   /f-resync     Resync artifacts with current branch (use --rename-branch to rename + sync).
 
 ─────────────────────────────────────────────────────────────────

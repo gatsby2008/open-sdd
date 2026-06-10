@@ -24,14 +24,6 @@ ${directive}
 EOF
 }
 
-install_doc_cmd() {
-  local name="$1" description="$2"
-  cat > "${CMD_DIR}/${name}.md" <<EOF
----description: ${description}---
-Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
-EOF
-}
-
 install_doc_cmd_directive() {
   local name="$1" description="$2" directive="$3"
   cat > "${CMD_DIR}/${name}.md" <<EOF
@@ -45,9 +37,9 @@ Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, sp
 
 Ask the user about branch choice using the suggested name (prefixed with 'feature/'), a custom name, or staying on the current branch. Once decided, run:
 
+${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --choose A        # create the suggested branch
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --branch <name>   # for a custom branch
 ${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS --keep            # to stay on current
-${OPENSDD_PATH}/commands/start.sh \$ARGUMENTS                   # uses suggested branch
 
 After the script finishes, ${OPENSDD_PATH}/commands/start.sh has written source.md and state files but has NOT created spec.md. Tell the user the pipeline is initialized and recommend ${OPENSDD_PATH}/commands/spec.sh as the next step — /f-spec reads source.md plus templates/spec.md and generates spec.md from scratch (Summary, Scope, Behavior, Implementation Context, Expected Change Scope, Safe Constraints, Open Questions). Do NOT run triage yet — triage classifies the spec body, and spec.md does not exist until /f-spec creates it. Format links cleanly so file paths + line numbers are clickable: put the description separately, e.g. \`path/file.md:42\` — Open Questions section. Do NOT append text directly after the line number. Then STOP."
 install_cmd "spec"          "Draft (first call) or refine (subsequent calls) the spec"

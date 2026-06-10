@@ -45,6 +45,7 @@ class PipelineStateTestCase(unittest.TestCase):
         self.assertTrue(str(s.rules_path).endswith("_state/my-feature-rules.json"))
         self.assertTrue(str(s.cache_path).endswith("_state/my-feature-implementation-cache.json"))
         self.assertTrue(str(s.source_path).endswith("_spec/my-feature-source.md"))
+        self.assertTrue(str(s.path_path).endswith("_state/my-feature-path.json"))
 
     def test_escalate_appends_reason(self):
         s = self._make_state()

@@ -42,7 +42,7 @@ You don't need the full pipeline to get the quality helpers. Three commands are
 | **`/f-commit`** | Semantic commit message |
 | **`/f-mr`** | MR description & creation |
 | **`/f-code-review`** | Stack-aware quality + security review of your own diff |
-| **`/f-undo`** | Discard uncommitted changes — reversible (`--restore` to recover, `--hard` to force) |
+| **`/f-undo`** | Discard uncommitted changes — reversible (`--restore` to recover, `--hard --force` to discard permanently) |
 
 The vibe loop: code freely → `/f-code-review` (optional) → `/f-commit` → `/f-mr`
 (and `/f-undo` to roll back uncommitted changes at any point).

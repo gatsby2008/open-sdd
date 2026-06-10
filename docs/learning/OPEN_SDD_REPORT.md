@@ -195,7 +195,7 @@ Wipes `.specwork/` after merge (or reset). On a feature branch, verifies MR stat
 
 ## Orchestrator & utilities
 
-* **`/f-auto`** — non-interactive driver: chains `/f-start → /f-spec → /f-plan → /f-implement`, then **always pauses before `/f-commit`** for human review. After a manual `/f-commit` it auto-runs `/f-mr` and stops. **Never** runs `/f-close` or `/f-mr-address`. Hard-stops on unresolved Open Questions.
+* **`/f-auto`** — non-interactive driver: chains `/f-start → /f-spec → /f-plan → /f-implement → /f-commit → /f-mr` and **stops at the open MR**. It does **not** stop before `/f-commit`. It pauses only for unresolved Open Questions (after `/f-spec`, a hard stop) and — when the spec hit a risk area — to ask about the optional `/f-test-design`/`/f-test-impl` steps (after `/f-implement`). **Never** runs `/f-close` or `/f-mr-address`.
 * **`/f-help`** — where am I, what's next. **`/f-status`** — compact pipeline status.
 * **`/f-pause`** / **`/f-resume`** — stash/restore feature work (including `.specwork/`) without losing branch context.
 * **`/f-resync`** — sync `.specwork/` artifacts after a branch rename (`--rename-branch` to rename + sync atomically).
@@ -318,7 +318,7 @@ Token-optimization levers actually in place: `focused`/`batch` execution modes (
 | Context Pollution | Unnecessary context growth |
 | `focused` / `batch` | The two supported lightweight execution modes (no full mode) |
 | Handoff | Cross-model transfer mechanism |
-| Non-interactive mode | `non_interactive: true` in `state.json` (set by `/f-auto`); only allowed pauses are the OQ gate and the pre-commit handoff |
+| Non-interactive mode | `non_interactive: true` in `state.json` (set by `/f-auto`); only allowed pauses are the OQ gate (after `/f-spec`) and the risk-signal test gate (after `/f-implement`) — it does not stop before `/f-commit` |
 
 ---
 

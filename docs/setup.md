@@ -295,25 +295,35 @@ open-sdd/
 │   └── PIPELINE.md   # System prompt for any LLM
 ├── lib/
 │   ├── gates.sh                     # Validation gates
-│   └── jira.sh                      # Jira REST client via curl
-├── commands/                        # 31 scripts (28 user-facing commands + internal helpers)
-│   ├── check.sh
+│   ├── jira.sh                      # Jira REST client via curl
+│   ├── non_interactive.sh          # SDD_NON_INTERACTIVE helpers
+│   ├── service-name.sh             # Service-name resolution
+│   └── spec-publish.sh             # Spec-registry publish helper
+├── commands/                        # 31 scripts (29 user-facing commands + internal helpers)
+│   ├── auto.sh
+│   ├── check.sh                     # Validation-gate runner (internal helper)
+│   ├── close.sh
 │   ├── code-review.sh
 │   ├── commit.sh
 │   ├── handoff.sh
 │   ├── help.sh
 │   ├── implement.sh
 │   ├── mr-address.sh
+│   ├── mr-review.sh
 │   ├── mr.sh
 │   ├── pause.sh
 │   ├── plan.sh
 │   ├── resume.sh
 │   ├── resync.sh
 │   ├── spec.sh                      # Draft / refine spec
+│   ├── spec-publish.sh
+│   ├── spec-query.sh
 │   ├── start.sh
 │   ├── status.sh
 │   ├── test-design.sh
 │   ├── test-impl.sh
+│   ├── triage.sh                    # Internal — classifies the spec (run by /f-spec)
+│   ├── undo.sh
 │   ├── doc-catalog.sh               # doc/adr commands (9)
 │   ├── doc-publish.sh
 │   ├── doc-query.sh
@@ -326,6 +336,8 @@ open-sdd/
 │   ├── service-rules.md             # Per-project invariants (copy to .opensdd/)
 │   ├── rules.json                   # Rules schema template
 │   ├── spec.md                      # Spec scaffold template
-│   └── mr-config.json               # MR config template
+│   ├── mr-config.json               # MR config template
+│   ├── pipeline-reference.md        # Global SDD instructions (installed to opencode)
+│   └── check.sh.example             # Project-local validation-script template
 └── install.sh                       # Register /f-* commands as custom commands
 ```

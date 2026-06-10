@@ -149,31 +149,6 @@ check_required_artifacts() {
 }
 
 # ---------------------------------------------------------------------------
-# Branch match check
-# Verifies current branch matches state.json's recorded branch.
-# ---------------------------------------------------------------------------
-check_branch_match() {
-  local slug="$1"
-  local state_file=".specwork/_state/${slug}-state.json"
-  [ -f "$state_file" ] || return 1
-
-  local current_branch
-  current_branch=$(git rev-parse --abbrev-ref HEAD)
-
-  python3 - <<'PY' "$state_file" "$current_branch"
-import json, sys
-from pathlib import Path
-state = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-recorded = state.get("branch", "")
-current = sys.argv[2]
-if recorded and recorded != current:
-    print(f"BRANCH_MISMATCH recorded={recorded} current={current}")
-    sys.exit(1)
-sys.exit(0)
-PY
-}
-
-# ---------------------------------------------------------------------------
 # Stack detection
 # Returns: "java" if build.gradle/pom.xml exists, "node" if package.json
 # exists, "unknown" otherwise.
