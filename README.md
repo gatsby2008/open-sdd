@@ -15,8 +15,8 @@ Open-source. Self-contained. Everything lives in this repo.
 
 ## Install
 
-open-sdd is **fully self-contained**. Registers all 29 commands (20 pipeline + 9
-doc/adr) as custom commands with tab-completion:
+open-sdd is **fully self-contained**. Registers all 31 commands (20 pipeline + 11
+doc/adr/investigation) as custom commands with tab-completion:
 
 ```bash
 git clone <repo-url> ~/team/Yield/open-sdd

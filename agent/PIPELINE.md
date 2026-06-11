@@ -539,6 +539,8 @@ Questions worth preserving, recommend `/doc-adr open-questions`.
 | `/adr-query` | `adr-query.sh` | Answer architecture-decision questions across all registered ADRs |
 | `/spec-publish` | `spec-publish.sh` | Publish a hand-written / standalone spec to the spec registry |
 | `/spec-query` | `spec-query.sh` | Answer feature/spec questions across published specs |
+| `/doc-investigation` | `doc-investigation.sh` | Capture the current investigation (bug or exploration) into a structured document in the shared registry |
+| `/doc-investigation-query` | `doc-investigation-query.sh` | Answer questions across all captured investigations |
 
 ## Gates reference
 

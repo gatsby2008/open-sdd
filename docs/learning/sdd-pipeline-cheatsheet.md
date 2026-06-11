@@ -80,7 +80,7 @@ Without these commands, the fallback is often `/f-close`, which wipes `.specwork
 
 ---
 
-**29 commands total** (20 pipeline + 9 doc/ADR/query commands).
+**31 commands total** (20 pipeline + 11 doc/ADR/investigation commands).
 
 **See also:**
 - [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview

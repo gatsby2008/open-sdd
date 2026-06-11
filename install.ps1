@@ -109,6 +109,8 @@ Install-DocCmdDirective -Name "adr-query" -Description "Ask architecture-decisio
 Install-DocCmdDirective -Name "spec-publish" -Description "Publish a feature spec to the central spec registry" -Directive "Run ${OPENSDD_PATH}/commands/spec-publish.sh `$ARGUMENTS. If the argument is 'list', print the registered specs. With a file path, publish that spec; with no argument, auto-detect the active .specwork spec. Publish-only counterpart to /f-mr (which publishes automatically inside the pipeline) — for hand-written or standalone specs."
 Install-DocCmdDirective -Name "spec-query" -Description "Ask feature/spec questions across the spec registry" -Directive "Run ${OPENSDD_PATH}/commands/spec-query.sh `$ARGUMENTS. It prints every spec published by /spec-publish or /f-mr. Use that output to answer the user's feature/spec question (behavior, scope, constraints, open questions), citing every claim as <service>/<spec-file>."
 Install-DocCmdDirective -Name "doc-freshness" -Description "Check docs for drift against code" -Directive "Run ${OPENSDD_PATH}/commands/doc-freshness.sh `$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
+Install-DocCmdDirective -Name "doc-investigation" -Description "Capture current investigation as a structured document in the shared registry" -Directive "Run ${OPENSDD_PATH}/commands/doc-investigation.sh `$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Confirm with the user before writing to the registry."
+Install-DocCmdDirective -Name "doc-investigation-query" -Description "Answer questions across all captured investigations" -Directive "Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"`$ARGUMENTS\". It lists investigation services, narrows scope by service name if possible, and prints every investigation file. Use that output to answer the user's question, citing every claim as <service>/<file>."
 
 # Remove stale commands from previous versions
 Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContinue | Out-Null
@@ -117,7 +119,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "f-refine.md") -ErrorAction SilentlyContin
   Remove-Item -Path (Join-Path $CMD_DIR "f-$_.md") -ErrorAction SilentlyContinue | Out-Null
 }
 
-Write-Host "open-sdd: 29 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 31 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------

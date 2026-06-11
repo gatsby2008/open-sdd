@@ -299,7 +299,7 @@ open-sdd/
 │   ├── non_interactive.sh          # SDD_NON_INTERACTIVE helpers
 │   ├── service-name.sh             # Service-name resolution
 │   └── spec-publish.sh             # Spec-registry publish helper
-├── commands/                        # 31 scripts (29 user-facing commands + internal helpers)
+├── commands/                        # 33 scripts (31 user-facing commands + internal helpers)
 │   ├── auto.sh
 │   ├── check.sh                     # Validation-gate runner (internal helper)
 │   ├── close.sh

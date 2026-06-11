@@ -106,6 +106,10 @@ install_doc_cmd_directive "spec-query" "Ask feature/spec questions across the sp
 Run ${OPENSDD_PATH}/commands/spec-query.sh \"\$ARGUMENTS\". It prints every spec published by /spec-publish or /f-mr. Use that output to answer the user's feature/spec question (behavior, scope, constraints, open questions), citing every claim as <service>/<spec-file>."
 install_doc_cmd_directive "doc-freshness" "Check docs for drift against code" "\
 Run ${OPENSDD_PATH}/commands/doc-freshness.sh \$ARGUMENTS. It scans the repo's docs/ folder and compares claims against the actual code — version numbers, endpoint paths, link validity, staleness. Use the drift report to answer the user's question. Propose specific fixes for each drift item."
+install_doc_cmd_directive "doc-investigation" "Capture current investigation as a structured document in the shared registry" "\
+Run ${OPENSDD_PATH}/commands/doc-investigation.sh \$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Confirm with the user before writing to the registry."
+install_doc_cmd_directive "doc-investigation-query" "Answer questions across all captured investigations" "\
+Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"\$ARGUMENTS\". It lists investigation services, narrows scope by service name if possible, and prints every investigation file. Use that output to answer the user's question, citing every claim as <service>/<file>."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").
@@ -117,7 +121,7 @@ rm -f "${CMD_DIR}/f-refine.md"
 rm -f "${CMD_DIR}/f-doc-adr.md" "${CMD_DIR}/f-doc-catalog.md" "${CMD_DIR}/f-doc-publish.md" "${CMD_DIR}/f-doc-query.md"
 rm -f "${CMD_DIR}/f-adr-publish.md" "${CMD_DIR}/f-adr-query.md"
 
-echo "open-sdd: 29 commands installed to $CMD_DIR"
+echo "open-sdd: 31 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
 # Global SDD instructions file (avoids confusion with project-level AGENTS.md)
