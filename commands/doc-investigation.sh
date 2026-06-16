@@ -17,7 +17,7 @@ TITLE=""
 FORCE_TYPE=""
 for arg in "$@"; do
   case "$arg" in
-    bug|explore|exploration)
+    bug|explore|exploration|improvements)
       FORCE_TYPE="$arg"
       ;;
     *)
@@ -40,18 +40,20 @@ echo ""
 
 echo "Available investigation templates:"
 echo ""
-echo "  bug          — Problem → Symptoms → Root Cause → Fix"
-echo "  exploration  — Question → Map → How It Works → Future Signals"
+echo "  bug           — Problem → Symptoms → Root Cause → Fix"
+echo "  exploration   — Question → Map → How It Works → Future Signals"
+echo "  improvements  — Goal → Current State → Gap Analysis → Plan"
 echo ""
 
 TYPE="${FORCE_TYPE:-auto-detect}"
 
 if [ "$TYPE" = "auto-detect" ]; then
-  echo "Type: auto-detect (infer from session — pass 'bug' or 'explore' to force)"
+  echo "Type: auto-detect (infer from session — pass 'bug', 'explore', or 'improvements' to force)"
   echo ""
   echo "Rules:"
-  echo "  - bug:        the session chased a defect, error, or unexpected behavior."
-  echo "  - exploration: the session set out to understand a mechanism or flow."
+  echo "  - bug:           the session chased a defect, error, or unexpected behavior."
+  echo "  - exploration:   the session set out to understand a mechanism or flow."
+  echo "  - improvements:  the session analyzed a gap between current state and a goal."
   echo "  When ambiguous, default to exploration."
 fi
 
@@ -67,12 +69,19 @@ if [ "$TYPE" = "exploration" ] || [ "$TYPE" = "explore" ] || [ "$TYPE" = "auto-d
   cat "$TEMPLATES_DIR/investigation-explore.md"
 fi
 
+if [ "$TYPE" = "improvements" ]; then
+  echo ""
+  echo "=== Improvements template ==="
+  cat "$TEMPLATES_DIR/investigation-improvements.md"
+fi
+
 echo ""
 echo "---"
 echo "Instructions:"
 echo ""
 echo "1. Classify the investigation type ($TYPE)"
 echo "   - If auto-detect, read the session and decide bug vs exploration."
+echo "   - Pass 'improvements' to force the forward-looking improvements template."
 echo "   - Announce the chosen type before drafting."
 echo ""
 echo "2. Fill the matching template from the session conversation."
