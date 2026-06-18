@@ -116,6 +116,9 @@ echo "2. Fill the matching template from the session conversation."
 echo "   - Source is the session only — do not re-investigate code."
 echo "   - Quote code/sql verbatim as it appeared in the session."
 echo "   - Mark gaps as [TBD], inferences as [INFERRED]."
+echo "   - Set frontmatter verified_at (the code state this is true against) to: $(git rev-parse --short HEAD 2>/dev/null || echo untracked)"
+echo "   - bug: fill Fix with Status / Where / Change / Verify so any agent can act on it."
+echo "   - improvements: write Plan as a '- [ ]' checklist; set status: proposed and updated."
 if [ -n "$TITLE" ]; then
   echo "   - Title: $TITLE (use as the first H1 heading)"
 fi

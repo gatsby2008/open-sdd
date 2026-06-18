@@ -4,6 +4,7 @@ service: <service>
 date: <YYYY-MM-DD>
 type: exploration
 source: <branch name | "pasted code">
+verified_at: <commit-sha | "untracked">
 ---
 
 # Question

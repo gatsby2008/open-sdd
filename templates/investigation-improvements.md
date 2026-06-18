@@ -4,7 +4,9 @@ service: <service>
 date: <YYYY-MM-DD>
 type: improvements
 status: proposed
+updated: <YYYY-MM-DD>
 source: <gist URL | review | ticket | branch name>
+verified_at: <commit-sha | "untracked">
 ---
 
 # Goal
@@ -27,9 +29,15 @@ standard being measured against.>
 # Plan
 
 <Per ADOPT / PARTIAL item: the concrete change, files / skills touched, and effort.
-Ordered cheapest / lowest-risk first.>
+Ordered cheapest / lowest-risk first. A checklist so any agent can see at a glance
+what is left to do.>
 
-1. **<item>** — <change>. Touches `<file>`. Effort: S | M | L.
+- [ ] **<item>** — <change>. Touches `<file>`. Effort: S | M | L.
+- [ ] **<item>** — <change>. Touches `<file>`. Effort: S | M | L.
+
+<As items land, check them off and update the frontmatter: `status`
+(proposed → in-progress → done; or superseded / abandoned) and `updated:`. That is how
+the next agent knows where to pick up instead of redoing work.>
 
 # Out of Scope
 
