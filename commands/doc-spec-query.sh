@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# /spec-query — print every published spec so the model can answer feature/spec
-# questions across services. Reads the registry that lib/spec-publish.sh writes
+# /doc-spec-query — print every stored spec so the model can answer feature/spec
+# questions across services. Reads the registry that /doc-spec writes
 # (populated by /f-mr): $OPEN_SDD_DOC_HOME/spec-registry/<service>/<slug>-spec.md.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Same registry root as doc-query/adr-query and lib/spec-publish.sh, so we read
+# Same registry root as doc-query/adr-query, so we read
 # exactly what /f-mr wrote.
 REGISTRY="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/spec-registry"
 
@@ -18,8 +18,8 @@ done < <(find "$REGISTRY" -name '*-spec.md' -type f 2>/dev/null)
 if [ ${#FILES[@]} -eq 0 ]; then
   echo "No specs found in $REGISTRY/"
   echo ""
-  echo "Publish a spec with /spec-publish <path>, or run the pipeline through /f-mr"
-  echo "(which publishes automatically when a .specwork spec exists), then re-run this query."
+  echo "Store a spec with /doc-spec <path>, or run the pipeline through /f-mr"
+  echo "(which stores automatically when a .specwork spec exists), then re-run this query."
   exit 0
 fi
 

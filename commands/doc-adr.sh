@@ -2,14 +2,46 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$SCRIPT_DIR/../lib"
+# shellcheck source=../lib/service-name.sh
+. "$LIB_DIR/service-name.sh"
 
 die() { echo "$*" >&2; exit 1; }
 
+REGISTRY="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/adr-registry"
+
+# ---- parse arguments ---------------------------------------------------------
+
+if [ "${1:-}" = "list" ]; then
+  SERVICE_NAME="$(resolve_service_name)"
+  ADR_DIR="$REGISTRY/$SERVICE_NAME"
+  if [ -d "$ADR_DIR" ]; then
+    count="$(ls -1 "$ADR_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')"
+    if [ "$count" -gt 0 ]; then
+      echo "ADRs for $SERVICE_NAME ($count total):"
+      ls -1 "$ADR_DIR"/*.md 2>/dev/null | xargs -n1 basename | sort | sed 's/^/  /'
+    else
+      echo "No ADRs found for $SERVICE_NAME."
+    fi
+  else
+    echo "No ADRs found for $SERVICE_NAME."
+    echo "Run /doc-adr in this repo to create and publish one."
+  fi
+  exit 0
+fi
+
+# ---- detect service ----------------------------------------------------------
+
+SERVICE_NAME="$(resolve_service_name)"
+
 # ---- helpers ----------------------------------------------------------------
 
+# ADR numbering is service-wide and monotonic, scoped to the registry subdir
+# (registry is the single home — there is no in-repo docs/adr/).
+ADR_DIR="$REGISTRY/$SERVICE_NAME"
 NEXT_ADR=1
-if [ -d docs/adr ]; then
-  LAST=$(find docs/adr -name "*-ADR-[0-9][0-9][0-9]-*.md" 2>/dev/null \
+if [ -d "$ADR_DIR" ]; then
+  LAST=$(find "$ADR_DIR" -name "*-ADR-[0-9][0-9][0-9]-*.md" 2>/dev/null \
     | grep -oE 'ADR-[0-9]{3}' \
     | sort \
     | tail -1 \
@@ -27,6 +59,7 @@ fi
 
 ARG="${1:-}"
 
+echo "Service: $SERVICE_NAME"
 echo "Next ADR number: ADR-$(printf '%03d' "$NEXT_ADR")"
 echo "Branch: $BRANCH"
 [ -n "$TICKET" ] && echo "Ticket: $TICKET"
@@ -59,19 +92,28 @@ elif [ -n "$ARG" ]; then
 fi
 
 echo ""
-echo "---"
-echo "Existing ADRs in docs/adr/:"
-if [ -d docs/adr ]; then
-  ls -1 docs/adr/*ADR-*.md 2>/dev/null | sort || echo "(none)"
+echo "Existing ADRs for $SERVICE_NAME in the registry:"
+if [ -d "$ADR_DIR" ] && ls "$ADR_DIR"/*ADR-*.md >/dev/null 2>&1; then
+  ls -1 "$ADR_DIR"/*ADR-*.md 2>/dev/null | xargs -n1 basename | sort
 else
-  echo "(none — docs/adr/ does not exist)"
+  echo "(none yet)"
 fi
 
 echo ""
 echo "ADR-NNN format:"
 echo "  <TICKET>-ADR-NNN-<kebab-slug>.md"
 echo ""
-echo "Use this info to draft the ADR, confirm with the user,"
-echo "then write the file to docs/adr/. The ADR will reach main when the branch is merged."
+echo "---"
+echo "Instructions:"
 echo ""
-echo "After writing, run /adr-publish to sync it to the central registry for cross-service queries."
+echo "1. Use the context above to draft the ADR."
+echo "   Filename: ${TICKET:-NOTICKET}-ADR-$(printf '%03d' "$NEXT_ADR")-<kebab-slug>.md"
+echo ""
+echo "2. Write it STRAIGHT to the registry — no copy in the repo, no confirmation prompt:"
+echo "   mkdir -p \"$REGISTRY/$SERVICE_NAME\""
+echo "   # write the ADR to \"$REGISTRY/$SERVICE_NAME/<filename>.md\""
+echo ""
+echo "3. List the registry to confirm, and print the stored path:"
+echo "   ls -1 \"$REGISTRY/$SERVICE_NAME/\"*.md 2>/dev/null | xargs -n1 basename | sort"
+echo ""
+echo "Run /doc-adr-query to ask questions across the registry."

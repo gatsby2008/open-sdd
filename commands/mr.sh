@@ -270,8 +270,21 @@ fi
 rm -f "$MR_BODY_FILE"
 
 # ---- publish spec to central registry (pipeline mode only) ------------------
+# Inlined from the removed lib/spec-publish.sh (merged into doc-spec).
 
-bash "$LIB_DIR/spec-publish.sh" "${SPEC_FILE:-}" || true
+if [ -n "${SPEC_FILE:-}" ] && [ -f "$SPEC_FILE" ]; then
+  . "$LIB_DIR/service-name.sh"
+  REGISTRY="${OPEN_SDD_DOC_HOME:-${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry}/spec-registry"
+  SERVICE="$(resolve_service_name)"
+  DEST="$REGISTRY/$SERVICE"
+  mkdir -p "$DEST"
+  if [ -f "$DEST/$(basename "$SPEC_FILE")" ]; then
+    echo "  Spec already exists at $DEST/$(basename "$SPEC_FILE") — skipping publish."
+  else
+    cp "$SPEC_FILE" "$DEST/$(basename "$SPEC_FILE")"
+    echo "  Spec published -> $DEST/$(basename "$SPEC_FILE")"
+  fi
+fi || true
 
 # ---- update state.json with MR URL (pipeline mode only) ---------------------
 
