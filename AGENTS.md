@@ -48,18 +48,25 @@ Each command independently checks preconditions:
 | `/f-code-review` | `code-review.sh` | Standalone — quality + security review of your diff |
 | `/f-undo` | `undo.sh` | Standalone — discard reversibly (`--restore` to recover, `--hard --force` to purge) |
 | `/doc-catalog` | `doc-catalog.sh` | Scan project, generate `docs/service-info.md` |
-| `/doc-publish` | `doc-publish.sh` | Publish catalog to central registry |
-| `/doc-query` | `doc-query.sh` | Cross-service architecture questions |
+| `/doc-catalog-query` | `doc-catalog-query.sh` | Cross-service architecture questions |
 | `/doc-adr` | `doc-adr.sh` | Architecture Decision Record |
+| `/doc-adr-query` | `doc-adr-query.sh` | Query across all ADRs |
+| `/doc-spec` | `doc-spec.sh` | Store a feature spec in the central registry |
+| `/doc-spec-query` | `doc-spec-query.sh` | Query across all feature specs |
 | `/doc-investigation` | `doc-investigation.sh` | Capture investigation as structured document |
 | `/doc-investigation-query` | `doc-investigation-query.sh` | Query across all captured investigations |
+| `/arch-query` | `arch-query.sh` | Query architecture design documents (`$OPEN_SDD_ARCH_HOME`) |
 
-### Registries (all under `$OPEN_SDD_DOC_HOME/${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`)
+### Registries
+
+All doc registries under `$OPEN_SDD_DOC_HOME/${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`:
 
 - `service-catalog/` — `/doc-publish`
 - `adr-registry/` — `/adr-publish`
 - `spec-registry/` — `/spec-publish` or `/f-mr`
 - `investigation-registry/` — `/doc-investigation`
+
+Architecture design docs live separately at `$OPEN_SDD_ARCH_HOME` (clone the architecture repo and set this env var):
 
 ### Stack detection
 

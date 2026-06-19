@@ -112,6 +112,8 @@ When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-investigation
 Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh \$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Print the full draft, then write it straight to the registry — no yes/no gate; the user can still interrupt to edit."
 install_doc_cmd_directive "doc-investigation-query" "Answer questions across all captured investigations" "\
 Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"\$ARGUMENTS\". It lists investigation services, narrows scope by service name if possible, and prints every investigation file. Use that output to answer the user's question, citing every claim as <service>/<file>."
+install_doc_cmd_directive "arch-query" "Query architecture design documents (set OPEN_SDD_ARCH_HOME to the architecture repo path)" "\
+Run ${OPENSDD_PATH}/commands/arch-query.sh \"\$ARGUMENTS\". It reads architecture design documents from \$OPEN_SDD_ARCH_HOME (set this env var to the architecture repo path), lists available project areas, and narrows scope if a project area name matches the argument. Use the output to answer the user's architecture question. Cite every claim as the source file relative to the architecture repo. If OPEN_SDD_ARCH_HOME is not set, tell the user to set it."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").
@@ -129,7 +131,7 @@ rm -f "${CMD_DIR}/doc-query.md" "${CMD_DIR}/adr-query.md" "${CMD_DIR}/spec-query
 # doc-freshness removed (regenerating with doc-catalog already reflects current code).
 rm -f "${CMD_DIR}/doc-freshness.md"
 
-echo "open-sdd: 28 commands installed to $CMD_DIR"
+echo "open-sdd: 29 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
 # Global SDD instructions file (avoids confusion with project-level AGENTS.md)
