@@ -1,11 +1,27 @@
 # Service Rules — <service-name>
 
+> **Ownership:** <which module/service/class owns this; who enforces it. Note cross-boundary
+> identity fields — the ones owned by external systems that must never be generated or mutated
+> locally.>
+
+## Key concepts
+
+<The minimum domain model an agent needs to reason correctly: the entities, their states, the
+source of truth. A small state table is often clearer than prose.>
+
+| Entity | Key identity fields | Source of truth |
+|--------|---------------------|-----------------|
+| `<Entity>` | `<field>` (<description>) | <who owns it; never re-generated locally> |
+
 ## Business Invariants
 
 - External clients (Feign, SOAP, REST adapters) must never be called directly from services — always through a dedicated processor or adapter layer that returns `Optional<T>` and swallows all exceptions.
 - Soft-deleted entities (`isDeleted = true`) must never be returned to callers. Filter in repository custom queries or mapper methods — never in controllers or services.
 - JPA entities must never be returned directly from controllers. Always map through MapStruct to a response DTO before returning.
 - _(Add service-specific invariants here — ownership rules, atomicity contracts, circuit-breaker conditions, event semantics, etc.)_
+
+> **Implementation note (verified <date>):** _(Add when a past bug or workaround shapes an
+> invariant — name the class or flow and what breaks if the rule is violated.)_
 
 ## Fallback and Idempotency
 
@@ -17,12 +33,15 @@
 
 - Constructor injection only — no `@Autowired`, no field injection, no setter injection. Use `@RequiredArgsConstructor` (Lombok) or an explicit constructor.
 - External integrations must go through dedicated processor/adapter layers. No direct HTTP/SOAP/SDK calls from service classes.
-- _(Add stack-specific constraints: TLS versions, auth flows, circuit-breaker state ownership, etc.)_
+- _(Add stack-specific constraints: identity field mappings, TLS versions, auth flows, circuit-breaker state ownership, etc.)_
 
 ## Historical Constraints
 
 - Existing public API endpoint contracts must remain unchanged unless a versioned migration is introduced.
-- _(Add backward-compatibility rules specific to this service — event schemas, consumer expectations, etc.)_
+- _(Add backward-compatibility rules specific to this service — event schemas, consumer expectations, identity paths that must not be changed.)_
+
+> **Implementation note (verified <date>):** _(Explain why a historical constraint exists and
+> what breaks if it is violated. Name the class or flow to watch.)_
 
 ## Out of Scope (Do Not Add Here)
 
