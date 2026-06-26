@@ -1,33 +1,23 @@
-# Service Rules
+# <Service Name> — Business Invariants
 
-Use this file for service-level invariants that must remain true across features.
-Copy it to `./.opensdd/service-rules.md` in each consumer project.
+> **Ownership:** <service-name> service. These invariants apply regardless of which file is being edited.
 
-## Business Invariants
+## Key concepts
 
-- Keep only stable domain rules (not ticket-specific behavior).
-- Example: "A lead must never be pushed downstream more than once."
-- Example: "A consent message must always reference the selected delivery channel."
+| Concept | Source of truth | Notes |
+|---------|----------------|-------|
+| _(Add service-specific domain keys here)_ | | |
 
-## Fallback and Idempotency
+## Invariants
 
-- Define mandatory fallback behavior for external dependency failures.
-- Define idempotency keys and duplicate-processing protection.
-- Define atomic update boundaries when multiple writes are involved.
+- **Feign clients are never called directly from services** — always through a Processor wrapper (`*Processor`) that returns `Optional<T>` and swallows all exceptions.
 
-## Historical Constraints
+- **Soft-deleted entities (`isDeleted = true`) must never be returned to callers.** Filter in repository custom queries (`isDeletedFalse`) or in mapper methods — never in controllers or services.
 
-- Preserve backward-compatible behavior for existing clients/events.
-- Keep event semantics stable unless a versioned migration is introduced.
+- **JPA entities are never returned directly from controllers.** Always map through MapStruct to a DTO before returning.
 
-## Architecture Constraints
+- **Constructor injection only** — no `@Autowired`, no field injection, no setter injection. Use `@RequiredArgsConstructor` (Lombok) or an explicit constructor.
 
-- Keep only implementation-impacting constraints.
-- Example: "Use constructor injection only."
-- Example: "Access external integrations through dedicated adapter/wrapper layers."
+- **Fire-and-forget external sync** — when propagating a change to multiple external systems, wrap each call in its own `try-catch`, log on failure, never rethrow.
 
-## Out of Scope (Do Not Add Here)
-
-- Ticket-only decisions
-- Temporary rollout notes
-- Dates, branch names, or one-off implementation tasks
+- _(Add service-specific invariants below — ownership rules, idempotency contracts, event semantics, etc.)_
