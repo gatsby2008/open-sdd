@@ -12,8 +12,7 @@ In each consumer project where you want to use the pipeline:
 1. Install open-sdd globally (see [Install](../README.md#install) in the README).
 2. *(Recommended)* Run `/init` inside the project so opencode creates a project-level `AGENTS.md` with build commands, architecture, and conventions.
 
-The first `/f-start` auto-bootstraps `.opensdd/service-rules.md` and
-`.opensdd/mr-config.json` in the project.
+The first `/f-start` auto-bootstraps `.opensdd/service-rules.md` in the project.
 
 > **How instructions are loaded.** opencode loads **two separate sources** without conflict:
 > - **Global instructions** (`~/.config/opencode/instructions/sdd-pipeline.md`) — installed by `install.sh` with the SDD pipeline rules and command mappings. Referenced from `opencode.json` via the `instructions` field.
@@ -49,19 +48,7 @@ ADRs.
 already tracked from a prior setup, it warns with the exact `git rm --cached`
 command to untrack them.
 
-`.opensdd/` (the per-project config directory — `mr-config.json`,
-`service-rules.md`) **is** committed.
-
-### MR config
-
-Project config (`.opensdd/mr-config.json`, commit this):
-
-```json
-{
-  "target_branch": "development",
-  "merge_strategy": "squash"
-}
-```
+`.opensdd/` (the per-project config directory — `service-rules.md`) **is** committed.
 
 ### Validation script (`commands/check.sh`)
 
@@ -336,7 +323,6 @@ open-sdd/
 │   ├── service-rules.md             # Per-project invariants (copy to .opensdd/)
 │   ├── rules.json                   # Rules schema template
 │   ├── spec.md                      # Spec scaffold template
-│   ├── mr-config.json               # MR config template
 │   ├── pipeline-reference.md        # Global SDD instructions (installed to opencode)
 │   └── check.sh.example             # Project-local validation-script template
 └── install.sh                       # Register /f-* commands as custom commands

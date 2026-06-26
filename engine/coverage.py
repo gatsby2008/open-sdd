@@ -43,7 +43,7 @@ _JAVA_SKIP_DIRS = (
     "model", "models", "exception", "exceptions", "constants",
 )
 _JAVA_SKIP_BASENAMES = ("package-info.java", "module-info.java")
-_JAVA_TEST_SUFFIXES = ("Test", "Tests", "IT", "ITCase")
+_JAVA_TEST_SUFFIXES = ("Test", "Tests", "IT", "ITCase", "IntTest")
 
 # ---------------------------------------------------------------------------
 # Frontend heuristics

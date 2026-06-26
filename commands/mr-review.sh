@@ -135,12 +135,7 @@ else
   git fetch origin "$BRANCH" --quiet 2>/dev/null || \
     die "Branch '$BRANCH' not found on origin."
 
-  # Detect base branch: mr-config.json > main
   BASE="main"
-  if [ -f ".opensdd/mr-config.json" ]; then
-    BASE_CFG=$(python3 -c "import json; print(json.load(open('.opensdd/mr-config.json')).get('target_branch','main'))" 2>/dev/null || echo "main")
-    [ -n "$BASE_CFG" ] && BASE="$BASE_CFG"
-  fi
 
   if ! git ls-remote --exit-code --heads origin "$BASE" >/dev/null 2>&1; then
     if [ "$BASE" = "main" ]; then
