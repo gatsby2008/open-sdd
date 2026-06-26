@@ -141,9 +141,9 @@ fi
 #   no plan.md AND ticket can skip plan                   → /f-implement
 #   plan.md stale (spec ts > plan mtime)                  → /f-plan (refresh)
 #   plan.md has open OQs                                  → resolve_oqs
-#   working tree dirty + staged                           → /f-commit
-#   working tree dirty + unstaged                         → /f-implement
-#   working tree clean + commits ahead of base            → /f-mr
+#   working tree dirty (staged or unstaged)               → /f-commit
+#   working tree clean + commits ahead of base (no MR)    → /f-mr
+#   working tree clean + commits ahead of base (MR exists)→ /f-mr-address
 #   otherwise                                             → /f-implement
 
 NEXT=""
@@ -172,16 +172,41 @@ elif [ ! -f "$PLAN_FILE" ]; then
 elif [ "$PLAN_STALE" = "true" ]; then
   NEXT="/f-plan (refresh — spec is newer)"
 elif [ "$GIT_TREE" -gt 0 ]; then
-  STAGED=$(git diff --cached --stat 2>/dev/null | wc -l | tr -d ' ')
-  if [ "$STAGED" -gt 0 ]; then
-    NEXT="/f-commit"
-  else
-    NEXT="/f-implement"
-  fi
+  NEXT="/f-commit"
 else
-  COMMITS_AHEAD=$(git log --oneline "${BRANCH}" ^"$(git rev-parse --abbrev-ref @{upstream} 2>/dev/null || echo origin/main)" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+  BASE_BRANCH=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('base_branch','development'))" 2>/dev/null || echo "development")
+  COMMITS_AHEAD=$(git log --oneline "${BRANCH}" ^"origin/${BASE_BRANCH}" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
   if [ "$COMMITS_AHEAD" -gt 0 ]; then
-    NEXT="/f-mr"
+    MR_EXISTS=false
+    MR_URL=""
+    ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+    case "$ORIGIN_URL" in
+      *github.com*)
+        if command -v gh >/dev/null 2>&1; then
+          EXISTING_MR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty' 2>/dev/null || true)
+          if [ -n "$EXISTING_MR" ]; then
+            MR_EXISTS=true
+            MR_URL=$(gh pr view "$EXISTING_MR" --json url --jq '.url' 2>/dev/null || true)
+          fi
+        fi
+        ;;
+      *gitlab*)
+        if command -v glab >/dev/null 2>&1; then
+          MR_JSON=$(glab mr list --source-branch "$BRANCH" -F json 2>/dev/null || true)
+          if [ -n "$MR_JSON" ]; then
+            MR_URL=$(echo "$MR_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[0].get("web_url","") if d else "")' 2>/dev/null || true)
+            if [ -n "$MR_URL" ]; then
+              MR_EXISTS=true
+            fi
+          fi
+        fi
+        ;;
+    esac
+    if [ "$MR_EXISTS" = "true" ]; then
+      NEXT="/f-mr-address"
+    else
+      NEXT="/f-mr"
+    fi
   else
     NEXT="/f-implement"
   fi
@@ -200,7 +225,16 @@ case "$NEXT" in
       echo "Next:   Resolve Open Questions first"
     fi
     ;;
-  /f-plan|/f-implement|/f-test-design|/f-test-impl|/f-commit|/f-mr|/f-start)
+  /f-plan|/f-implement|/f-test-design|/f-test-impl|/f-commit|/f-start)
+    echo "Next:   $NEXT"
+    ;;
+  /f-mr-address)
+    echo "Next:   $NEXT"
+    if [ -n "$MR_URL" ]; then
+      echo "MR:     $MR_URL"
+    fi
+    ;;
+  /f-mr)
     echo "Next:   $NEXT"
     ;;
   *)
