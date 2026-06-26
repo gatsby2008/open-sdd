@@ -26,7 +26,7 @@
 | Path | Gitignored? | Contents |
 |------|-------------|----------|
 | `.specwork/` | **Yes** (enforced by `/f-start`) | Transient pipeline state: spec, plan, source, cache, escalations |
-| `.opensdd/` | **No** (committed) | Per-dev config: `service-rules.md`, `mr-config.json` |
+| `.opensdd/` | **No** (committed) | Per-dev config: `service-rules.md` |
 
 ### Pipeline is artifact-driven (no state machine)
 

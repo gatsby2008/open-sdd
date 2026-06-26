@@ -89,7 +89,6 @@ executor doesn't repeat failed attempts. This is what makes
 | Path | Description |
 |------|-------------|
 | `.opensdd/service-rules.md` | Service-level invariants |
-| `.opensdd/mr-config.json` | MR target branch, merge strategy |
 
 > `.specwork/` is **transient runtime state** and must never be committed —
 > `/f-start` enforces this by appending it to `.gitignore` on first run. `.opensdd/`
