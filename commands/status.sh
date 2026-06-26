@@ -28,6 +28,7 @@ if [ -n "$SLUG" ]; then
   STATE_FILE=".specwork/_state/${SLUG}-state.json"
   SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
   PLAN_FILE=".specwork/_plan/${SLUG}-plan.md"
+  MR_JSON_FILE=".specwork/_state/${SLUG}-mr.json"
 fi
 
 # Count open / resolved OQs in a given markdown file
@@ -157,8 +158,16 @@ if [ -f "$PLAN_FILE" ] && [ -f "$STATE_FILE" ]; then
   fi
 fi
 
+MR_URL=""
+if [ -f "${MR_JSON_FILE:-}" ]; then
+  MR_URL=$(python3 -c "import json; print(json.load(open('${MR_JSON_FILE}')).get('url',''))" 2>/dev/null || echo "")
+fi
+
 if [ ! -f "$STATE_FILE" ]; then
   NEXT="/f-start"
+elif [ -f "${MR_JSON_FILE:-}" ]; then
+  # Priority 1: MR already created — address it before anything else
+  NEXT="/f-mr-address"
 elif [ ! -f "$SPEC_FILE" ]; then
   NEXT="/f-spec"
 elif [ "${spec_open:-0}" -gt 0 ] || [ "${plan_open:-0}" -gt 0 ]; then
@@ -177,36 +186,7 @@ else
   BASE_BRANCH=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('base_branch','development'))" 2>/dev/null || echo "development")
   COMMITS_AHEAD=$(git log --oneline "${BRANCH}" ^"origin/${BASE_BRANCH}" 2>/dev/null | wc -l | tr -d ' ' || echo "0")
   if [ "$COMMITS_AHEAD" -gt 0 ]; then
-    MR_EXISTS=false
-    MR_URL=""
-    ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
-    case "$ORIGIN_URL" in
-      *github.com*)
-        if command -v gh >/dev/null 2>&1; then
-          EXISTING_MR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number // empty' 2>/dev/null || true)
-          if [ -n "$EXISTING_MR" ]; then
-            MR_EXISTS=true
-            MR_URL=$(gh pr view "$EXISTING_MR" --json url --jq '.url' 2>/dev/null || true)
-          fi
-        fi
-        ;;
-      *gitlab*)
-        if command -v glab >/dev/null 2>&1; then
-          MR_JSON=$(glab mr list --source-branch "$BRANCH" -F json 2>/dev/null || true)
-          if [ -n "$MR_JSON" ]; then
-            MR_URL=$(echo "$MR_JSON" | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d[0].get("web_url","") if d else "")' 2>/dev/null || true)
-            if [ -n "$MR_URL" ]; then
-              MR_EXISTS=true
-            fi
-          fi
-        fi
-        ;;
-    esac
-    if [ "$MR_EXISTS" = "true" ]; then
-      NEXT="/f-mr-address"
-    else
-      NEXT="/f-mr"
-    fi
+    NEXT="/f-mr"
   else
     NEXT="/f-implement"
   fi
@@ -225,14 +205,16 @@ case "$NEXT" in
       echo "Next:   Resolve Open Questions first"
     fi
     ;;
-  /f-plan|/f-implement|/f-test-design|/f-test-impl|/f-commit|/f-start)
+  /f-plan)
+    echo "Next:   $NEXT (recommended, can skip)"
+    echo "        /f-implement"
+    ;;
+  /f-implement|/f-test-design|/f-test-impl|/f-commit|/f-start|/f-spec)
     echo "Next:   $NEXT"
     ;;
   /f-mr-address)
     echo "Next:   $NEXT"
-    if [ -n "$MR_URL" ]; then
-      echo "MR:     $MR_URL"
-    fi
+    [ -n "$MR_URL" ] && echo "MR:     $MR_URL"
     ;;
   /f-mr)
     echo "Next:   $NEXT"

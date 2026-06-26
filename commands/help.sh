@@ -191,6 +191,13 @@ if [ -n "$BASE" ] && [ -n "$BRANCH" ]; then
   [ "$AHEAD" -gt 0 ] && COMMITS_AHEAD=true
 fi
 
+MR_JSON_FILE=""
+MR_OPENED=false
+if [ -n "$SLUG" ]; then
+  MR_JSON_FILE=".specwork/_state/${SLUG}-mr.json"
+fi
+[ -f "${MR_JSON_FILE:-}" ] && MR_OPENED=true
+
 # ---- determine state --------------------------------------------------------
 
 STATE_LABEL="setup"
@@ -284,14 +291,20 @@ for step in "${pipeline_steps[@]}"; do
       echo "○  $name"
       ;;
     "/f-mr")
-      if $COMMITS_AHEAD; then
+      if $MR_OPENED; then
+        echo "✓  $name               MR open"
+      elif $COMMITS_AHEAD; then
         echo "→  $name               ready to open"
       else
         echo "○  $name"
       fi
       ;;
     "/f-mr-address")
-      echo "○  $name"
+      if $MR_OPENED; then
+        echo "→  $name"
+      else
+        echo "○  $name"
+      fi
       ;;
     "/f-close")
       echo "○  $name"
@@ -323,6 +336,14 @@ PYEOF
   echo "    git switch $RECORDED"
   echo ""
   echo "  The active .specwork state belongs to a different branch."
+elif $MR_OPENED; then
+  echo "  /f-mr-address"
+  echo ""
+  echo "  MR is open. Address review comments, then /f-close after it merges."
+elif [ "$STATE_LABEL" = "blocked" ] && ! $SPEC_EXISTS; then
+  echo "  /f-spec"
+  echo ""
+  echo "  Pipeline is initialized but no spec exists. Draft the spec next."
 elif [ "$STATE_LABEL" = "blocked" ] && [ "$SPEC_OQS_OPEN" -gt 0 ]; then
   ABS_SPEC="$(cd "$(dirname "$SPEC_FILE")" && pwd)/$(basename "$SPEC_FILE")"
   OQ_LINE=$(grep -n "^## Open Questions" "$SPEC_FILE" | head -1 | cut -d: -f1 || echo "")
