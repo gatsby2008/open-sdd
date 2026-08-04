@@ -76,6 +76,34 @@ class GatesTestCase(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertTrue(str(result).endswith("slug-a-state.json"))
 
+    def test_resolve_state_file_ignores_other_branch_state(self):
+        # Regression: .specwork/ is gitignored and survives `git checkout`, so
+        # it commonly still holds a *different* branch's leftover pipeline
+        # state. resolve_state_file() must not treat that as this branch's
+        # active pipeline just because it's the only (or first) file present.
+        self._init_git_and_branch("feature/my-feature")
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "other-ticket-state.json").write_text(
+            json.dumps({"id": "other-ticket", "branch": "feature/other-ticket"}),
+            encoding="utf-8")
+        result = resolve_state_file()
+        self.assertIsNone(result)
+
+    def test_resolve_state_file_picks_matching_file_among_several(self):
+        # Regression: with multiple state files present, the one for the
+        # current branch must be found regardless of sort/glob order.
+        self._init_git_and_branch("feature/my-feature")
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "a-earlier-alphabetically-state.json").write_text(
+            json.dumps({"id": "a-earlier-alphabetically", "branch": "feature/other-ticket"}),
+            encoding="utf-8")
+        (SPECWORK / "_state" / "z-later-alphabetically-state.json").write_text(
+            json.dumps({"id": "z-later-alphabetically", "branch": "feature/my-feature"}),
+            encoding="utf-8")
+        result = resolve_state_file()
+        self.assertIsNotNone(result)
+        self.assertTrue(str(result).endswith("z-later-alphabetically-state.json"))
+
     # --- check_open_questions ---
 
     def _write_spec(self, slug: str, body: str):

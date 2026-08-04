@@ -56,16 +56,19 @@ def require_specwork(spec_dir: str = ".specwork") -> Optional[str]:
 
 
 def resolve_state_file() -> Optional[Path]:
+    """The state file for the *current branch's* pipeline, or None if it has none.
+
+    Deliberately does not fall back to "the first state file found" when the
+    resolved slug has no matching file. .specwork/ is gitignored and survives
+    `git checkout`, so it commonly still holds a different branch's leftover
+    pipeline state; treating that as this branch's active pipeline would be
+    wrong (mirrors resolve_slug()'s own branch-scoped matching above).
+    """
     slug = resolve_slug()
     if slug:
         p = SPECWORK / "_state" / f"{slug}-state.json"
         if p.exists():
             return p
-    state_dir = SPECWORK / "_state"
-    if state_dir.exists():
-        files = sorted(state_dir.glob("*-state.json"))
-        if files:
-            return files[0]
     return None
 
 

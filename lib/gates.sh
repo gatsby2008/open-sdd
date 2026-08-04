@@ -5,20 +5,31 @@
 # Fixed: mtime comparison uses state.json stored timestamp, not filesystem mtime.
 
 resolve_slug() {
-  local branch state_file matched_slug
+  local branch matched_slug
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
   [ -n "$branch" ] || return 1
 
-  # Prefer the slug stored in state.json that matches our branch.
-  # Write a small python script to a temp file to avoid heredoc nesting issues.
-  state_file=$(find .specwork/_state -maxdepth 1 -type f -name "*-state.json" 2>/dev/null | head -1)
-  if [ -n "$state_file" ] && [ -f "$state_file" ]; then
+  # Prefer the slug stored in the state.json whose recorded branch matches
+  # ours. Check every state file (sorted, deterministic) — not just the one
+  # `find | head -1` happens to return first, which is filesystem order and
+  # not guaranteed to be the current branch's own file. .specwork/ is
+  # gitignored and survives `git checkout`, so it commonly still holds a
+  # *different* branch's leftover pipeline state; checking only one arbitrary
+  # file risks missing this branch's real match and silently falling back to
+  # a branch-derived slug that has no state file backing it.
+  if [ -d .specwork/_state ]; then
     matched_slug=$(python3 -c "
-import json,sys
-s=json.load(open(sys.argv[1]))
-if s.get('branch')==sys.argv[2]:
-  print(s.get('id',''))
-" "$state_file" "$branch" 2>/dev/null || true)
+import glob, json, sys
+branch = sys.argv[1]
+for f in sorted(glob.glob('.specwork/_state/*-state.json')):
+    try:
+        s = json.load(open(f))
+    except Exception:
+        continue
+    if s.get('branch') == branch:
+        print(s.get('id', ''))
+        break
+" "$branch" 2>/dev/null || true)
     if [ -n "$matched_slug" ]; then
       printf '%s' "$matched_slug"
       return 0
@@ -39,10 +50,10 @@ resolve_state_file() {
     printf '%s\n' ".specwork/_state/${slug}-state.json"
     return 0
   fi
-  local state
-  state=$(find .specwork/_state -type f -name "*-state.json" 2>/dev/null | sort | head -1)
-  [ -n "$state" ] || return 1
-  printf '%s\n' "$state"
+  # No fallback to "the first state file found" — that file may belong to a
+  # different branch's pipeline entirely. No match for this branch means no
+  # state file to return.
+  return 1
 }
 
 # ---------------------------------------------------------------------------
