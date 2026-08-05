@@ -15,6 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$SCRIPT_DIR/../lib"
 # shellcheck source=../lib/service-name.sh
 . "$LIB_DIR/service-name.sh"
+# shellcheck source=../lib/gates.sh
+. "$LIB_DIR/gates.sh"
 
 die() { echo "$*" >&2; exit 1; }
 
@@ -50,17 +52,20 @@ if [ -n "$SPEC" ]; then
   [ -f "$SPEC" ] || die "Spec file not found: $SPEC
 Pass the path to a spec markdown file: /doc-spec docs/my-feature-spec.md"
 else
-  branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  slug="${branch##*/}"
-  if [ -n "$slug" ] && [ "$slug" != "HEAD" ]; then
-    SPEC="$(find .specwork -name "${slug}-spec.md" -type f 2>/dev/null | head -1)"
+  # Use the properly-resolved slug for THIS branch — not a bare "grab any
+  # *-spec.md found" fallback. .specwork/ is gitignored and survives
+  # `git checkout`, so it commonly still holds a *different* branch's spec;
+  # auto-publishing that under the wrong pretext would be wrong even though
+  # this command isn't destructive like /f-close.
+  slug="$(resolve_slug 2>/dev/null || true)"
+  if [ -n "$slug" ]; then
+    SPEC="$(find .specwork -maxdepth 2 -name "${slug}-spec.md" -type f 2>/dev/null | head -1)"
   fi
-  [ -n "$SPEC" ] || SPEC="$(find .specwork -name '*-spec.md' -type f 2>/dev/null | head -1)"
   [ -n "$SPEC" ] || die "Nothing to store. Pass a spec file path:
 
   /doc-spec docs/my-feature-spec.md
 
-Or run this from a project with an active pipeline (.specwork/ spec)."
+Or run this from a project with an active pipeline (.specwork/ spec) for the current branch."
 fi
 
 # ---- resolve service + destination name ---------------------------------------

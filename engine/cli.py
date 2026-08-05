@@ -16,7 +16,7 @@ from typing import Optional
 from engine.state import load_pipeline_state, save_pipeline_state
 from engine.gates import (
     resolve_slug, check_open_questions, check_required_artifacts, check_plan_staleness,
-    require_specwork, detect_stack, detect_risk_signals, SPECWORK,
+    require_specwork, detect_stack, detect_risk_signals, pipeline_branch_status, SPECWORK,
 )
 from engine.persistence import load_plan, save_plan, load_cache, save_cache
 
@@ -340,6 +340,16 @@ def cmd_resolve_slug(args: list[str]) -> int:
     return 1
 
 
+def cmd_pipeline_branch_status(args: list[str]) -> int:
+    # Optional branch arg (mirrors resolve-slug's convention); defaults to the
+    # current branch. Prints one JSON object; always exits 0 (reports, never gates) —
+    # callers (close.sh) decide what to do with has_any_pipeline/owns_pipeline/
+    # is_base_branch themselves.
+    branch = args[0] if args else None
+    print(json.dumps(pipeline_branch_status(branch)))
+    return 0
+
+
 def cmd_risk_signals(args: list[str]) -> int:
     # Print the concrete, deterministic risk signals in the spec (one label per
     # line): db-migration, auth-security, breaking-api, data-destructive,
@@ -525,6 +535,7 @@ DISPATCH = {
     "implement-done": cmd_implement_done,
     "implement-plan": cmd_implement_plan,
     "resolve-slug": cmd_resolve_slug,
+    "pipeline-branch-status": cmd_pipeline_branch_status,
     "detect-stack": cmd_detect_stack,
     "risk-signals": cmd_risk_signals,
     "extract-reference-targets": cmd_extract_reference_targets,

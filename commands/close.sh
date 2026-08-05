@@ -7,25 +7,52 @@ die() { echo "$*" >&2; exit 1; }
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# ---- check pipeline exists ---------------------------------------------------
+# ---- resolve pipeline & verify it's safe to close here (STRICT) -------------
+# .specwork/ is gitignored and survives `git checkout`, so it commonly still
+# holds a *different* branch's pipeline (e.g. an in-review feature branch)
+# while you're on and closing something else entirely. The old check here —
+# "does .specwork/_state have *any* state.json" via `find | head -1` — did not
+# ask whose pipeline it was, so it would silently: (a) run `git restore .` +
+# `git clean -fd` against THIS branch's own uncommitted work below, thinking
+# it was reverting the other pipeline's changes, (b) delete that unrelated
+# pipeline without ever checking its MR status, and (c) offer to delete/switch
+# THIS branch based on that pipeline's base_branch. Ask explicitly instead.
 
-if [ ! -d ".specwork" ] || [ -z "$(find .specwork/_state -name '*-state.json' -maxdepth 1 2>/dev/null | head -1)" ]; then
+STATUS_VARS=$(PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli pipeline-branch-status "$BRANCH" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+for k in ("has_any_pipeline", "owns_pipeline", "is_base_branch", "slug", "recorded_branch", "recorded_base_branch"):
+    v = d[k]
+    if isinstance(v, bool):
+        v = "1" if v else ""
+    print(f"{k}={v}")
+')
+
+HAS_ANY_PIPELINE=$(echo "$STATUS_VARS" | grep "^has_any_pipeline=" | cut -d= -f2-)
+OWNS_PIPELINE=$(echo "$STATUS_VARS" | grep "^owns_pipeline=" | cut -d= -f2-)
+IS_BASE_BRANCH=$(echo "$STATUS_VARS" | grep "^is_base_branch=" | cut -d= -f2-)
+RECORDED_SLUG=$(echo "$STATUS_VARS" | grep "^slug=" | cut -d= -f2-)
+RECORDED_BRANCH=$(echo "$STATUS_VARS" | grep "^recorded_branch=" | cut -d= -f2-)
+PARENT=$(echo "$STATUS_VARS" | grep "^recorded_base_branch=" | cut -d= -f2-)
+
+if [ -z "$HAS_ANY_PIPELINE" ]; then
   echo "No active pipeline found in .specwork/."
   echo "Nothing to close."
   exit 0
 fi
 
-# ---- resolve parent branch from state ---------------------------------------
+if [ -z "$OWNS_PIPELINE" ] && [ -z "$IS_BASE_BRANCH" ]; then
+  die "✗ Cannot close here.
 
-PARENT=""
-STATE_FILE=$(find .specwork/_state -name '*-state.json' -maxdepth 1 2>/dev/null | head -1)
-if [ -n "$STATE_FILE" ]; then
-  PARENT=$(python3 -c "
-import json, sys
-data = json.load(open(sys.argv[1]))
-print(data.get('base_branch', ''))
-" "$STATE_FILE" 2>/dev/null || true)
+.specwork/ belongs to '$RECORDED_BRANCH' (slug '$RECORDED_SLUG'), not '$BRANCH'
+or its base. It's gitignored and didn't move when you switched branches — it
+is still on disk, but it is not this branch's pipeline to close.
+
+  • To close it: switch to '$RECORDED_BRANCH' and run /f-close there.
+  • To pause it instead: switch to '$RECORDED_BRANCH' and run /f-pause.
+  • This branch itself has no pipeline of its own — /f-start to begin one."
 fi
+
 if [ -z "$PARENT" ]; then
   PARENT=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")
 fi

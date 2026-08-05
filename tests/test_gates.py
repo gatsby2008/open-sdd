@@ -8,6 +8,7 @@ from pathlib import Path
 from engine.gates import (
     resolve_slug,
     resolve_state_file,
+    pipeline_branch_status,
     check_open_questions,
     check_plan_staleness,
     check_required_artifacts,
@@ -103,6 +104,72 @@ class GatesTestCase(unittest.TestCase):
         result = resolve_state_file()
         self.assertIsNotNone(result)
         self.assertTrue(str(result).endswith("z-later-alphabetically-state.json"))
+
+    # --- pipeline_branch_status ---
+
+    def test_pipeline_branch_status_no_pipeline_at_all(self):
+        self._init_git_and_branch("feature/anything")
+        status = pipeline_branch_status("feature/anything")
+        self.assertEqual(status, {
+            "current_branch": "feature/anything",
+            "has_any_pipeline": False,
+            "owns_pipeline": False,
+            "slug": "",
+            "recorded_branch": "",
+            "recorded_base_branch": "",
+            "is_base_branch": False,
+        })
+
+    def test_pipeline_branch_status_owns_pipeline(self):
+        self._init_git_and_branch("feature/ZZZ")
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "zzz-state.json").write_text(
+            json.dumps({"id": "zzz", "branch": "feature/ZZZ", "base_branch": "main"}),
+            encoding="utf-8")
+        status = pipeline_branch_status("feature/ZZZ")
+        self.assertTrue(status["owns_pipeline"])
+        self.assertEqual(status["slug"], "zzz")
+        self.assertEqual(status["recorded_branch"], "feature/ZZZ")
+        self.assertEqual(status["recorded_base_branch"], "main")
+        self.assertFalse(status["is_base_branch"])
+
+    def test_pipeline_branch_status_is_base_branch(self):
+        # The "MR merged, back on main, now cleaning up" case /f-close is
+        # meant to allow without a hard-stop.
+        self._init_git_and_branch("main")
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "zzz-state.json").write_text(
+            json.dumps({"id": "zzz", "branch": "feature/ZZZ", "base_branch": "main"}),
+            encoding="utf-8")
+        status = pipeline_branch_status("main")
+        self.assertFalse(status["owns_pipeline"])
+        self.assertTrue(status["is_base_branch"])
+        self.assertEqual(status["slug"], "zzz")
+        self.assertEqual(status["recorded_branch"], "feature/ZZZ")
+
+    def test_pipeline_branch_status_unrelated_third_branch(self):
+        # Regression for the /f-close data-loss bug: a brand-new branch for
+        # unrelated work, with only another branch's leftover pipeline on
+        # disk. Neither owns_pipeline nor is_base_branch should be true.
+        self._init_git_and_branch("feature/mybranch")
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "zzz-state.json").write_text(
+            json.dumps({"id": "zzz", "branch": "feature/ZZZ", "base_branch": "main"}),
+            encoding="utf-8")
+        status = pipeline_branch_status("feature/mybranch")
+        self.assertFalse(status["owns_pipeline"])
+        self.assertFalse(status["is_base_branch"])
+        self.assertEqual(status["slug"], "zzz")
+        self.assertEqual(status["recorded_branch"], "feature/ZZZ")
+
+    def test_pipeline_branch_status_defaults_to_current_branch(self):
+        self._init_git_and_branch("feature/ZZZ")
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "zzz-state.json").write_text(
+            json.dumps({"id": "zzz", "branch": "feature/ZZZ"}), encoding="utf-8")
+        status = pipeline_branch_status()  # no branch arg -> _current_branch()
+        self.assertTrue(status["owns_pipeline"])
+        self.assertEqual(status["slug"], "zzz")
 
     # --- check_open_questions ---
 

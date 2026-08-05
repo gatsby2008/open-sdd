@@ -43,6 +43,83 @@ def resolve_slug() -> Optional[str]:
     return slug
 
 
+def pipeline_branch_status(branch: Optional[str] = None) -> dict:
+    """Full picture of how ``.specwork/`` relates to ``branch`` (current branch
+    if not given).
+
+    ``/f-close`` (and, by the same reasoning, anything else that decides
+    whether it's safe to act on "the" pipeline on disk) must not assume
+    "some .specwork/ exists" means "it's mine." ``.specwork/`` is gitignored
+    and survives `git checkout`, so it routinely still holds a *different*
+    branch's pipeline. ``resolve_slug()``'s branch-derived fallback already
+    avoids adopting an unrelated branch's *slug*, but callers that only check
+    "does .specwork/_state have any state.json" (the historical pattern, e.g.
+    close.sh before this fix) skip past that protection entirely.
+
+    Returns a dict:
+      current_branch        -- ``branch`` as given (or the resolved current one)
+      has_any_pipeline       -- True if any ``*-state.json`` exists at all
+      owns_pipeline          -- True if some state.json's ``branch`` field
+                                 equals ``branch`` exactly (the normal case)
+      slug                   -- the owning slug when owns_pipeline is True;
+                                 otherwise the first state file's slug, purely
+                                 so the caller can *name* the mismatch instead
+                                 of silently acting on it — never treat this as
+                                 "the current pipeline" when owns_pipeline is False
+      recorded_branch         -- that slug's own recorded branch
+      recorded_base_branch    -- that slug's recorded base_branch, or ""
+      is_base_branch          -- True if ``branch`` equals recorded_base_branch
+                                 — the "MR merged, back on the base branch to
+                                 clean up" case close.sh is meant to allow, as
+                                 opposed to a genuinely unrelated third branch
+    """
+    if branch is None:
+        branch = _current_branch()
+    result = {
+        "current_branch": branch or "",
+        "has_any_pipeline": False,
+        "owns_pipeline": False,
+        "slug": "",
+        "recorded_branch": "",
+        "recorded_base_branch": "",
+        "is_base_branch": False,
+    }
+    state_dir = SPECWORK / "_state"
+    states = sorted(state_dir.glob("*-state.json")) if state_dir.exists() else []
+    if not states:
+        return result
+    result["has_any_pipeline"] = True
+
+    def slug_of(p: Path) -> str:
+        return p.name[: -len("-state.json")]
+
+    if branch:
+        for p in states:
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if data.get("branch") == branch:
+                result["owns_pipeline"] = True
+                result["slug"] = data.get("slug", data.get("id", slug_of(p)))
+                result["recorded_branch"] = data.get("branch", "") or ""
+                result["recorded_base_branch"] = data.get("base_branch", "") or ""
+                return result
+
+    # No match for `branch` — report the first file found purely so the
+    # caller can name the mismatch; never silently act on it as "the" pipeline.
+    p = states[0]
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    result["slug"] = data.get("slug", data.get("id", slug_of(p)))
+    result["recorded_branch"] = data.get("branch", "") or ""
+    result["recorded_base_branch"] = data.get("base_branch", "") or ""
+    result["is_base_branch"] = bool(branch) and branch == result["recorded_base_branch"]
+    return result
+
+
 def require_specwork(spec_dir: str = ".specwork") -> Optional[str]:
     """Precondition gate for state-consuming commands. Returns a reject reason
     when the pipeline is not initialized here, else None."""
