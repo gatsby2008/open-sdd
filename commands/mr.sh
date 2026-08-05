@@ -66,6 +66,55 @@ if [ "$AHEAD" -eq 0 ]; then
   exit 1
 fi
 
+# Resolve the check script path (used by both Branch Sync Check and quality gate)
+CHECK_SCRIPT="$SCRIPT_DIR/check.sh"
+if [ -f "./commands/check.sh" ]; then
+  CHECK_SCRIPT="./commands/check.sh"
+fi
+
+# ---- branch sync check: rebase if behind target branch -----------------------
+
+REBASED=false
+TARGET_BRANCH="$DEFAULT_BRANCH"
+echo ""
+echo "Checking branch sync with $TARGET_BRANCH..."
+git fetch origin "$TARGET_BRANCH" --quiet 2>/dev/null || true
+BEHIND=$(git rev-list --count HEAD..origin/"$TARGET_BRANCH" 2>/dev/null || echo 0)
+
+if [ "$BEHIND" -gt 0 ]; then
+  echo "Branch is $BEHIND commit(s) behind origin/$TARGET_BRANCH."
+  echo "Options: rebase / skip / cancel"
+
+  ACTION=""
+  if [ "${SDD_NON_INTERACTIVE:-}" = "1" ]; then
+    ACTION="rebase"
+    echo "Non-interactive mode: auto-rebase."
+  else
+    read -r ACTION < /dev/tty || true
+  fi
+
+  case "$ACTION" in
+    rebase|r)
+      echo "Rebasing on origin/$TARGET_BRANCH..."
+      if git rebase origin/"$TARGET_BRANCH"; then
+        REBASED=true
+        echo "Rebase successful."
+        bash "$CHECK_SCRIPT" || die "Checks failed after rebase. Fix issues before retrying."
+      else
+        die "Rebase conflicts detected. Resolve them manually, then run /f-mr again."
+      fi
+      ;;
+    skip|s)
+      echo "Skipping rebase. Continuing with current branch state."
+      ;;
+    cancel|c|*)
+      die "Canceled by user."
+      ;;
+  esac
+else
+  echo "Branch is up to date with origin/$TARGET_BRANCH."
+fi
+
 # ---- determine the host provider --------------------------------------------
 # The target host is the project's own remote, NOT where open-sdd lives. An
 # explicit OPEN_SDD_MR_PROVIDER (github|gitlab) wins; otherwise infer from origin.
@@ -105,11 +154,6 @@ if [ -n "$CHECKED_SHA" ] && [ "$HEAD_SHA" = "$CHECKED_SHA" ]; then
   echo "Skipping pre-push checks — HEAD already validated by f-commit ($HEAD_SHA)."
 else
   echo "Running pre-push checks..."
-  CHECK_SCRIPT="$SCRIPT_DIR/check.sh"
-  if [ -f "./commands/check.sh" ]; then
-    CHECK_SCRIPT="./commands/check.sh"
-    echo "Using project-local commands/check.sh"
-  fi
   bash "$CHECK_SCRIPT" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
 fi
 echo ""
@@ -188,10 +232,39 @@ if [ -n "${SPEC_FILE:-}" ] && [ -f "$SPEC_FILE" ]; then
 fi
 
 # ---- push branch ------------------------------------------------------------
+#
+# force-with-lease is only ever used for the rebase we just did ourselves
+# above (REBASED=true) — we know exactly what changed and lease-protect
+# against a *third* change landing in between. A plain push failure with
+# REBASED=false is NOT automatically "remote diverged, force it" — it can
+# equally mean a teammate or CI pushed a legitimate commit to this branch
+# since our last fetch. Blindly force-with-leasing in that case would
+# silently discard that commit (the lease only protects against a race after
+# the failed attempt, not against overwriting the divergence itself — by the
+# time the plain push fails, git has already recorded that divergence as the
+# new "known" remote state, so the lease check passes and the overwrite
+# succeeds). Surface it and let the user decide instead of guessing.
 
 echo ""
 echo "Pushing branch $BRANCH to origin..."
-git push -u origin "$BRANCH" 2>&1 || echo "(push may have already been done)"
+if [ "$REBASED" = "true" ]; then
+  git push --force-with-lease -u origin "$BRANCH" 2>&1 || die "Force push failed."
+elif git push -u origin "$BRANCH" 2>&1; then
+  :  # success
+else
+  die "Push rejected by origin/$BRANCH.
+
+This means the remote has commits you don't have locally — possibly a
+teammate's or CI's push to this branch, not necessarily something you did.
+Not force-pushing automatically. Inspect what's there first:
+
+  git fetch origin $BRANCH
+  git log HEAD..origin/$BRANCH          # see what you'd be overwriting
+  git rebase origin/$BRANCH             # incorporate it, if safe
+  git push --force-with-lease -u origin $BRANCH
+
+Then re-run /f-mr."
+fi
 
 # ---- determine MR title -----------------------------------------------------
 
