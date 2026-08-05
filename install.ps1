@@ -116,6 +116,7 @@ Install-DocCmdDirective -Name "doc-investigation" -Description "Capture current 
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh `$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Print the full draft, then write it straight to the registry — no yes/no gate; the user can still interrupt to edit."
 Install-DocCmdDirective -Name "doc-investigation-query" -Description "Answer questions across all captured investigations" -Directive "Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"`$ARGUMENTS\". It lists investigation services, narrows scope by service name if possible, and prints every investigation file. Use that output to answer the user's question, citing every claim as <service>/<file>."
+Install-DocCmdDirective -Name "arch-query" -Description "Query architecture design documents (set OPEN_SDD_ARCH_HOME to the architecture repo path)" -Directive "Run ${OPENSDD_PATH}/commands/arch-query.sh \"`$ARGUMENTS\". It reads architecture design documents from `$OPEN_SDD_ARCH_HOME (set this env var to the architecture repo path), lists available project areas, and narrows scope if a project area name matches the argument. Use the output to answer the user's architecture question. Cite every claim as the source file relative to the architecture repo. If OPEN_SDD_ARCH_HOME is not set, tell the user to set it."
 
 # Remove stale commands from previous versions
 Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContinue | Out-Null
@@ -134,7 +135,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "spec-query.md") -ErrorAction SilentlyCont
 # doc-freshness removed (regenerating with doc-catalog already reflects current code).
 Remove-Item -Path (Join-Path $CMD_DIR "doc-freshness.md") -ErrorAction SilentlyContinue | Out-Null
 
-Write-Host "open-sdd: 28 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 29 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------
