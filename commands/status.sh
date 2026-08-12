@@ -104,6 +104,33 @@ else
   echo "Tree:   ${GIT_TREE} dirty"
 fi
 
+# Stale leftovers: pipelines from OTHER branches whose work already landed.
+# .specwork/ is gitignored, so a merged feature whose /f-close was never run
+# keeps sitting here and later blocks /f-start. Surface it while orienting
+# rather than letting it be discovered as a refusal. Printed only when there is
+# something to report, and never as a blocker — Next: is unaffected.
+STALE=$(PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 - <<'PY' 2>/dev/null || true
+import json, subprocess, sys
+try:
+    out = subprocess.run([sys.executable, "-m", "engine.cli", "pipeline-inventory"],
+                         capture_output=True, text=True, timeout=15)
+    closable = (json.loads(out.stdout or "{}") or {}).get("closable") or []
+except Exception:
+    closable = []
+if closable:
+    n = len(closable)
+    print("Stale:  %d orphan pipeline%s in .specwork/ — %s work already landed"
+          % (n, "" if n == 1 else "s", "its" if n == 1 else "their"))
+    for p in closable:
+        why = ("merged into %s" % p["base_branch"]) if p["merge_status"] == "merged" \
+              else "branch no longer exists locally"
+        print("        • %s (%s) — %s" % (p["slug"], p["branch"] or "?", why))
+    print("        Clear %s from its own branch, or from its base, with /f-close."
+          % ("it" if n == 1 else "each"))
+PY
+)
+[ -n "$STALE" ] && printf '%s\n' "$STALE"
+
 # Recent commits
 RECENT=$(git log --oneline -3 2>/dev/null || true)
 if [ -n "$RECENT" ]; then

@@ -132,10 +132,70 @@ esac
 # ---- precondition: refuse to re-init over an active pipeline ----------------
 
 if ! PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli precheck --fresh >/dev/null 2>&1; then
-  echo "✗ Pipeline already active here — not re-initializing." >&2
-  echo "  • Next step:       run /f-status to see the next pending step" >&2
-  echo "  • Change the spec: run /f-spec" >&2
-  echo "  • Start over:      run /f-close first, then /f-start" >&2
+  # Something is in .specwork/, but "active pipeline" and "leftovers from a
+  # feature that already merged" are not the same thing and do not take the same
+  # advice. .specwork/ is gitignored, so it survives `git checkout` and outlives
+  # the branch it belongs to: merge a feature, never run /f-close, and its state
+  # sits here blocking unrelated new work while we tell the developer to
+  # /f-status their way back into something that already shipped.
+  #
+  # Classify before printing. Branch on the JSON, never on how branch names look.
+  INVENTORY="$(PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" python3 -m engine.cli pipeline-inventory 2>/dev/null || echo '{}')"
+
+  eval "$(PYTHONPATH="$(cd "$SCRIPT_DIR/.." && pwd)" INVENTORY="$INVENTORY" python3 <<'PY'
+import json, os, shlex
+inv = json.loads(os.environ.get("INVENTORY") or "{}")
+pipelines = inv.get("pipelines") or []
+closable = inv.get("closable") or []
+owns = any(p.get("is_current") for p in pipelines)
+lines = []
+for p in closable:
+    why = ("already merged into '%s'" % p["base_branch"]) if p["merge_status"] == "merged" \
+          else "its branch no longer exists locally"
+    lines.append("    • %s (%s) — %s" % (p["slug"], p["branch"] or "?", why))
+gone = any(p["merge_status"] == "branch-gone" for p in closable)
+print("OWNS=%s" % shlex.quote("1" if owns else ""))
+print("CLOSABLE_N=%s" % shlex.quote(str(len(closable))))
+print("CLOSABLE_LINES=%s" % shlex.quote("\n".join(lines)))
+print("HAS_GONE=%s" % shlex.quote("1" if gone else ""))
+print("FIRST_BRANCH=%s" % shlex.quote((closable[0]["branch"] if closable else
+      (pipelines[0]["branch"] if pipelines else "")) or "?"))
+print("FIRST_SLUG=%s" % shlex.quote((closable[0]["slug"] if closable else
+      (pipelines[0]["slug"] if pipelines else "")) or "?"))
+PY
+)"
+
+  if [ -n "${OWNS:-}" ]; then
+    # This branch owns the pipeline — the normal "you're mid-feature" case.
+    echo "✗ Pipeline already active here — not re-initializing." >&2
+    echo "  • Next step:       run /f-status to see the next pending step" >&2
+    echo "  • Change the spec: run /f-spec" >&2
+    echo "  • Start over:      run /f-close first, then /f-start" >&2
+  elif [ "${CLOSABLE_N:-0}" != "0" ]; then
+    # Leftovers whose work already landed. Do not offer /f-status: there is
+    # nothing here worth continuing.
+    echo "✗ Not starting — .specwork/ still holds a finished pipeline." >&2
+    echo "" >&2
+    printf '%s\n' "$CLOSABLE_LINES" >&2
+    echo "" >&2
+    echo "  That work already landed. Clear it, then start again:" >&2
+    echo "    /f-close        # from that branch, or from its base" >&2
+    echo "    /f-start <your input>" >&2
+    if [ -n "${HAS_GONE:-}" ]; then
+      echo "" >&2
+      echo "  If '$FIRST_BRANCH' was renamed rather than merged, run /f-resync instead." >&2
+    fi
+    echo "" >&2
+    echo "  (Merge state is inferred from git — /f-close re-checks before deleting.)" >&2
+  else
+    # Another branch's pipeline, still in flight. Closing it would destroy
+    # unmerged work, so point back at the branch that owns it.
+    echo "✗ Not starting — .specwork/ belongs to '$FIRST_BRANCH' (slug '$FIRST_SLUG'), not this branch." >&2
+    echo "  It is gitignored, so it did not move when you switched branches." >&2
+    echo "  • Resume it:  switch to '$FIRST_BRANCH' and run /f-status" >&2
+    echo "  • Park it:    switch to '$FIRST_BRANCH' and run /f-pause, then come back" >&2
+    echo "  • Renamed?    run /f-resync if that is this branch under an old name" >&2
+  fi
   exit 1
 fi
 

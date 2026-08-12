@@ -9,6 +9,8 @@ from engine.gates import (
     resolve_slug,
     resolve_state_file,
     pipeline_branch_status,
+    branch_merge_status,
+    pipeline_inventory,
     check_open_questions,
     check_plan_staleness,
     check_required_artifacts,
@@ -170,6 +172,129 @@ class GatesTestCase(unittest.TestCase):
         status = pipeline_branch_status()  # no branch arg -> _current_branch()
         self.assertTrue(status["owns_pipeline"])
         self.assertEqual(status["slug"], "zzz")
+
+    # --- branch_merge_status / pipeline_inventory ---
+
+    @staticmethod
+    def _fake_git(repo=True, branches=(), merged=()):
+        """Stub git runner. ``repo=False`` simulates "not a git repo";
+        ``repo=None`` simulates git being absent entirely (rc None)."""
+        def run(args, timeout=10):
+            if args[:2] == ["rev-parse", "--git-dir"]:
+                return (None, "") if repo is None else (0 if repo else 128, "")
+            if args[:1] == ["rev-parse"]:
+                ref = args[-1].replace("refs/heads/", "").replace("^{commit}", "")
+                return (0 if ref in branches else 1), ""
+            if args[:2] == ["merge-base", "--is-ancestor"]:
+                return (0 if args[2] in merged else 1), ""
+            return 1, ""
+        return run
+
+    def test_branch_merge_status_branch_gone(self):
+        git = self._fake_git(branches=["main"])
+        self.assertEqual(branch_merge_status("feature/ZZZ", "main", git), "branch-gone")
+
+    def test_branch_merge_status_merged(self):
+        git = self._fake_git(branches=["feature/ZZZ", "main"], merged=["feature/ZZZ"])
+        self.assertEqual(branch_merge_status("feature/ZZZ", "main", git), "merged")
+
+    def test_branch_merge_status_open(self):
+        git = self._fake_git(branches=["feature/ZZZ", "main"])
+        self.assertEqual(branch_merge_status("feature/ZZZ", "main", git), "open")
+
+    def test_branch_merge_status_falls_back_to_origin_base(self):
+        # Base not checked out locally — common on a fresh clone.
+        git = self._fake_git(branches=["feature/ZZZ", "origin/main"], merged=["feature/ZZZ"])
+        self.assertEqual(branch_merge_status("feature/ZZZ", "main", git), "merged")
+
+    def test_branch_merge_status_unknown_when_base_unresolvable(self):
+        # Neither `main` nor `origin/main` exists — "open" would read as a
+        # confident "still in flight", which we cannot claim.
+        git = self._fake_git(branches=["feature/ZZZ"])
+        self.assertEqual(branch_merge_status("feature/ZZZ", "main", git), "unknown")
+
+    def test_branch_merge_status_unknown_outside_a_git_repo(self):
+        # Without the repo probe every rc is nonzero and this would look like
+        # "branch-gone" — a bogus "your work already merged, close it".
+        self.assertEqual(
+            branch_merge_status("feature/ZZZ", "main", self._fake_git(repo=False)), "unknown")
+
+    def test_branch_merge_status_unknown_when_git_unavailable(self):
+        self.assertEqual(
+            branch_merge_status("feature/ZZZ", "main", self._fake_git(repo=None)), "unknown")
+
+    def test_branch_merge_status_unknown_without_base_or_branch(self):
+        git = self._fake_git(branches=["feature/ZZZ", "main"])
+        self.assertEqual(branch_merge_status("feature/ZZZ", "", git), "unknown")
+        self.assertEqual(branch_merge_status("", "main", git), "unknown")
+
+    def _write_state(self, slug: str, branch: str, base: str = "main"):
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / f"{slug}-state.json").write_text(
+            json.dumps({"id": slug, "branch": branch, "base_branch": base}),
+            encoding="utf-8")
+
+    def test_pipeline_inventory_empty(self):
+        inv = pipeline_inventory("feature/new", self._fake_git())
+        self.assertEqual(inv["pipelines"], [])
+        self.assertEqual(inv["closable"], [])
+
+    def test_pipeline_inventory_current_is_active_and_never_closable(self):
+        # Even with a stub that would report it merged, the branch's own
+        # pipeline is never probed — /f-status must still say "continue".
+        self._write_state("zzz", "feature/ZZZ")
+        git = self._fake_git(branches=["feature/ZZZ", "main"], merged=["feature/ZZZ"])
+        inv = pipeline_inventory("feature/ZZZ", git)
+        self.assertTrue(inv["pipelines"][0]["is_current"])
+        self.assertEqual(inv["pipelines"][0]["merge_status"], "active")
+        self.assertEqual(inv["orphans"], [])
+        self.assertEqual(inv["closable"], [])
+
+    def test_pipeline_inventory_merged_orphan_is_closable(self):
+        self._write_state("zzz", "feature/ZZZ")
+        git = self._fake_git(branches=["feature/ZZZ", "main"], merged=["feature/ZZZ"])
+        inv = pipeline_inventory("feature/other", git)
+        self.assertEqual([x["slug"] for x in inv["closable"]], ["zzz"])
+        self.assertEqual(inv["closable"][0]["merge_status"], "merged")
+
+    def test_pipeline_inventory_deleted_branch_orphan_is_closable(self):
+        self._write_state("zzz", "feature/ZZZ")
+        inv = pipeline_inventory("feature/other", self._fake_git(branches=["main"]))
+        self.assertEqual(inv["closable"][0]["merge_status"], "branch-gone")
+
+    def test_pipeline_inventory_open_orphan_is_not_closable(self):
+        # Someone else's in-flight pipeline: an orphan here, but telling the
+        # user to /f-close it would destroy unmerged work.
+        self._write_state("zzz", "feature/ZZZ")
+        inv = pipeline_inventory("feature/other", self._fake_git(branches=["feature/ZZZ", "main"]))
+        self.assertEqual([x["slug"] for x in inv["orphans"]], ["zzz"])
+        self.assertEqual(inv["closable"], [])
+
+    def test_pipeline_inventory_unknown_orphan_is_not_closable(self):
+        self._write_state("zzz", "feature/ZZZ")
+        inv = pipeline_inventory("feature/other", self._fake_git(repo=False))
+        self.assertEqual(inv["orphans"][0]["merge_status"], "unknown")
+        self.assertEqual(inv["closable"], [])
+
+    def test_pipeline_inventory_mixed_partition(self):
+        self._write_state("mine", "feature/mine")
+        self._write_state("done", "feature/done")
+        self._write_state("live", "feature/live")
+        git = self._fake_git(
+            branches=["feature/mine", "feature/done", "feature/live", "main"],
+            merged=["feature/done"])
+        inv = pipeline_inventory("feature/mine", git)
+        self.assertEqual(len(inv["pipelines"]), 3)
+        self.assertEqual(sorted(x["slug"] for x in inv["orphans"]), ["done", "live"])
+        self.assertEqual([x["slug"] for x in inv["closable"]], ["done"])
+
+    def test_pipeline_inventory_malformed_state_does_not_crash(self):
+        (SPECWORK / "_state").mkdir(parents=True, exist_ok=True)
+        (SPECWORK / "_state" / "bad-state.json").write_text("{not json", encoding="utf-8")
+        inv = pipeline_inventory("feature/other", self._fake_git())
+        self.assertEqual(inv["pipelines"][0]["slug"], "bad")
+        self.assertEqual(inv["pipelines"][0]["merge_status"], "unknown")
+        self.assertFalse(inv["pipelines"][0]["closable"])
 
     # --- check_open_questions ---
 

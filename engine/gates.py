@@ -120,6 +120,117 @@ def pipeline_branch_status(branch: Optional[str] = None) -> dict:
     return result
 
 
+def _git(args: list, timeout: int = 10):
+    """Run a git command. Returns ``(returncode, stdout)``; rc is ``None`` when
+    git could not be run at all (not installed, timeout), which callers must
+    treat as "unknown", never as "the check failed"."""
+    import subprocess
+    try:
+        r = subprocess.run(
+            ["git", *args], capture_output=True, text=True, timeout=timeout
+        )
+        return r.returncode, r.stdout.strip()
+    except (FileNotFoundError, subprocess.SubprocessError):
+        return None, ""
+
+
+def branch_merge_status(branch: Optional[str], base: Optional[str], git=_git) -> str:
+    """Classify a pipeline's recorded branch against its recorded base branch.
+
+    Git-only and offline — no ``glab``, no network. Answers "has this pipeline's
+    work already landed?" well enough to *warn*; it is never authority to delete.
+
+    Returns one of:
+      ``"branch-gone"``  -- no local ref for ``branch``; almost certainly merged
+                            and deleted (the usual post-MR cleanup), but a rename
+                            that skipped /f-resync looks identical, so callers
+                            must warn rather than act
+      ``"merged"``       -- ``branch`` is an ancestor of ``base`` (or
+                            ``origin/<base>``): its commits are already in
+      ``"open"``         -- ``branch`` exists and has not landed in a resolvable base
+      ``"unknown"``      -- not a git repo, git unavailable, no base recorded, or
+                            neither ``base`` nor ``origin/<base>`` resolves
+    """
+    if not branch:
+        return "unknown"
+    # One repo probe up front: outside a git repo (or with no git at all) every
+    # subsequent rc is nonzero, which would masquerade as "branch-gone".
+    rc, _ = git(["rev-parse", "--git-dir"])
+    if rc != 0:
+        return "unknown"
+    rc, _ = git(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"])
+    if rc is None:
+        return "unknown"
+    if rc != 0:
+        return "branch-gone"
+    if not base:
+        return "unknown"
+    resolved = False
+    for ref in (base, f"origin/{base}"):
+        rc_ref, _ = git(["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"])
+        if rc_ref != 0:
+            continue
+        resolved = True
+        rc_anc, _ = git(["merge-base", "--is-ancestor", branch, ref])
+        if rc_anc == 0:
+            return "merged"
+    return "open" if resolved else "unknown"
+
+
+def pipeline_inventory(branch: Optional[str] = None, git=_git) -> dict:
+    """Inventory every pipeline on disk and flag the closable leftovers.
+
+    ``.specwork/`` is gitignored, so it survives `git checkout` and outlives the
+    branch it belongs to: finish a feature, merge the MR, never run /f-close, and
+    its state sits there indefinitely — at which point /f-start refuses to start
+    anything new ("Pipeline already active here") and points at /f-status to
+    *continue* work that already shipped.
+
+    ``pipeline_branch_status()`` answers "is this one mine?"; this answers "what
+    else is lying around, and is any of it safe to close?" Purely a reporting
+    call — it never deletes.
+
+    Returns a dict:
+      current_branch -- ``branch`` as given (or the resolved current one)
+      pipelines      -- one entry per ``*-state.json``, each with ``slug``,
+                        ``branch``, ``base_branch``, ``is_current``,
+                        ``merge_status`` (see branch_merge_status; ``"active"``
+                        for the current branch's own pipeline, never probed)
+                        and ``closable``
+      orphans        -- pipelines not owned by ``branch``
+      closable       -- orphans whose work already landed (``merged`` /
+                        ``branch-gone``) — the ones to name in a /f-close warning
+    """
+    if branch is None:
+        branch = _current_branch()
+    state_dir = SPECWORK / "_state"
+    states = sorted(state_dir.glob("*-state.json")) if state_dir.exists() else []
+    pipelines = []
+    for p in states:
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+        recorded = data.get("branch", "") or ""
+        base = data.get("base_branch", "") or ""
+        is_current = bool(branch) and recorded == branch
+        status = "active" if is_current else branch_merge_status(recorded, base, git)
+        pipelines.append({
+            "slug": data.get("slug", data.get("id", p.name[: -len("-state.json")])),
+            "branch": recorded,
+            "base_branch": base,
+            "is_current": is_current,
+            "merge_status": status,
+            "closable": (not is_current) and status in ("merged", "branch-gone"),
+        })
+    return {
+        "current_branch": branch or "",
+        "pipelines": pipelines,
+        "orphans": [x for x in pipelines if not x["is_current"]],
+        "closable": [x for x in pipelines if x["closable"]],
+    }
+
+
 def require_specwork(spec_dir: str = ".specwork") -> Optional[str]:
     """Precondition gate for state-consuming commands. Returns a reject reason
     when the pipeline is not initialized here, else None."""
