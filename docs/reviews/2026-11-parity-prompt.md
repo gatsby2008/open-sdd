@@ -84,3 +84,19 @@ Restricciones extra:
 - Para cada punto: un commit, con las cuatro verificaciones de la tabla en verde.
 - Informe final: matriz de paridad sdd-plugin ↔ open-sdd, con cada punto A/B, su par C y el estado (hecho, pendiente de OK o no aplica), y palabras de PIPELINE.md antes y después.
 ````
+
+## Notas de ejecución (2026-11-01)
+
+Se ejecutó en la branch `review-improvements` (commits `5526e24`..). C4 y C6 se
+aprobaron. Hubo dos desvíos del prompt, porque el prompt partía de supuestos
+equivocados:
+
+- **C1:** las reglas promovidas van a `.claude/rules/*.md`, no a
+  `.opensdd/service-rules.md`. `.opensdd/` está en el .gitignore y `/f-close` lo
+  borra justo después de la promoción. `/f-start` ya sincroniza `.claude/rules/` en
+  `.opensdd/`. `engine/promote.py` rechaza cualquier otro destino.
+- **C5:** el detalle bajo demanda va a un archivo nuevo, `agent/REFERENCE.md`, y no a
+  `templates/pipeline-reference.md`. `install.sh` instala ese template como
+  instrucciones globales de opencode, así que se carga en todas las sesiones.
+
+Impacto de las propuestas 4–6 y hallazgos: `docs/reviews/2026-11-improvements-impact.md`.
