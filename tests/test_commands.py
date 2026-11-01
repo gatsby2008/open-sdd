@@ -240,3 +240,64 @@ class TestAutoJiraNotConfigured(TmpGitRepo):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# f-close — durable-rule promotion
+# ---------------------------------------------------------------------------
+
+class TestClosePromotion(TmpGitRepo):
+    SPEC = (
+        "# x — y\n\n## Behavior\n\n1. **B1** — a\n\n"
+        "## Safe Constraints\n\n### Safe\n\n- Leads are idempotent per applicationId.\n\n"
+        "## Open Questions\n\n- [x] **#1** Retry? — resolved: at most 3 times\n"
+    )
+
+    def setUp(self):
+        super().setUp()
+        Path(".gitignore").write_text(".specwork/\n.opensdd/\n")
+        subprocess.run(["git", "add", ".gitignore"], check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "ignore"], check=True)
+        subprocess.run(["git", "checkout", "-q", "-b", "feature/x"], check=True)
+        state = Path(".specwork/_state")
+        state.mkdir(parents=True)
+        (state / "x-state.json").write_text(
+            '{"id": "x", "slug": "x", "branch": "feature/x", "base_branch": "main"}\n')
+        spec = Path(".specwork/_spec")
+        spec.mkdir(parents=True)
+        (spec / "x-spec.md").write_text(self.SPEC)
+
+    def _run_close(self, args, stdin="s\n"):
+        env = os.environ.copy()
+        env.pop("SDD_NON_INTERACTIVE", None)
+        return subprocess.run(
+            ["bash", str(COMMANDS_DIR / "close.sh")] + args,
+            capture_output=True, text=True, cwd=str(self.repo), env=env,
+            input=stdin, timeout=15,
+        )
+
+    def test_first_pass_prints_candidates_and_deletes_nothing(self):
+        r = self._run_close([])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("PROMOTE DURABLE RULES", r.stdout)
+        self.assertIn("Leads are idempotent per applicationId.", r.stdout)
+        self.assertIn("resolved: at most 3 times", r.stdout)
+        self.assertTrue(Path(".specwork/_spec/x-spec.md").exists())
+
+    def test_rejected_target_closes_nothing(self):
+        r = self._run_close(["--promote", '[{"file": ".opensdd/service-rules.md", "section": "S", "rule": "r"}]'])
+        self.assertNotEqual(r.returncode, 0)
+        self.assertTrue(Path(".specwork/_spec/x-spec.md").exists())
+
+    def test_approved_rules_are_written_and_pipeline_closed(self):
+        r = self._run_close(["--promote", '[{"section": "Business Invariants", "rule": "Leads are idempotent per applicationId."}]'])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rules = Path(".claude/rules/service-rules.md").read_text()
+        self.assertIn("- Leads are idempotent per applicationId. _(from spec x, ", rules)
+        self.assertFalse(Path(".specwork").exists())
+
+    def test_no_promote_closes_without_writing_rules(self):
+        r = self._run_close(["--no-promote"])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(Path(".claude/rules").exists())
+        self.assertFalse(Path(".specwork").exists())

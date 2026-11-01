@@ -74,6 +74,11 @@ fi
 # .sdd-coverage-waivers.json (standalone). Runs before the costly test suite.
 engine coverage-check "$SLUG" || die "Test-coverage gate failed. Add tests or waive (see message above)."
 
+# ---- spec conformance (advisory) --------------------------------------------
+# Lists the spec's Behavior ids (B1, B2, …) that no test added on this branch
+# tags with `spec: B<n>`. Never blocks; silent for specs without ids.
+[ -n "$SLUG" ] && engine conformance-check "$SLUG"
+
 # ---- quality gate: run tests ------------------------------------------------
 # Only reached when there is something to commit.
 

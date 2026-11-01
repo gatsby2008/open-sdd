@@ -517,6 +517,44 @@ def cmd_coverage_check(args: list[str]) -> int:
     return 1
 
 
+def cmd_conformance_check(args: list[str]) -> int:
+    # Advisory spec-conformance check run by /f-commit: lists the spec's Behavior
+    # ids (B1, B2, …) that no test added on this branch tags with `spec: B<n>`.
+    # Always rc 0 — reports, never gates; silent for specs without ids.
+    from engine.conformance import check
+    slug = args[0] if args else resolve_slug()
+    return check(slug) if slug else 0
+
+
+def cmd_promote_apply(args: list[str]) -> int:
+    # Append the rules the user approved in /f-close into .claude/rules/*.md,
+    # append-only with provenance. All targets are validated before any write.
+    # rc 0 = written (or would be, with --dry-run), 1 = rejected, 2 = usage.
+    from engine.promote import apply_all
+    dry_run = "--dry-run" in args
+    args = [a for a in args if a != "--dry-run"]
+    if len(args) != 2:
+        print("Usage: promote-apply <slug> '<json>' [--dry-run]", file=sys.stderr)
+        return 2
+    slug, raw = args
+    try:
+        entries = json.loads(raw)
+        if not isinstance(entries, list):
+            raise ValueError("expected a JSON list")
+    except ValueError as exc:
+        print(f"✗ Invalid JSON: {exc}", file=sys.stderr)
+        return 2
+    try:
+        written = apply_all(slug, entries, dry_run=dry_run)
+    except ValueError as exc:
+        print(f"✗ {exc}", file=sys.stderr)
+        return 1
+    verb = "Would promote" if dry_run else "Promoted"
+    for target, count in written.items():
+        print(f"✓ {verb} {count} rule(s) into {target}")
+    return 0
+
+
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -552,6 +590,8 @@ DISPATCH = {
     "extract-reference-targets": cmd_extract_reference_targets,
     "bump-spec-ts": cmd_bump_spec_ts,
     "coverage-check": cmd_coverage_check,
+    "conformance-check": cmd_conformance_check,
+    "promote-apply": cmd_promote_apply,
     "count-oqs": cmd_count_oqs,
     "audit": cmd_audit,
     "derive-branch": cmd_derive_branch,

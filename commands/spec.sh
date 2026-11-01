@@ -274,7 +274,10 @@ Rules:
 4. Open Questions are numbered (#1, #2, ...) and use the format
    \`- [ ] **#N** <question>\`. List every unresolved ambiguity
    you would otherwise have to guess.
-5. NEVER touch .specwork/_spec/${SLUG}-source.md — it is immutable.
+5. Each ## Behavior item starts with a stable id: \`1. **B1** — <behavior>\`,
+   numbered B1, B2, … in order. Tests reference these ids (\`spec: B<n>\`)
+   and /f-commit reports any id no test covers.
+6. NEVER touch .specwork/_spec/${SLUG}-source.md — it is immutable.
 
 If new context (files, jira, free text) was supplied above, fold
 it into the relevant sections.
@@ -294,6 +297,10 @@ Rules:
 2. NEVER modify ## Summary or the spec title unless the input explicitly contradicts them.
 3. NEVER touch .specwork/_spec/${SLUG}-source.md. The original source is immutable.
 4. Preserve section order and heading text exactly.
+5. NEVER renumber or reuse Behavior ids. A new Behavior gets the next unused
+   B<n>; tests already tagged with an id must keep pointing at the same
+   Behavior. Specs drafted before ids existed stay as they are — id only
+   Behaviors the input adds.
 
 Mapping guidance:
 

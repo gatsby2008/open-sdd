@@ -201,7 +201,8 @@ Implement the next focused change from the spec.
 2. If plan exists, read Target Files as source of truth
 3. If no plan, discover targets from spec context
 4. Implement one focused change — read only required files
-5. Create/update tests for every changed behavior
+5. Create/update tests for every changed behavior; tag each test with the
+   Behavior id(s) it verifies (`// spec: B2`) when the spec has ids
 6. Run individual tests — bounded retry (2 attempts direct, 1 setup)
 7. On persistent failure, append to `_progress/escalations.md` and stop
 8. Update `implementation-cache.json`
@@ -214,7 +215,8 @@ Implement the next focused change from the spec.
 Stage all changes, generate a semantic commit message, confirm with user.
 
 1. Run `bash commands/commit.sh` — it stages changes and prints context
-   (branch, ticket, files, diff stat)
+   (branch, ticket, files, diff stat), plus the advisory spec-conformance line
+   (Behavior ids with no `spec: B<n>`-tagged test added on the branch — never blocks)
 2. Generate the commit message in this format:
    ```
    [TICKET-ID] <type>: <concise description>
@@ -253,7 +255,11 @@ Generate MR description, push, create/update MR via GitHub CLI.
 Close the feature pipeline and clean up. The script handles dirty tree,
 MR status, and optional branch cleanup.
 
-1. Run `bash commands/close.sh`
+1. Run `bash commands/close.sh`. When a spec exists (interactive only), the
+   first pass prints its Safe Constraints and resolved OQs and stops without
+   deleting anything: propose at most 4 durable rules, ask the user, then re-run
+   `/f-close --promote '<json>'` (or `--no-promote`). Approved rules are appended
+   to `.claude/rules/*.md` with a provenance marker, never editing existing lines
 2. (Script) If dirty tree → prompt pause / discard / abort
 3. (Script) If MR exists → check merge status via `gh`; warn if open/closed
 4. (Script) Confirm deletion of `.specwork/`
@@ -355,6 +361,7 @@ After running the script, follow its instructions:
    - NEVER touch `.specwork/_spec/<slug>-source.md` — it is immutable
    - Preserve section order from `templates/spec.md` exactly
    - Open Questions use `- [ ] **#N** <question>` format; refine flips to `- [x]` with " — resolved: <answer>"
+   - Each `## Behavior` item carries a stable id (`1. **B1** — …`); never renumber or reuse ids
    - In refine mode: NEVER delete user-authored content; resolutions append, they do not remove
    - NEVER invent class names — use the symbol verbatim or write `[UNKNOWN]`
 4. Map inputs:
