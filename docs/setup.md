@@ -279,7 +279,8 @@ glab version           # optional, for /f-mr on GitLab + /f-mr-review MR mode
 ```
 open-sdd/
 ├── agent/
-│   └── PIPELINE.md   # System prompt for any LLM
+│   ├── PIPELINE.md   # System prompt for any LLM (read by every command)
+│   └── REFERENCE.md  # On-demand detail PIPELINE.md points to (REF §)
 ├── lib/
 │   ├── gates.sh                     # Validation gates
 │   ├── jira.sh                      # Jira REST client via curl

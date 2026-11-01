@@ -12,7 +12,7 @@ install_cmd() {
   local name="$1" description="$2"
   cat > "${CMD_DIR}/f-${name}.md" <<EOF
 ---description: ${description}---
-Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the pipeline protocol (gates, spec template, OQ rules; on-demand detail in agent/REFERENCE.md), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
 EOF
 }
 
@@ -33,7 +33,7 @@ EOF
 }
 
 install_cmd_directive "start" "Initialize SDD pipeline: branch + source.md (spec.md is created by /f-spec)" "\
-Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the pipeline protocol (gates, spec template, OQ rules; on-demand detail in agent/REFERENCE.md).
 
 Ask the user about branch choice using the suggested name (prefixed with 'feature/'), a custom name, or staying on the current branch. Once decided, run:
 
@@ -49,7 +49,7 @@ install_cmd "commit"        "Stage changes and generate semantic commit"
 install_cmd "mr"            "Push branch and create merge request"
 install_cmd "close"         "Clean .specwork and optionally delete feature branch"
 install_cmd_directive "auto" "Run full SDD pipeline non-interactively" "\
-Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules).
+Read ${OPENSDD_PATH}/agent/PIPELINE.md for the pipeline protocol (gates, spec template, OQ rules; on-demand detail in agent/REFERENCE.md).
 
 This command drives the entire pipeline non-interactively — no bash prompts.
 
