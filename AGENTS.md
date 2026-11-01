@@ -70,7 +70,7 @@ Architecture design docs live separately at `$OPEN_SDD_ARCH_HOME` (clone the arc
 
 ### Stack detection
 
-`resolve_slug` reads `state.json::branch` first, falls back to deriving from current branch name. `detect_stack` checks `pom.xml`/`build.gradle` (java), `package.json` + framework config (frontend/next/vue/react), `package.json` only (node backend), else unknown.
+`resolve_slug` reads `state.json::branch` first, falls back to deriving from current branch name with `engine/slug.py` — the single slug derivation (`engine.cli slug <branch>`) that `/f-start`, `/f-resync` and `lib/gates.sh` also use. `detect_stack` checks `pom.xml`/`build.gradle` (java), `package.json` + framework config (frontend/next/vue/react), `package.json` only (node backend), else unknown.
 
 ### Key conventions
 

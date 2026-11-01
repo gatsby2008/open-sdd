@@ -36,9 +36,9 @@ for f in sorted(glob.glob('.specwork/_state/*-state.json')):
     fi
   fi
 
-  # Fallback: derive slug from branch name
-  branch="${branch#*/}"
-  printf '%s' "$branch" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//'
+  # Fallback: derive slug from branch name (engine/slug.py — the same derivation
+  # /f-start and /f-resync use when they create the files).
+  PYTHONPATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" python3 -m engine.cli slug "$branch" | tr -d '\n'
 }
 
 resolve_state_file() {

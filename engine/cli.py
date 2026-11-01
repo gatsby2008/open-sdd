@@ -398,16 +398,29 @@ def cmd_extract_reference_targets(args: list[str]) -> int:
 
 
 def cmd_derive_branch(args: list[str]) -> int:
-    import re
     from engine.gates import ticket_from_branch, _current_branch
+    from engine.slug import slug_from_branch
     branch = args[0] if args else _current_branch()
     if not branch:
         print("COULD_NOT_RESOLVE_BRANCH", file=sys.stderr)
         return 1
-    unprefixed = re.sub(r"^(feature|hotfix|release|bugfix)/", "", branch)
-    slug = re.sub(r"[^a-z0-9]+", "-", unprefixed.lower()).strip("-")
+    slug = slug_from_branch(branch)
     tkt, itype = ticket_from_branch(branch)
     print(json.dumps({"branch": branch, "slug": slug, "ticket": tkt, "input_type": itype}, indent=2))
+    return 0
+
+
+def cmd_slug(args: list[str]) -> int:
+    # Print the slug for a branch (default: current). The one derivation every
+    # shell caller uses — start.sh, resync.sh and lib/gates.sh resolve_slug.
+    from engine.gates import _current_branch
+    from engine.slug import slug_from_branch
+    branch = args[0] if args else _current_branch()
+    slug = slug_from_branch(branch) if branch else ""
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    print(slug)
     return 0
 
 
@@ -634,6 +647,7 @@ DISPATCH = {
     "count-oqs": cmd_count_oqs,
     "audit": cmd_audit,
     "derive-branch": cmd_derive_branch,
+    "slug": cmd_slug,
     "worktree-clean": cmd_worktree_clean,
     "worktree-dirty": cmd_worktree_dirty,
     "commit-subject": cmd_commit_subject,
