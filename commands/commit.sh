@@ -118,7 +118,14 @@ echo ""
 
 # ---- commit: interactive or auto --------------------------------------------
 
-COMMIT_MSG_FILE=".specwork/_state/${SLUG}-commit-msg.txt"
+# Pipeline: keep the message next to the state. Standalone (no .specwork/_state):
+# use a temp file — never create .specwork/ in a repo that has no pipeline.
+if [ -d ".specwork/_state" ]; then
+  COMMIT_MSG_FILE=".specwork/_state/${SLUG}-commit-msg.txt"
+else
+  COMMIT_MSG_FILE=$(mktemp "${TMPDIR:-/tmp}/opensdd-commit-msg.XXXXXX")
+  trap 'rm -f "$COMMIT_MSG_FILE"' EXIT
+fi
 
 # mr-title brackets the ticket when present and omits it otherwise — matching the
 # previous inline behavior. `feat` is the proposed default; the user can edit it.

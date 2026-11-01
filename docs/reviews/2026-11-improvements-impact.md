@@ -88,11 +88,10 @@ Esfuerzo: B **M** · C **S** sobre B.
 
 ## Hallazgos de la paridad que no están en las propuestas
 
-- **`/f-commit` sin pipeline y en modo no interactivo falla:** escribe el mensaje
-  en `.specwork/_state/<slug>-commit-msg.txt`, pero sin pipeline ese directorio no
-  existe (`No such file or directory`). Ya existía antes de la paridad;
-  `tests/test_commands.py::TestCommitDoesNotRunCheck` crea el directorio para
-  esquivarlo.
+- **`/f-commit` sin pipeline y en modo no interactivo fallaba:** escribía el
+  mensaje en `.specwork/_state/<slug>-commit-msg.txt`, y sin pipeline ese
+  directorio no existe. Ya existía antes de la paridad. **Corregido:** sin
+  `.specwork/_state/` usa un archivo temporal y no crea `.specwork/`.
 - **Dos implementaciones de triage:** `commands/triage.sh` (la que usa `/f-spec`) y
   `engine/cli.py::triage` (solo la usan los tests). Divergen: en `triage.sh` focused
   es `LOW` y en la otra `MEDIUM`, y solo la primera escribe `skip`. El override de

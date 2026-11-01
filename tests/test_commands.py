@@ -359,8 +359,6 @@ class TestCommitDoesNotRunCheck(TmpGitRepo):
         subprocess.run(["git", "commit", "-q", "-m", "base"], check=True)
         Path("app.txt").write_text("v2\n")
         subprocess.run(["git", "add", "app.txt"], check=True)
-        # Non-interactive commit.sh writes its message file under .specwork/_state/.
-        Path(".specwork/_state").mkdir(parents=True)
         env = os.environ.copy()
         env["SDD_NON_INTERACTIVE"] = "1"
         r = subprocess.run(["bash", str(COMMANDS_DIR / "commit.sh")], capture_output=True,
@@ -369,3 +367,15 @@ class TestCommitDoesNotRunCheck(TmpGitRepo):
         self.assertNotIn("CHECK_RAN", r.stdout + r.stderr)
         log = subprocess.run(["git", "log", "--oneline"], capture_output=True, text=True).stdout
         self.assertEqual(len(log.splitlines()), 3)
+
+    def test_standalone_non_interactive_commit_leaves_no_specwork(self):
+        Path("app.txt").write_text("v1\n")
+        subprocess.run(["git", "add", "app.txt"], check=True)
+        env = os.environ.copy()
+        env["SDD_NON_INTERACTIVE"] = "1"
+        r = subprocess.run(["bash", str(COMMANDS_DIR / "commit.sh")], capture_output=True,
+                           text=True, cwd=str(self.repo), env=env, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        log = subprocess.run(["git", "log", "-1", "--format=%s"], capture_output=True, text=True).stdout
+        self.assertTrue(log.strip().startswith("feat:"), log)
+        self.assertFalse(Path(".specwork").exists())
