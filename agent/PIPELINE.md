@@ -184,7 +184,7 @@ Each runs its script; read the REF § section when you run it.
 |---------|-----|-------|
 | `/f-status`, `/f-help` | Snapshot and next step | /f-status, /f-help |
 | `/f-pause`, `/f-resume` | Stash / restore a pipeline branch | /f-pause, /f-resume |
-| `/f-resync [<new-branch>]` | Rename artifacts after a branch rename | /f-resync |
+| `/f-resync [--rename-branch <new>]` | Rename artifacts after a branch rename | /f-resync |
 | `/f-code-review [--recheck \| --auditor]` | Review your own diff; never edit source before the user approves the action plan | /f-code-review |
 | `/f-mr-review <branch \| mr-url \| mr-iid>` | Review a peer's MR — read-only, never touches your tree | /f-mr-review |
 | `/f-mr-address` | Work through MR comments one thread at a time | /f-mr-address |

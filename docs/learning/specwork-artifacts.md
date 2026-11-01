@@ -8,10 +8,10 @@ Reference for what each `.specwork/` folder/file is for, who writes it, and who 
 |---|---|---|---|
 | `.specwork/_state/` | Machine-readable pipeline state and caches | `/f-start` | Usually no (active pipeline) |
 | `.specwork/_spec/` | Human-readable source/spec artifacts | `/f-start`, `/f-spec` | No (active pipeline) |
-| `.specwork/_plan/` | Optional implementation plan artifacts | `/f-plan` | Yes (plan is optional) |
+| `.specwork/_plan/` | Implementation plan artifacts (required for high-risk) | `/f-plan` | Yes (plan is optional below high-risk) |
 | `.specwork/_progress/` | Runtime progress extras (escalations/context) | `/f-start` (folder), `/f-implement` (escalations) | Yes |
 | `.specwork/_test/` | Optional high-risk test-design artifacts | `/f-test-design` | Yes |
-| `.specwork/_review/` | Review and MR-address tracking artifacts | `/f-code-review`, `/f-mr-review`, `/f-mr-address` | Yes |
+| `.specwork/_review/` | Review, audit-receipt and MR-address tracking artifacts | `/f-code-review`, `/f-mr-review`, `/f-mr-address`, `audit-record` | Yes |
 | `.specwork/_handoff/` | Portable execution packs | `/f-handoff` | Yes |
 
 ## Artifact contract
@@ -20,17 +20,18 @@ Reference for what each `.specwork/` folder/file is for, who writes it, and who 
 
 | Artifact | Answers | Contains |
 |---|---|---|
-| `spec.md` | **WHAT** + **WHY** | Feature summary, in/out scope, behavioral description, implementation context, change scope, safe constraints |
+| `spec.md` | **WHAT** + **WHY** | Feature summary, in/out scope, behaviors with stable ids (`B1`, `B2`…), implementation context, change scope, safe constraints |
 | `source.md` | **WHERE FROM** | Raw input — Jira ticket or free text |
 | `plan.md` | **WHERE** + **HOW** | Target files, approach, risks, plan-level Open Questions |
 | `plan.json` | **MACHINE PLAN** | Same data as plan.md in JSON form (target files + machine payload) |
 | `state.json` | **WHERE ARE WE IN THE PIPELINE** | Branch, ticket, slug, artifact paths, timestamps, runtime metadata |
 | `rules.json` | **WHAT MUST NEVER BREAK** | Compiled business invariants and architectural constraints |
-| `path.json` | **WHICH PIPELINE PATH IS ADVISED** | Complexity tier (trivial/focused/standard/high-risk) + recommended steps |
+| `path.json` | **WHICH PIPELINE PATH IS ADVISED** | Tier (trivial/focused/standard/high-risk) + recommended steps; an `override` block when `/f-spec --tier` forced it |
 | `implementation-cache.json` | **WHAT WAS ALREADY DISCOVERED** | Repositories, related tests, similar classes, utility patterns, notes |
 | `test-design.md` | **WHAT TO TEST** | Designed test cases (high-risk flow only) |
 | `escalations.md` | **WHAT FAILED AND WHAT WAS TRIED** | Append-only retry-exhaustion and blocker log |
 | `code-review.md` | **WHAT'S WRONG** | Quality/security findings for your own branch |
+| `audit.json` | **WAS THIS DIFF AUDITED** | Fingerprint of the audited diff + auditor verdict (high-risk only) |
 | `peer-review.md` | **WHAT'S WRONG** | Quality/security findings for peer branch/MR |
 | `mr-address.md` | **WHAT WAS DONE** | Per-thread MR comment resolution progress |
 | `execution-pack.md` | **WHAT TO EXECUTE** | Handoff contract for multi-model execution |
@@ -42,7 +43,7 @@ Reference for what each `.specwork/` folder/file is for, who writes it, and who 
 | `_state/<slug>-state.json` | Canonical pipeline identity + paths + metadata | `/f-start` | Most commands via `engine` and wrappers | Yes |
 | `_state/<slug>-rules.json` | Compiled invariants/rules | `/f-start` | `/f-spec`, `/f-plan`, `/f-implement`, `/f-handoff` | Yes |
 | `_state/<slug>-implementation-cache.json` | Discovery/cache hints | `/f-start` (seed), `/f-plan`/`/f-spec` (updates) | `/f-plan`, `/f-implement`, `/f-handoff` | Soft-required (pipeline standard) |
-| `_state/<slug>-path.json` | Triage recommendation path | `/f-spec` (triage step) | `/f-status` | Optional |
+| `_state/<slug>-path.json` | Triage tier + recommended path (+ forced-tier override) | `/f-spec` (triage step, `--tier`) | `/f-implement` (plan-required gate), `/f-commit` (auditor) | Optional |
 | `_spec/<slug>-source.md` | Raw source input (Jira/free text) | `/f-start` | `/f-spec` draft mode | Yes |
 | `_spec/<slug>-spec.md` | Canonical implementation contract | `/f-spec` | `/f-plan`, `/f-implement`, `/f-handoff`, gates | Yes (post-spec) |
 | `_plan/<slug>-plan.md` | Target Files + approach + risks + OQs | `/f-plan` | `/f-implement`, `/f-handoff` | Optional |
@@ -51,6 +52,7 @@ Reference for what each `.specwork/` folder/file is for, who writes it, and who 
 | `_progress/<slug>-context.md` | Extra manual context for handoff/execution | Manual/optional workflow | `/f-handoff` | Optional |
 | `_test/<slug>-test-design.md` | Designed test plan for high-risk flow | `/f-test-design` | `/f-test-impl` | Optional |
 | `_review/<slug>-code-review.md` | Findings for own-branch review | `/f-code-review` | Human follow-up | Optional |
+| `_review/<slug>-audit.json` | High-risk auditor receipt | `engine audit-record` (after `/f-code-review --auditor`) | `/f-commit` (skip re-audit of the same diff) | Optional |
 | `_review/<slug>-peer-review.md` | Findings for peer branch/MR | `/f-mr-review` | Human follow-up | Optional |
 | `_review/<slug>-mr-address.md` | Per-thread MR comment progress | `/f-mr-address` | `/f-mr-address` (resume), human | Optional |
 | `_handoff/<slug>-execution-pack.md` | Human-readable execution pack | `/f-handoff` | External executor/model | Optional |
@@ -61,7 +63,7 @@ Reference for what each `.specwork/` folder/file is for, who writes it, and who 
 - `_progress/` is expected to be empty in many runs.
 - `escalations.md` appears only when bounded retries are exhausted (or explicit escalate path is used).
 - `<slug>-context.md` is read by `/f-handoff` if present, but is not auto-generated by default.
-- `plan.md`/`plan.json` are optional by design; `/f-implement` can run in no-plan mode.
+- `plan.md`/`plan.json` are optional by design; `/f-implement` can run in no-plan mode — except on high-risk pipelines, where it requires a plan.
 
 ## Safety / cleanup guidance
 

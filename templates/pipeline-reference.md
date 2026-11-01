@@ -92,7 +92,7 @@ Do not create for:
 | `/f-spec <args>` | `bash $OPEN_SDD_ROOT/commands/spec.sh <args>` |
 | `/f-spec --tier <tier> "<reason>"` | `bash $OPEN_SDD_ROOT/commands/spec.sh --tier <tier> "<reason>"` (force the triage tier; `auto` drops it) |
 | `/f-resync` | `bash $OPEN_SDD_ROOT/commands/resync.sh` |
-| `/f-resync <name>` | `bash $OPEN_SDD_ROOT/commands/resync.sh <name>` |
+| `/f-resync --rename-branch <name>` | `bash $OPEN_SDD_ROOT/commands/resync.sh --rename-branch <name>` |
 | `/f-code-review` | `bash $OPEN_SDD_ROOT/commands/code-review.sh` |
 | `/f-code-review --recheck` | `bash $OPEN_SDD_ROOT/commands/code-review.sh --recheck` |
 | `/f-code-review --auditor` | `bash $OPEN_SDD_ROOT/commands/code-review.sh --auditor` (asked for by `/f-commit` on high-risk pipelines) |

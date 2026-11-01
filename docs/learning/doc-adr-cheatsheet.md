@@ -1,18 +1,20 @@
 # Doc / ADR Registry — Onboarding & Command Reference
 
-> **Outdated command names.** This guide predates the doc-command rename. Publishing
-> is now part of each create command, and the queries are `/doc-*-query`:
-> `/doc-publish` → `/doc-catalog`, `/doc-query` → `/doc-catalog-query`,
-> `/adr-publish` → `/doc-adr`, `/adr-query` → `/doc-adr-query`,
-> `/spec-publish` → `/doc-spec`, `/spec-query` → `/doc-spec-query`;
-> `/doc-freshness` was removed. The registered set is in `docs/pipeline.md`
-> § Companion Commands.
+The full cycle: **capture → store in the central registry → query in natural language**.
+Every create command stores straight into the registry; there is no separate
+publish step.
 
-The full cycle: **extract structure → publish to central registry → query in natural language**.
+Four registries, one mechanism:
 
-Two registries, one mechanism:
-- **Service Catalog** (`service-catalog/`) — architecture, specs, security
-- **ADR Registry** (`adr-registry/`) — decision history
+| Registry | Create (`list` to inspect) | Query |
+|---|---|---|
+| `service-catalog/` — endpoints, integrations, config | `/doc-catalog` | `/doc-catalog-query` |
+| `adr-registry/<service>/` — decision history | `/doc-adr` | `/doc-adr-query` |
+| `spec-registry/<service>/` — feature specs | `/doc-spec` (and `/f-mr` inside the pipeline) | `/doc-spec-query` |
+| `investigation-registry/<service>/` — bug / exploration / improvement notes | `/doc-investigation` | `/doc-investigation-query` |
+
+Architecture design docs live apart, in the repo pointed to by `$OPEN_SDD_ARCH_HOME`;
+query them with `/arch-query`.
 
 > **Central registry** (`$OPEN_SDD_DOC_HOME`, default `${OPEN_SDD_ROOT:-~}/.opensdd/registry/`).
 > Set `OPEN_SDD_DOC_HOME` to a team-shared Git repo for cross-service queries.
@@ -22,22 +24,20 @@ Two registries, one mechanism:
 ## Quick Start
 
 ```bash
-# 1. Scan the current project — generates findings for docs/service-info.md
+# 1. Scan the current project and store its catalog in the registry
 /doc-catalog
+/doc-catalog --with-docs    # also store docs/architecture/, docs/product/, … as extra docs
 
-# 2. Publish the catalog to the central registry
-/doc-publish --with-docs   # also publishes docs/architecture/, docs/product/, docs/security/
+# 2. Query catalogs from any project
+/doc-catalog-query "what services depend on consent-service?"
 
-# 3. Query published docs from any project
-/doc-query "what services depend on consent-service?"
-
-# 4. Create ADRs for important decisions
+# 3. Record decisions and query them
 /doc-adr "we chose PostgreSQL for circuit breaker state"
-/adr-publish
-/adr-query "why did consent-service pick PostgreSQL?"
+/doc-adr-query "why did consent-service pick PostgreSQL?"
 
-# 5. Detect drift between docs and code
-/doc-freshness
+# 4. Store a hand-written spec, capture an investigation
+/doc-spec docs/my-feature-spec.md
+/doc-investigation "vehicle lookup cache bug" bug
 ```
 
 ---
@@ -46,7 +46,10 @@ Two registries, one mechanism:
 
 ### /doc-catalog
 
-Scans the current project and produces structured findings (endpoints, SQS listeners, Feign clients, DTOs, config). Does not write anything — the LLM uses the output to generate/update `docs/service-info.md`.
+Scans the current project and prints structured findings (endpoints, SQS listeners,
+SNS publishers, Feign clients, scheduled jobs, DTOs, config — or routes, API calls and
+env vars for frontend projects). The LLM turns them into the catalog and writes it to
+`$REGISTRY/service-catalog/<service>.md`.
 
 ```
 $ /doc-catalog
@@ -65,54 +68,17 @@ ConsentServiceClient (consent-service)
 MyYesGoClient (myyesgo-api)
 ```
 
+- **`--with-docs`** also stores the repo's extra docs (`docs/architecture/`,
+  `docs/features/`, `docs/product/`, `docs/security/`, other top-level `docs/*.md`)
+  under `service-catalog/docs/<service>/`.
+- **`/doc-catalog list`** shows this service's catalog and its extra-doc count.
+
 **When to run:** after adding an endpoint, changing integrations, or when the catalog is stale.
 
-### /doc-publish
+### /doc-catalog-query
 
-Publishes `docs/service-info.md` to the central registry.
-
-```
-$ /doc-publish
-Published: docs/service-info.md -> $REGISTRY/leads-service.md
-
-# With extra docs (architecture, product, security, features)
-$ /doc-publish --with-docs
-Published: docs/service-info.md -> $REGISTRY/leads-service.md
-Published 12 extra docs to $REGISTRY/docs/leads-service/
-
-# List what's registered
-$ /doc-publish list
-Registered in $REGISTRY/:
-  consent-service.md        (last updated May 14 09:17)
-  leads-service.md          (last updated May 30 12:00)
-
-Extra docs published for:
-  leads-service (12 extra docs)
-```
-
-**What `--with-docs` uploads:**
-- `docs/architecture/*.md` — system-overview, domain-models, patterns-review
-- `docs/features/*.md` — feature specs, sequences, decisions
-- `docs/product/*.md` — product-spec, gap-analysis, feature-inventory
-- `docs/security/*.md` — security-report, findings
-- `docs/*.md` — any other top-level .md (index, contributing, etc.)
-
-### /doc-query
-
-Reads all documents from the registry and answers cross-service questions with source citation.
-
-```
-$ /doc-query "what services consume the LeadCreated event?"
-
-Reading 18 documents:
-  leads-service/system-overview.md
-  leads-service/integration-architecture.md
-  consent-service/architecture-overview.md
-  ...
-
-Answer: consent-service consumes LeadCreated via SQS
-(leads-service/integration-architecture.md:142 — "Event flow" diagram)
-```
+Reads every catalog and extra doc in `service-catalog/` and answers cross-service
+questions, citing the source file.
 
 **Example questions:**
 - "Who calls /api/v1/consent?"
@@ -126,107 +92,42 @@ Answer: consent-service consumes LeadCreated via SQS
 
 ### /doc-adr
 
-Creates an ADR in `docs/adr/<ticket>-ADR-<NNN>-<kebab-slug>.md`.
-
-```
-$ /doc-adr "choose PostgreSQL for circuit breaker state"
-
-Next ADR number: ADR-001
-Branch: feature/leadsConsentOrchestration
-
-No specs or decisions files found. Provide context directly.
-
----
-Use this info to draft the ADR, confirm with the user,
-then write the file to docs/adr/ and offer to commit.
-```
+Drafts an ADR and stores it in the registry — there is no in-repo `docs/adr/`:
+`$REGISTRY/adr-registry/<service>/<TICKET>-ADR-NNN-<kebab-slug>.md`
+(`NOTICKET` when the branch has no ticket). The script prints the next number and
+the existing ADRs; the LLM drafts, confirms with you, then writes.
 
 **Modes:**
-- **`/doc-adr <topic>`** — create ADR from scratch
-- **`/doc-adr open-questions`** — pull context from OQs in `.specwork/` (pipeline) or `docs/decisions.md` / `docs/open-questions.md` (standalone)
-- **No active pipeline:** falls back to `docs/decisions.md` or prompts for direct context
+- **`/doc-adr <topic>`** — create an ADR from scratch
+- **`/doc-adr open-questions`** — pull context from the resolved OQs in `.specwork/` (pipeline) or `docs/decisions.md` / `docs/open-questions.md` (standalone). `/f-mr` suggests it when the spec resolved OQs worth preserving
+- **`/doc-adr list`** — ADRs already registered for this service
 
-### /adr-publish
-
-Publishes all ADRs from `docs/adr/` to the central registry.
-
-```
-$ /adr-publish
-Published 3 ADRs to $REGISTRY/leads-service/
-
-$ /adr-publish list
-Registered:
-  leads-service/  (3 ADRs)
-  consent-service/ (1 ADR)
-```
-
-### /adr-query
+### /doc-adr-query
 
 Reads ADRs from the registry and answers decision questions.
 
-```
-$ /adr-query "why did leads-service pick PostgreSQL for circuit-breaker state?"
-
-Available ADR services:
-  leads-service/
-  consent-service/
-
-Target service: leads-service
-
-==== leads-service/IR-62-ADR-001-postgres-circuit-breaker.md ====
-...
-
-Answer: PostgreSQL was chosen because the circuit-breaker state
-needs to survive service restarts (leads-service/IR-62-ADR-001.md:12)
-```
-
-**Scope narrowing:** pass a service name as argument to scope the query. Matching uses substring matching against the directory name, so `leads` matches `leads-service`.
-
-**Aggregate queries:** use "all services", "across", "compare", "which services" to read every ADR across the registry.
+- **Scope narrowing:** pass a service name; it matches registry directories by
+  substring, so `leads` matches `leads-service`.
+- **Aggregate queries:** "all services", "across", "compare", "which services" read
+  every ADR in the registry.
 
 ---
 
-## Freshness
+## Specs and investigations
 
-### /doc-freshness
+### /doc-spec
 
-Detects drift between docs and actual repo state.
+Stores a feature spec in `spec-registry/<service>/<slug>-spec.md` — for hand-written or
+standalone specs; inside the pipeline `/f-mr` does it automatically.
+`/doc-spec <path>` stores that file; with no argument it uses the active `.specwork/`
+spec; `/doc-spec list` shows the service's specs. Query with `/doc-spec-query`.
 
-```
-$ /doc-freshness
+### /doc-investigation
 
-=== doc-freshness ===
-Repo: /Users/.../leads
-Branch: feature/leadsConsentOrchestration
-Last commit: 2026-05-27
-
---- Cross-reference validity ---
-  [OK] All 16 links in index.md resolve
-
---- Orphan docs (not referenced in index.md) ---
-  [DRIFT] Not listed in index.md: docs/CODING_STANDARDS.md
-  [DRIFT] Not listed in index.md: docs/features/detailed-leads-orchestration/decisions.md
-
---- Version drift ---
-  [OK] No version in index.md title — skipping version check
-
---- Doc staleness (last update) ---
-  [DRIFT] product-spec.md claims 2026-04-22 — 35 days stale
-  [DRIFT] system-overview.md claims 2026-04-22 — 35 days stale
-
---- Endpoint drift ---
-  [DRIFT] Path in docs not found in code: /some/endpoint
-
---- Summary ---
-Drift items found: 15
-```
-
-**What it detects:**
-1. **Broken links** — references in index.md that don't resolve to real files
-2. **Orphan docs** — `.md` files that exist but aren't listed in index.md
-3. **Version** — mismatch between index.md title and build.gradle/pom.xml/package.json
-4. **Staleness** — docs with `**Date:**` older than 30 days from last repo commit
-5. **Endpoints** — paths documented in architecture/ that don't exist in Java code
+Captures the current session's investigation as a structured document in
+`investigation-registry/<service>/`, typed **bug**, **explore** or **improvements**:
+`/doc-investigation [title] [bug|explore|improvements]`; `list` shows the service's
+notes. Query with `/doc-investigation-query`.
 
 ---
 
@@ -235,9 +136,12 @@ Drift items found: 15
 | Variable | Effect |
 |----------|--------|
 | `$OPEN_SDD_DOC_HOME` | Root of the shared registry (e.g. `~/team/docs-registry`). Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/` |
+| `$OPEN_SDD_ARCH_HOME` | Architecture design docs repo read by `/arch-query` |
 | `$OPEN_SDD_ROOT` | Absolute path to open-sdd (set if you installed the pipeline) |
 
-Service name is extracted from `docs/service-info.md` (heading `# Service: name` or `# name`), or from the git root directory name.
+**Service name** (`lib/service-name.sh`, first hit wins): `spring.application.name`
+(`application.yml` / `.properties`) → first `# Heading` of `docs/service-info.md` →
+git repo basename → `unknown`; always lowercase kebab-case.
 
 ---
 
@@ -248,20 +152,20 @@ $OPEN_SDD_DOC_HOME/
 ├── service-catalog/
 │   ├── consent-service.md
 │   ├── leads-service.md
-│   └── docs/                        # published with --with-docs
-│       ├── consent-service/
-│       │   ├── system-overview.md
-│       │   └── security-report.md
+│   └── docs/                        # stored with --with-docs
 │       └── leads-service/
 │           ├── product-spec.md
-│           ├── gap-analysis.md
 │           └── patterns-review.md
-└── adr-registry/
-    ├── leads-service/
-    │   ├── IR-62-ADR-001-postgres-circuit-breaker.md
-    │   └── IR-62-ADR-002-transactional-outbox.md
-    └── consent-service/
-        └── ADR-001-choose-consent-storage.md
+├── adr-registry/
+│   └── leads-service/
+│       ├── IR-62-ADR-001-postgres-circuit-breaker.md
+│       └── IR-62-ADR-002-transactional-outbox.md
+├── spec-registry/
+│   └── leads-service/
+│       └── ir-62-spec.md
+└── investigation-registry/
+    └── leads-service/
+        └── <date>-<slug>.md
 ```
 
 ---
@@ -270,18 +174,17 @@ $OPEN_SDD_DOC_HOME/
 
 ```bash
 # First use in a project
-/doc-catalog                                  # scan the project
+/doc-catalog --with-docs                      # catalog + extra docs into the registry
 /doc-adr "initial service architecture"       # foundational ADR
-/doc-publish --with-docs                      # publish everything to registry
 
 # Daily use
-/doc-freshness                                # check drift before changing docs
-/doc-adr "decision of the day"                # record decisions
-/adr-publish                                  # publish new ADRs
+/doc-adr "decision of the day"                # record decisions as they happen
+/doc-investigation "why X breaks" bug         # keep what an investigation found
 
 # Cross-service queries
-/doc-query "which services use SQS?"
-/adr-query "why did we decide X?"
+/doc-catalog-query "which services use SQS?"
+/doc-adr-query "why did we decide X?"
+/doc-spec-query "which specs touch LeadProcessor?"
 ```
 
 ---
