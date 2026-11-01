@@ -1,20 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Usage: triage.sh <slug> [--tier <trivial|focused|standard|high-risk|auto> "<reason>"]
+# --tier forces the tier (stored as an `override` block in path.json, sticky
+# across later runs); a reason is mandatory. --tier auto drops the override.
+
+ENGINE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 SLUG="${1:-}"
+[ $# -gt 0 ] && shift
+TIER=""
+TIER_REASON=""
+if [ "${1:-}" = "--tier" ]; then
+  TIER="${2:-}"
+  shift 2 2>/dev/null || shift
+  TIER_REASON="$*"
+fi
 SPEC_FILE=".specwork/_spec/${SLUG}-spec.md"
 STATE_FILE=".specwork/_state/${SLUG}-state.json"
 OUT_FILE=".specwork/_state/${SLUG}-path.json"
 
 if [ -z "$SLUG" ] || [ ! -f "$SPEC_FILE" ]; then
-  echo "Usage: ./commands/triage.sh <slug>  (internal — run by /f-spec, not a user command)"
+  echo "Usage: ./commands/triage.sh <slug> [--tier <tier|auto> \"<reason>\"]  (internal — run by /f-spec, not a user command)"
   echo "Requires: .specwork/_spec/<slug>-spec.md"
   exit 1
 fi
 
 mkdir -p "$(dirname "$OUT_FILE")"
 
-python3 - "$SPEC_FILE" "$STATE_FILE" "$OUT_FILE" "$SLUG" <<'PY'
+python3 - "$SPEC_FILE" "$STATE_FILE" "$OUT_FILE" "$SLUG" "$ENGINE_ROOT" "$TIER" "$TIER_REASON" <<'PY'
 import json, re, sys
 from pathlib import Path
 
@@ -22,6 +36,19 @@ spec       = Path(sys.argv[1]).read_text(encoding="utf-8")
 state      = Path(sys.argv[2])
 out        = Path(sys.argv[3])
 slug       = sys.argv[4]
+sys.path.insert(0, sys.argv[5])
+from engine import tier as tiers
+forced_tier, forced_reason = sys.argv[6], sys.argv[7]
+
+# Validate a forced tier before anything is written.
+if forced_tier and forced_tier != "auto":
+    if forced_tier not in tiers.TIERS:
+        print(f"✗ Unknown tier '{forced_tier}' — expected one of: {', '.join(tiers.TIERS)}, auto", file=sys.stderr)
+        sys.exit(2)
+    if not forced_reason.strip():
+        print("✗ A tier override needs a reason: --tier <tier> \"<reason>\"", file=sys.stderr)
+        sys.exit(2)
+previous_override = None if forced_tier else tiers.read_override(out)
 
 def section(name, src):
     m = re.search(rf'(?ms)^## {re.escape(name)}\b(.*?)(?=^## |\Z)', src)
@@ -107,6 +134,12 @@ payload = {
     "signals": signals,
     "reason": reason,
 }
+# Forced tier: explicit --tier wins; otherwise a stored override is sticky.
+if forced_tier and forced_tier != "auto":
+    payload = tiers.apply_override(payload, forced_tier, forced_reason)
+elif previous_override:
+    payload = tiers.apply_override(payload, previous_override["tier"], previous_override["reason"])
+ticket_type, complexity = payload["ticket_type"], payload["complexity"]
 out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 # Update ticket_type and complexity in state.json so the state machine uses
@@ -122,7 +155,7 @@ if state.exists():
 
 # Print triage summary on stderr so the caller gets human-readable output
 # even when stdout is consumed programmatically.
-print(f"Triage: {ticket_type} ({complexity}) — {reason}", file=sys.stderr)
+print(tiers.summary_line(payload), file=sys.stderr)
 PY
 
 echo ".specwork/_state/${SLUG}-path.json written" >&2

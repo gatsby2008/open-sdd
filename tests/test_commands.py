@@ -4,6 +4,7 @@ Each test class runs an actual shell script (start.sh, auto.sh) via subprocess
 inside a temporary git repository. Tests focus on error paths that don't
 require a real Jira instance or network access.
 """
+import json
 import os
 import subprocess
 import tempfile
@@ -301,3 +302,45 @@ class TestClosePromotion(TmpGitRepo):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertFalse(Path(".claude/rules").exists())
         self.assertFalse(Path(".specwork").exists())
+
+
+# ---------------------------------------------------------------------------
+# f-spec --tier — forced triage tier in refine mode
+# ---------------------------------------------------------------------------
+
+class TestSpecTier(TmpGitRepo):
+    SPEC = ("# x — y\n\n## Behavior\n\n1. **B1** — It does not publish to Kafka.\n\n"
+            "## Implementation Context\n\n- MenuController\n\n## Open Questions\n\n")
+
+    def setUp(self):
+        super().setUp()
+        subprocess.run(["git", "checkout", "-q", "-b", "feature/x"], check=True)
+        state = Path(".specwork/_state")
+        state.mkdir(parents=True)
+        (state / "x-state.json").write_text(
+            '{"id": "x", "slug": "x", "branch": "feature/x", "ticket_type": "high-risk"}\n')
+        for name in ("x-rules.json", "x-implementation-cache.json"):
+            (state / name).write_text("{}\n")
+        spec = Path(".specwork/_spec")
+        spec.mkdir(parents=True)
+        (spec / "x-spec.md").write_text(self.SPEC)
+        (spec / "x-source.md").write_text("# x\n")
+
+    def _run_spec(self, args):
+        env = os.environ.copy()
+        env.pop("SDD_NON_INTERACTIVE", None)
+        return subprocess.run(["bash", str(COMMANDS_DIR / "spec.sh")] + args,
+                              capture_output=True, text=True, cwd=str(self.repo), env=env, timeout=15)
+
+    def test_tier_only_forces_tier_and_leaves_spec_untouched(self):
+        r = self._run_spec(["--tier", "focused", "read-only"])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Tier forced", r.stdout)
+        data = json.loads(Path(".specwork/_state/x-path.json").read_text())
+        self.assertEqual(data["override"]["tier"], "focused")
+        self.assertEqual(Path(".specwork/_spec/x-spec.md").read_text(), self.SPEC)
+
+    def test_tier_without_reason_is_rejected(self):
+        r = self._run_spec(["--tier", "focused"])
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse(Path(".specwork/_state/x-path.json").exists())

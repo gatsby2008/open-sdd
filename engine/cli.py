@@ -244,10 +244,16 @@ def cmd_implement_check(args: list[str]) -> int:
                 print(f"  {l}", file=sys.stderr)
         return 1
 
-    # Plan is optional. /f-implement falls back to inline discovery from the
-    # spec when plan.json is absent (small/obvious changes don't require a
-    # plan). Staleness only applies when a plan exists.
+    # Plan is optional except on high-risk pipelines (forced tier wins over the
+    # automatic one — /f-spec --tier). Elsewhere /f-implement falls back to
+    # inline discovery from the spec when plan.json is absent. Staleness only
+    # applies when a plan exists.
+    from engine.tier import plan_required
     plan = load_plan(slug)
+    plan_md = SPECWORK / "_plan" / f"{slug}-plan.md"
+    if plan_required(slug) and not plan and not plan_md.exists():
+        print("PLAN_REQUIRED")
+        return 1
     if plan and check_plan_staleness(slug):
         print("PLAN_STALE")
         return 1

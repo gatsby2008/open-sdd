@@ -1,6 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Pull out `--tier <tier> "<reason>"` (forces the triage tier) before anything
+# else reads the arguments; the rest is spec input.
+TIER=""
+TIER_REASON=""
+REST=()
+while [ $# -gt 0 ]; do
+  if [ "$1" = "--tier" ]; then
+    TIER="${2:-}"
+    TIER_REASON="${3:-}"
+    shift $(( $# >= 3 ? 3 : $# ))
+  else
+    REST+=("$1")
+    shift
+  fi
+done
+set -- "${REST[@]+"${REST[@]}"}"
+
 # Capture argc before `set -- $@` consumers (the input-parse loop) drain it.
 # Drives the no-op path below: /f-spec with no args in refine mode is idempotent.
 ARGC=$#
@@ -54,6 +71,29 @@ fi
 
 echo "Mode: $MODE"
 
+# ---- step 2.4: forced tier (refine mode) ------------------------------------
+
+# The spec already exists, so the override applies now; the spec itself is not
+# touched (no spec_write_timestamp bump). In draft mode it is applied by the
+# triage run the draft instructions ask for (step 11).
+if [ -n "$TIER" ]; then
+  case "$TIER" in
+    trivial|focused|standard|high-risk|auto) ;;
+    *) die "Unknown tier '$TIER' — expected trivial, focused, standard, high-risk or auto." ;;
+  esac
+  [ "$TIER" = "auto" ] || [ -n "$(echo "$TIER_REASON" | xargs)" ] \
+    || die "A tier override needs a reason: /f-spec --tier $TIER \"<reason>\""
+fi
+if [ -n "$TIER" ] && [ "$MODE" = "refine" ]; then
+  bash "$SCRIPT_DIR/triage.sh" "$SLUG" --tier "$TIER" "$TIER_REASON" >/dev/null \
+    || die "Tier override rejected (see above) — nothing changed."
+  if [ "$ARGC" -eq 0 ]; then
+    echo ""
+    echo "Tier forced; spec.md unchanged. /f-implement's plan-required gate follows the new tier."
+    exit 0
+  fi
+fi
+
 # ---- step 2.5: no-op path (refine without args is idempotent) ---------------
 
 # In refine mode with no arguments there is nothing to integrate — exit cleanly
@@ -73,6 +113,7 @@ if [ "$MODE" = "refine" ] && [ "$ARGC" -eq 0 ]; then
   echo "  /f-spec jira <TICKET>              — add Jira ticket context"
   echo "  /f-spec \"free text\"                — add free text"
   echo "  /f-spec <file> jira <TICKET> \"...\" — combine sources"
+  echo "  /f-spec --tier <tier> \"<reason>\"   — force the triage tier (auto = drop)"
   echo ""
   TICKET_TYPE=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('ticket_type',''))" 2>/dev/null || echo "")
   echo "Next:"
@@ -332,7 +373,7 @@ On the first draft, run triage now that the spec body has real content
 (triage reads ## Behavior and ## Implementation Context — until /f-spec
 creates spec.md, triage has nothing to classify):
 
-  ./commands/triage.sh $SLUG
+  ./commands/triage.sh $SLUG${TIER:+ --tier $TIER \"$TIER_REASON\"}
 
 Print the triage result (type, complexity, path, reason). The path is
 advisory — the developer can override at any step.

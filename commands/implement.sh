@@ -116,7 +116,8 @@ if [ "${1:-}" = "--retry-cmd" ]; then
 fi
 
 # /f-implement is re-runnable. Artifact gates below (implement-check: spec
-# exists, no unresolved OQs, plan not stale) are the only preconditions.
+# exists, no unresolved OQs, plan present on high-risk, plan not stale) are the
+# only preconditions.
 # Calling /f-implement again after /f-commit (to add more steps) or after
 # /f-spec refresh (bumps spec_write_ts → triggers staleness gate) is fine.
 
@@ -133,6 +134,11 @@ GATES_RESULT=$(engine implement-check "$SLUG" 2>&1) || {
       echo "$GATES_RESULT"
       echo "Resolve them first, then re-run."
       exit 1
+      ;;
+    *PLAN_REQUIRED*)
+      die "Cannot implement — this pipeline is high-risk and has no plan.
+Run /f-plan first. If triage misjudged the tier (e.g. a keyword in a negated
+sentence), force it with: /f-spec --tier <trivial|focused|standard> \"<reason>\""
       ;;
     *PLAN_STALE*)
       echo ""

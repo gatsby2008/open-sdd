@@ -194,6 +194,8 @@ Implement the next focused change from the spec.
 **Gates (strict, abort with no writes):**
 - Spec must exist
 - No unresolved Open Questions in spec or plan (via `check_open_questions`)
+- High-risk pipelines need a plan (`PLAN_REQUIRED`); a tier forced with
+  `/f-spec --tier` wins over the automatic one, in both directions
 - Plan must not be stale (via `check_plan_staleness` — uses stored
   spec_write_timestamp, not filesystem mtime)
 
@@ -346,13 +348,20 @@ Implement test files for changed source code. Optional — not required in the p
 4. For existing test files, list as UPDATE candidates; for missing ones, list as CREATE
 5. **Hard rule**: generated tests must verify concrete behavior (return values, persistence calls, events, exceptions) — never just nullity or emptiness checks
 
-### /f-spec [files ... | jira <ticket> | <free text>]
+### /f-spec [files ... | jira <ticket> | <free text>] [--tier <tier> "<reason>"]
 
 Single command for both drafting the spec for the first time and refining it later. Replaces the deprecated `/spec-refine`, which has been removed.
 
 **ALWAYS run `bash commands/spec.sh` first** — it handles mode detection (draft vs refine), input parsing, staleness warnings, and prints session context. Do NOT pre-check spec.md presence yourself; let the script auto-detect the mode and print the instructions. The script's output tells you what to do next (draft the spec content, or integrate new context into the existing spec).
 
 Mode is auto-detected by `spec.md` presence: if the file does not exist (start.sh did not create it), `/f-spec` runs in **draft mode** and creates it from `source.md` + `templates/spec.md`; if the file exists, `/f-spec` runs in **refine mode** and integrates new context.
+
+**Forcing the tier:** triage reads keywords, so it can misfire ("does not publish to
+Kafka" still matches `kafka` → high-risk). `--tier <trivial|focused|standard|high-risk>
+"<reason>"` forces the tier: stored as an `override` block in `path.json` (with the
+automatic tier and reason), sticky across later triage runs; `--tier auto` drops it. The
+reason is mandatory. In refine mode it applies immediately without touching the spec
+(`--tier` alone exits after forcing); in draft mode the triage run applies it.
 
 **Idempotency contract:** `/f-spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp` or writing the spec. Calling `/f-spec` twice in a row with the same input is therefore safe.
 
@@ -564,6 +573,7 @@ The blocking pipeline gates live in `lib/gates.sh`:
 | Gate | Function | Failure behavior |
 |------|----------|-----------------|
 | Open Questions | `check_open_questions` | Abort, list unresolved items |
+| Plan required | `engine.tier.plan_required` (in `implement-check`) | High-risk without a plan: abort, recommend `/f-plan` or `/f-spec --tier` |
 | Plan staleness | `check_plan_staleness` | Abort, recommend re-run `/f-plan` |
 | Required artifacts | `check_required_artifacts` | Abort, list missing files |
 | Risk signals | `detect_risk_signals` | Advisory — annotates plan. Signals: db-migration, auth-security, breaking-api, data-destructive, concurrency (backend) + component-api, state-management, accessibility, routing, data-fetching, ui-migration (frontend) |
