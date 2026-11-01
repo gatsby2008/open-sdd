@@ -216,7 +216,10 @@ Stage all changes, generate a semantic commit message, confirm with user.
 
 1. Run `bash commands/commit.sh` — it stages changes and prints context
    (branch, ticket, files, diff stat), plus the advisory spec-conformance line
-   (Behavior ids with no `spec: B<n>`-tagged test added on the branch — never blocks)
+   (Behavior ids with no `spec: B<n>`-tagged test added on the branch — never blocks).
+   On a **high-risk** pipeline whose diff has no audit receipt, it also asks for
+   `/f-code-review --auditor`; record the verdict with `engine.cli audit-record`.
+   Advisory: a FAIL is surfaced, never blocks, and `/f-auto` does not pause
 2. Generate the commit message in this format:
    ```
    [TICKET-ID] <type>: <concise description>
@@ -433,6 +436,11 @@ Run a stack-aware quality and security review on the current branch diff.
 5. Write report skeleton to `.specwork/_review/<slug>-code-review.md`
 6. Print structured instructions for the LLM to perform the review
 7. **Do not edit source files until user approves the action plan**
+
+`--auditor` (asked for by `/f-commit` on high-risk pipelines): reviews the branch
+diff since the merge-base plus staged changes, report-only — no fix proposals —
+and ends with `engine.cli audit-record <slug> "<verdict>"`, so the same diff is
+never reviewed twice (receipt: `.specwork/_review/<slug>-audit.json`).
 
 Report format:
 ```

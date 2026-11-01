@@ -79,6 +79,18 @@ engine coverage-check "$SLUG" || die "Test-coverage gate failed. Add tests or wa
 # tags with `spec: B<n>`. Never blocks; silent for specs without ids.
 [ -n "$SLUG" ] && engine conformance-check "$SLUG"
 
+# ---- high-risk auditor (advisory) -------------------------------------------
+# Only high-risk pipelines pay for a review, and only once per distinct diff.
+# The verdict never blocks the commit, and /f-auto does not pause for it.
+if [ -n "$SLUG" ] && ! engine audit-required "$SLUG" >/dev/null; then
+  echo ""
+  echo "⚠ High-risk pipeline: this diff has not been audited yet."
+  echo "  Run /f-code-review --auditor (report-only review of the branch diff),"
+  echo "  then stamp its verdict so the same diff is never reviewed twice:"
+  echo "    PYTHONPATH=\"$ENGINE_ROOT\" python3 -m engine.cli audit-record $SLUG \"<PASS|PASS WITH WARNINGS|FAIL>\""
+  echo "  Advisory: surface a FAIL to the developer, but it does not block the commit."
+fi
+
 # ---- quality gate: run tests ------------------------------------------------
 # Only reached when there is something to commit.
 

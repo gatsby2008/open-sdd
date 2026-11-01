@@ -555,6 +555,37 @@ def cmd_promote_apply(args: list[str]) -> int:
     return 0
 
 
+def cmd_audit_required(args: list[str]) -> int:
+    # High-risk auditor trigger for /f-commit. rc 1 = run /f-code-review
+    # --auditor (high-risk pipeline, diff not yet audited); rc 0 = skip — every
+    # other tier, an already-audited diff, or any internal error (fails open).
+    from engine.audit import audit_required
+    slug = args[0] if args else resolve_slug()
+    if slug and audit_required(slug):
+        print("AUDIT_REQUIRED reason=high-risk")
+        return 1
+    return 0
+
+
+def cmd_audit_record(args: list[str]) -> int:
+    # Stamp the auditor verdict for the current diff so it is never reviewed
+    # twice. Advisory: a FAIL verdict is recorded like any other.
+    from engine.audit import record
+    if len(args) < 2:
+        print("Usage: audit-record <slug> <PASS|PASS WITH WARNINGS|FAIL>", file=sys.stderr)
+        return 2
+    try:
+        record(args[0], " ".join(args[1:]))
+    except ValueError as exc:
+        print(f"✗ {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:
+        print(f"⚠ audit receipt not recorded: {exc}", file=sys.stderr)
+        return 0
+    print("✓ audit receipt recorded")
+    return 0
+
+
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -592,6 +623,8 @@ DISPATCH = {
     "coverage-check": cmd_coverage_check,
     "conformance-check": cmd_conformance_check,
     "promote-apply": cmd_promote_apply,
+    "audit-required": cmd_audit_required,
+    "audit-record": cmd_audit_record,
     "count-oqs": cmd_count_oqs,
     "audit": cmd_audit,
     "derive-branch": cmd_derive_branch,
