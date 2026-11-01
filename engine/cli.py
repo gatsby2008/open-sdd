@@ -22,23 +22,6 @@ from engine.gates import (
 from engine.persistence import load_plan, save_plan, load_cache, save_cache
 
 
-# Advisory flows per ticket type — used by triage to print the recommended
-# path. NOT enforced (no step machine); each command is independently
-# artifact-gated. Keep this table in sync with /f-help and docs/learning.
-#
-# triage() only ever produces "trivial", "focused", "standard", "high-risk".
-# "feature" is kept solely as the fallback default (see FLOW_MAP.get below and
-# the PipelineState.ticket_type default), used for any state whose type was not
-# reassigned by triage.
-FLOW_MAP: dict[str, list[str]] = {
-    "feature":   ["spec", "plan", "implement", "commit", "mr", "close"],
-    "high-risk": ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"],
-    "standard":  ["plan", "implement", "commit", "mr", "close"],
-    "focused":   ["implement", "commit", "mr", "close"],
-    "trivial":   ["commit", "mr", "close"],
-}
-
-
 def cmd_precheck(args: list[str]) -> int:
     fresh = "--fresh" in args
     args = [a for a in args if not a.startswith("--")]
@@ -69,104 +52,22 @@ def cmd_precheck(args: list[str]) -> int:
 
 
 def cmd_triage(args: list[str]) -> int:
+    # Usage: triage <slug> [--tier <tier|auto> "<reason>"]. Implementation:
+    # engine/triage.py (commands/triage.sh wraps this same entry point).
     if not args:
-        print("Usage: cli.py triage <slug>")
+        print('Usage: cli.py triage <slug> [--tier <tier|auto> "<reason>"]', file=sys.stderr)
         return 1
-    slug = args[0]
-    return triage(slug)
+    slug, rest = args[0], args[1:]
+    tier, reason = "", ""
+    if rest and rest[0] == "--tier":
+        tier = rest[1] if len(rest) > 1 else ""
+        reason = " ".join(rest[2:])
+    return triage(slug, tier, reason)
 
 
-def triage(slug: str) -> int:
-    from engine.persistence import load_spec
-
-    spec = load_spec(slug)
-    if not spec:
-        print(f"No spec found for slug: {slug}", file=sys.stderr)
-        return 1
-
-    import re
-    from pathlib import Path
-
-    spec_text = spec.lower()
-    impl_ctx_match = re.search(r"(?ms)^## Implementation Context\b(.*?)(?=^## |\Z)", spec)
-    impl_ctx = impl_ctx_match.group(1).lower() if impl_ctx_match else ""
-
-    scope_match = re.search(r"(?ms)^## Expected Change Scope\b(.*?)(?=^## |\Z)", spec)
-    scope = scope_match.group(1).lower() if scope_match else ""
-
-    # NOTE: keep this list in sync with commands/triage.sh (HIGH_KW).
-    high_kw = (
-        "async", "completablefuture", "executorservice", "@async",
-        "transactional", "retry", "retrytemplate",
-        "event", "sns", "sqs", "kafka", "consumer", "producer",
-        "auth", "authentication", "authorization", "security",
-        "migration", "flyway", "liquibase", "breaking", "concurrency",
-        # Frontend high-risk keywords
-        "state management", "redux", "zustand", "context api",
-        "routing", "navigation", "react-router", "next.router",
-        "accessibility", "a11y", "aria",
-        "ssr", "hydration", "code splitting",
-        "data fetching", "useSWR", "react-query", "tanstack query",
-        "component migration", "ui library", "design system",
-        "i18n", "localization",
-        "theming", "dark mode",
-    )
-    trivial_kw = ("typo", "rename", "copy change", "wording", "message change")
-
-    matched_high = [k for k in high_kw if k in spec_text or k in impl_ctx]
-    matched_triv = [k for k in trivial_kw if k in spec_text]
-
-    # NOTE: keep this list in sync with commands/triage.sh (known_layers).
-    known_layers = ("service", "controller", "repository", "config", "tests", "integration",
-                    "component", "page", "store", "hook", "screen", "layout", "util")
-    layers_match = re.search(r"expected layers[^\n]*?:\s*([^\n]+)", scope)
-    layers = [L for L in known_layers if layers_match and L in layers_match.group(1)]
-    num_layers = len(layers)
-
-    files_match = re.search(r"expected files touched[^\n]*?:\s*(\d+)(?:\s*-\s*(\d+))?", scope)
-    if files_match:
-        lo = int(files_match.group(1))
-        hi = int(files_match.group(2)) if files_match.group(2) else lo
-        files_estimate = (lo + hi) // 2
-    else:
-        files_estimate = 0
-
-    if matched_triv and not matched_high and num_layers <= 1 and files_estimate <= 2:
-        ticket_type, complexity = "trivial", "LOW"
-    elif matched_high or num_layers >= 4 or files_estimate >= 7:
-        ticket_type, complexity = "high-risk", "HIGH"
-    elif num_layers >= 2 or files_estimate >= 3:
-        ticket_type, complexity = "standard", "MEDIUM"
-    else:
-        ticket_type, complexity = "focused", "MEDIUM"
-
-    flow = FLOW_MAP.get(ticket_type, FLOW_MAP["feature"])
-    signals = []
-    if matched_high:
-        signals.append("high-risk keywords: " + ", ".join(matched_high[:3]))
-    if matched_triv and ticket_type == "trivial":
-        signals.append("trivial-change keywords: " + ", ".join(matched_triv[:3]))
-    if num_layers:
-        signals.append(f"{num_layers} layer(s): {', '.join(layers)}")
-    if files_estimate:
-        signals.append(f"~{files_estimate} files expected")
-
-    payload = {
-        "schema_version": 1,
-        "id": slug,
-        "ticket_type": ticket_type,
-        "complexity": complexity,
-        "recommended_path": flow,
-        "signals": signals,
-        "reason": " · ".join(signals) if signals else "default",
-    }
-
-    out_path = Path(f".specwork/_state/{slug}-path.json")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    print(f"Written {out_path}")
-    print(json.dumps(payload, indent=2))
-    return 0
+def triage(slug: str, tier: str = "", reason: str = "") -> int:
+    from engine.triage import run
+    return run(slug, tier, reason)
 
 
 def cmd_status(args: list[str]) -> int:

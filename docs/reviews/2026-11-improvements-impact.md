@@ -92,11 +92,11 @@ Esfuerzo: B **M** · C **S** sobre B.
   mensaje en `.specwork/_state/<slug>-commit-msg.txt`, y sin pipeline ese
   directorio no existe. Ya existía antes de la paridad. **Corregido:** sin
   `.specwork/_state/` usa un archivo temporal y no crea `.specwork/`.
-- **Dos implementaciones de triage:** `commands/triage.sh` (la que usa `/f-spec`) y
-  `engine/cli.py::triage` (solo la usan los tests). Divergen: en `triage.sh` focused
-  es `LOW` y en la otra `MEDIUM`, y solo la primera escribe `skip`. El override de
-  nivel se implementó en `triage.sh`. Conviene borrar la copia del engine o hacer
-  que `triage.sh` la llame.
+- **Dos implementaciones de triage:** `commands/triage.sh` y `engine/cli.py::triage`
+  divergían (focused `LOW` frente a `MEDIUM`; solo una escribía `skip`).
+  **Unificado:** la lógica vive en `engine/triage.py`. `triage.sh` y
+  `engine.cli triage` son envoltorios, y se mantiene la semántica de `triage.sh`,
+  que es la que usa `/f-spec`.
 - **Los `.html` de `docs/presentation/` son renders (Marp) de los `.md`:** se
   corrigieron los `.md`, pero hay que regenerar los `.html`; todavía citan
   `/doc-publish`, `/doc-query` y `/adr-query`.

@@ -164,3 +164,28 @@ class TestPlanRequiredGate(TierCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSingleTriage(TierCase):
+    """triage.sh and `engine.cli triage` are the same implementation (engine/triage.py)."""
+
+    def test_wrapper_and_cli_write_the_same_path_json(self):
+        self.spec(KAFKA_SPEC)
+        self.assertEqual(self.triage().returncode, 0)
+        from_sh = self.path_json()
+        env = {**os.environ, "PYTHONPATH": str(REPO_ROOT)}
+        r = subprocess.run(["python3", "-m", "engine.cli", "triage", "x"], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.path_json(), from_sh)
+        self.assertEqual(json.loads(r.stdout), from_sh)
+
+    def test_focused_is_low_with_skip(self):
+        from engine.triage import classify
+        result = classify(TRIVIAL_SPEC.replace("Fix a typo in the greeting message.", "Add a field."))
+        self.assertEqual((result["ticket_type"], result["complexity"]), ("focused", "LOW"))
+        self.assertEqual(result["skip"], ["f-plan", "f-test-design", "f-test-impl"])
+
+    def test_mixed_case_keyword_matches(self):
+        from engine.triage import classify
+        spec = KAFKA_SPEC.replace("It does not publish any event to Kafka.", "Fetch with useSWR.")
+        self.assertEqual(classify(spec)["ticket_type"], "high-risk")

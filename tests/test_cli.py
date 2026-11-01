@@ -61,7 +61,7 @@ This is a copy change: replace "Welcome" with "Hello".
         self.assertTrue(out.exists())
         data = json.loads(out.read_text())
         self.assertEqual(data["ticket_type"], "trivial")
-        self.assertNotIn("implement", data["recommended_path"])
+        self.assertNotIn("f-implement", data["recommended_path"])
 
     def test_triage_focused(self):
         self._write_spec("validate", """\
@@ -88,7 +88,7 @@ Service validates email is non-empty.
         self.assertEqual(rc, 0)
         data = json.loads((SPECWORK / "_state" / "validate-path.json").read_text())
         self.assertEqual(data["ticket_type"], "focused")
-        self.assertNotIn("plan", data["recommended_path"])
+        self.assertNotIn("f-plan", data["recommended_path"])
 
     def test_triage_standard(self):
         self._write_spec("offers", """\
@@ -115,8 +115,8 @@ Controller receives GET /api/v1/offers. Service queries repository.
         self.assertEqual(rc, 0)
         data = json.loads((SPECWORK / "_state" / "offers-path.json").read_text())
         self.assertEqual(data["ticket_type"], "standard")
-        self.assertIn("plan", data["recommended_path"])
-        self.assertNotIn("test-design", data["recommended_path"])
+        self.assertIn("f-plan", data["recommended_path"])
+        self.assertNotIn("f-test-design", data["recommended_path"])
 
     def test_triage_high_risk_kafka(self):
         self._write_spec("events", """\
@@ -143,8 +143,8 @@ A Kafka consumer receives the state change. Producer publishes with auth token.
         self.assertEqual(rc, 0)
         data = json.loads((SPECWORK / "_state" / "events-path.json").read_text())
         self.assertEqual(data["ticket_type"], "high-risk")
-        self.assertIn("test-design", data["recommended_path"])
-        self.assertIn("test-impl", data["recommended_path"])
+        self.assertIn("f-test-design", data["recommended_path"])
+        self.assertIn("f-test-impl", data["recommended_path"])
 
     def test_triage_high_risk_migration(self):
         self._write_spec("migrate", """\
@@ -171,7 +171,7 @@ Flyway migration runs on startup. Entity gets new column mapping.
         self.assertEqual(rc, 0)
         data = json.loads((SPECWORK / "_state" / "migrate-path.json").read_text())
         self.assertEqual(data["ticket_type"], "high-risk")
-        self.assertIn("test-design", data["recommended_path"])
+        self.assertIn("f-test-design", data["recommended_path"])
 
     def test_triage_high_risk_auth(self):
         self._write_spec("auth", """\
@@ -198,7 +198,7 @@ Authentication filter validates the token. Returns 401 if invalid.
         self.assertEqual(rc, 0)
         data = json.loads((SPECWORK / "_state" / "auth-path.json").read_text())
         self.assertEqual(data["ticket_type"], "high-risk")
-        self.assertIn("test-design", data["recommended_path"])
+        self.assertIn("f-test-design", data["recommended_path"])
 
     def test_triage_missing_spec_returns_1(self):
         rc = triage("nonexistent")
