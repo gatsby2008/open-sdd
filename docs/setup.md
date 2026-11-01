@@ -48,7 +48,9 @@ ADRs.
 already tracked from a prior setup, it warns with the exact `git rm --cached`
 command to untrack them.
 
-`.opensdd/` (the per-project config directory — `service-rules.md`) **is** committed.
+`.opensdd/` (personal pipeline config — `service-rules.md`) is gitignored too: `/f-start`
+appends it to `.gitignore` and syncs it from the team's committed `.claude/rules/*.md`,
+and `/f-close` deletes it. Shared rules belong in `.claude/rules/`.
 
 ### Validation script (`commands/check.sh`)
 
@@ -115,9 +117,9 @@ into `.specwork/_state/<slug>-rules.json`.
 
 ### Doc registry (optional)
 
-open-sdd bundles doc commands (`/doc-adr`, `/doc-catalog`, `/doc-publish`,
-`/doc-query`, `/adr-publish`, `/adr-query`) that publish and query a
-central registry of service catalogs and ADRs. The registry location is
+open-sdd bundles doc commands (`/doc-catalog`, `/doc-adr`, `/doc-spec`,
+`/doc-investigation`, each with a `*-query` companion) that store and query a
+central registry of service catalogs, ADRs, specs and investigations. The registry location is
 controlled by:
 
 ```bash

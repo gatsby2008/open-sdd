@@ -1,5 +1,13 @@
 # Doc / ADR Registry — Onboarding & Command Reference
 
+> **Outdated command names.** This guide predates the doc-command rename. Publishing
+> is now part of each create command, and the queries are `/doc-*-query`:
+> `/doc-publish` → `/doc-catalog`, `/doc-query` → `/doc-catalog-query`,
+> `/adr-publish` → `/doc-adr`, `/adr-query` → `/doc-adr-query`,
+> `/spec-publish` → `/doc-spec`, `/spec-query` → `/doc-spec-query`;
+> `/doc-freshness` was removed. The registered set is in `docs/pipeline.md`
+> § Companion Commands.
+
 The full cycle: **extract structure → publish to central registry → query in natural language**.
 
 Two registries, one mechanism:

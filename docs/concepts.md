@@ -30,13 +30,17 @@ Each gate **aborts with no writes** rather than guessing.
 | Gate | Where | Rule |
 |---|---|---|
 | **Open Questions** | `/f-plan`, `/f-implement`, `/f-handoff` | Any unchecked `- [ ]` in `spec.md` (or `plan.md`) blocks the step |
+| **Plan required** | `/f-implement` | A **high-risk** pipeline with no plan blocks the step (`PLAN_REQUIRED`). A tier forced with `/f-spec --tier <tier> "<reason>"` wins over the automatic one, in both directions |
 | **Plan staleness** | `/f-implement` | If `plan.md` exists and the spec is newer, the step blocks. Staleness is tracked by **`spec_write_timestamp`** in `state.json`, not filesystem mtime (so `/f-pause`/`/f-resume` stashing can't produce false negatives). Re-run `/f-plan`, or delete `plan.md` to fall back to inline discovery |
+| **Test coverage** | `/f-commit` | A changed production class with no matching test blocks the commit; waive a class with no testable surface (with a reason) in the coverage-waivers file |
+| **Quality (`check.sh`)** | `/f-mr` | The project's test suite must pass before every push. `/f-commit` does not run it |
 | **Empty-MR** | `/f-mr` | Aborts on the default branch or when the branch has no commits beyond its base |
+| **Spec conformance** *(advisory)* | `/f-commit` | Lists Behavior ids (`B1`, `B2`, …) with no test tagged `spec: B<n>` in the lines added on the branch. Never blocks |
+| **High-risk auditor** *(advisory)* | `/f-commit` | On high-risk pipelines, asks for `/f-code-review --auditor` once per distinct diff and stores the verdict in `_review/<slug>-audit.json`. Never blocks |
 
-`/f-spec` also **warns** (does not block) when `plan.md` is stale or the tree has
-uncommitted changes. `/f-code-review` performs a **soft test-coverage check**
-(modified classes should have updated tests) and reports it — it does not hard-block
-the commit.
+The rows marked *(advisory)* only report. `/f-spec` also **warns** (does not block)
+when `plan.md` is stale or the tree has uncommitted changes, and `/f-code-review`
+repeats a soft test-coverage check in its report.
 
 ---
 

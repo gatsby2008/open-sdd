@@ -200,7 +200,7 @@ Standalone:
   /f-resync         Sync artifacts after branch rename
   /f-handoff        Package artifacts for another agent
 
-Plus companion commands: /doc-adr, /doc-catalog, /doc-publish, /doc-query
+Plus companion commands: /doc-catalog, /doc-adr, /doc-spec, /doc-investigation (+ *-query)
 ```
 
 ---
@@ -757,12 +757,12 @@ Beyond the pipeline, open-sdd bundles companion commands:
 
 | Command | What it does |
 |---------|--------------|
-| **`/doc-catalog`** | Scan current microservice, generate `docs/service-info.md` |
-| **`/doc-publish`** | Publish catalog to central registry |
-| **`/doc-query`** | Ask cross-service questions across all catalogs |
-| **`/doc-adr`** | Create Architecture Decision Record in `docs/adr/` |
-| **`/adr-publish`** | Publish ADRs to central registry |
-| **`/adr-query`** | Ask decision-history questions across all ADRs |
+| **`/doc-catalog`** | Scan current service, store its catalog in the central registry |
+| **`/doc-catalog-query`** | Ask cross-service questions across all catalogs |
+| **`/doc-adr`** | Create an Architecture Decision Record in the registry |
+| **`/doc-adr-query`** | Ask decision-history questions across all ADRs |
+| **`/doc-spec`** / **`/doc-spec-query`** | Store / query feature specs |
+| **`/doc-investigation`** / **`/doc-investigation-query`** | Capture / query investigations |
 
 All loaded automatically by `install.sh`. Registry shared across team via `OPEN_SDD_DOC_HOME`.
 
@@ -1009,7 +1009,7 @@ Document service invariants, business rules, architecture constraints.
 
 **Standalone:** `/f-commit` · `/f-mr` · `/f-code-review` · `/f-handoff`
 
-**Doc commands:** `/doc-adr` · `/doc-catalog` · `/doc-query`
+**Doc commands:** `/doc-catalog` · `/doc-adr` · `/doc-spec` · `/doc-investigation` (+ `*-query`)
 
 ---
 

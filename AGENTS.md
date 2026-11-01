@@ -19,14 +19,14 @@
 
 1. **Bash commands** (`commands/*.sh`) — each script prints context + instructions; the LLM reads the output and takes action (write files, ask user, run git commands)
 2. **Python engine** (`engine/`) — validated logic (gates, state, worktree, triage, branch detection). Called by bash scripts via `python3 -m engine.cli`
-3. **Agent instructions** (`agent/PIPELINE.md`) — the full protocol. Loaded globally via `opencode.json` `instructions`
+3. **Agent instructions** (`agent/PIPELINE.md`) — the protocol every `/f-*` command reads first (on-demand detail in `agent/REFERENCE.md`). The short global rules (`templates/pipeline-reference.md`) are what `install.sh` wires into `opencode.json` `instructions`
 
 ### State vs config
 
 | Path | Gitignored? | Contents |
 |------|-------------|----------|
 | `.specwork/` | **Yes** (enforced by `/f-start`) | Transient pipeline state: spec, plan, source, cache, escalations |
-| `.opensdd/` | **No** (committed) | Per-dev config: `service-rules.md` |
+| `.opensdd/` | **Yes** (appended by `/f-start`; deleted by `/f-close`) | Per-dev config: `service-rules.md`, synced from the team's committed `.claude/rules/*.md` |
 
 ### Pipeline is artifact-driven (no state machine)
 
@@ -61,9 +61,9 @@ Each command independently checks preconditions:
 
 All doc registries under `$OPEN_SDD_DOC_HOME/${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/`:
 
-- `service-catalog/` — `/doc-publish`
-- `adr-registry/` — `/adr-publish`
-- `spec-registry/` — `/spec-publish` or `/f-mr`
+- `service-catalog/` — `/doc-catalog` (query: `/doc-catalog-query`)
+- `adr-registry/` — `/doc-adr` (query: `/doc-adr-query`)
+- `spec-registry/` — `/doc-spec` or `/f-mr` (query: `/doc-spec-query`)
 - `investigation-registry/` — `/doc-investigation`
 
 Architecture design docs live separately at `$OPEN_SDD_ARCH_HOME` (clone the architecture repo and set this env var):
