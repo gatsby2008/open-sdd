@@ -57,6 +57,85 @@ if [ -z "$PARENT" ]; then
   PARENT=$(git remote show origin 2>/dev/null | grep "HEAD branch" | awk '{print $NF}' || echo "main")
 fi
 
+# ---- promote durable rules (interactive only) -------------------------------
+# The spec is about to be deleted. Before it goes, offer to promote what the
+# feature taught about the service into the team's rules (.claude/rules/*.md),
+# so the next pipeline starts with it. Two passes: the first prints the
+# candidates' source and stops (nothing deleted); the agent asks the user and
+# re-runs with --promote '<json>' (approved rules) or --no-promote.
+
+SPEC_FILE=".specwork/_spec/${RECORDED_SLUG}-spec.md"
+PROMOTE_JSON=""
+PROMOTE_DECIDED=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --promote)    PROMOTE_JSON="${2:-}"; PROMOTE_DECIDED=1; shift 2 || shift ;;
+    --no-promote) PROMOTE_DECIDED=1; shift ;;
+    *) shift ;;
+  esac
+done
+
+if [ -z "$PROMOTE_DECIDED" ] && [ "${SDD_NON_INTERACTIVE:-0}" != "1" ] && [ -f "$SPEC_FILE" ]; then
+  echo "==================================================="
+  echo " PROMOTE DURABLE RULES (before closing)"
+  echo "==================================================="
+  echo ""
+  python3 - "$SPEC_FILE" <<'PY'
+import re, sys
+from pathlib import Path
+spec = Path(sys.argv[1]).read_text(encoding="utf-8")
+def section(name):
+    m = re.search(rf'(?ms)^## {re.escape(name)}\b(.*?)(?=^## |\Z)', spec)
+    return m.group(1).strip() if m else ""
+print("## Safe Constraints (from the spec)")
+print(section("Safe Constraints") or "(empty)")
+print("")
+print("## Resolved Open Questions")
+resolved = [l for l in section("Open Questions").splitlines() if l.lstrip().startswith("- [x]")]
+print("\n".join(resolved) if resolved else "(none)")
+PY
+  echo ""
+  echo "## Existing rules files"
+  if ls .claude/rules/*.md >/dev/null 2>&1; then
+    for f in .claude/rules/*.md; do
+      echo "  $f: $(grep -E '^#{1,6} ' "$f" | sed -E 's/^#+ //' | paste -sd '|' - | sed 's/|/ | /g')"
+    done
+  else
+    echo "  (none — approved rules go to .claude/rules/service-rules.md)"
+  fi
+  cat <<INSTRUCTIONS
+
+Nothing has been deleted yet. Read only the two spec sections above — not the
+diff, not the code — and:
+
+1. Pick at most 4 feature-agnostic, durable invariants: business rules,
+   ownership/identity rules, idempotency or fallback contracts, the *why*
+   behind a design choice. Drop ticket-only decisions, dates, rollout notes,
+   and anything the rules files already state. Zero is a normal outcome.
+2. Choose a target per candidate: the .claude/rules/<topic>.md whose subject
+   matches, and a section heading in it. With no rules files, target
+   .claude/rules/service-rules.md and one of: Business Invariants,
+   Fallback and Idempotency, Architecture Constraints, Historical Constraints.
+3. A candidate that contradicts an existing rule is NOT a write — ask the user
+   which one holds. Existing rules are never edited, reworded, or removed.
+4. Ask the user once to approve each candidate (none pre-approved).
+5. Re-run /f-close with the approved ones (or --no-promote when none):
+
+     /f-close --promote '[{"file": ".claude/rules/<topic>.md", "section": "<section>", "rule": "<rule>"}]'
+
+   The rules are appended with a provenance marker
+   (\`- <rule> _(from spec ${RECORDED_SLUG}, <date>)_\`); the write is refused if
+   any existing line would change. They stay as uncommitted changes to commit
+   on the parent branch.
+INSTRUCTIONS
+  exit 0
+fi
+
+if [ -n "$PROMOTE_JSON" ]; then
+  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli promote-apply "$RECORDED_SLUG" "$PROMOTE_JSON" --dry-run \
+    || die "Rule promotion rejected (see above) — nothing was closed or deleted."
+fi
+
 echo "Closing feature pipeline on branch '$BRANCH' ..."
 echo ""
 
@@ -74,6 +153,14 @@ if ! PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli worktree-clean 2>/dev/nul
   # Remove untracked implementation files, preserving non-pipeline configs
   git clean -fd --exclude=.opencode --exclude=AGENTS.md --exclude=CLAUDE.md --exclude=GEMINI.md
   echo "Done."
+  echo ""
+fi
+
+# ---- write the approved rules (after the revert, so it can't undo them) -----
+
+if [ -n "$PROMOTE_JSON" ]; then
+  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli promote-apply "$RECORDED_SLUG" "$PROMOTE_JSON" \
+    || die "Rule promotion failed — .specwork/ kept; nothing deleted."
   echo ""
 fi
 

@@ -16,7 +16,9 @@ One-sentence description of what this feature does.
 
 ## Behavior
 
-Detailed behavioral specification. Each requirement should be testable.
+1. **B1** — Detailed, testable behavioral requirement. Each Behavior keeps a stable
+   id (`B1`, `B2`, …) that tests reference with a `spec: B<n>` tag.
+
 For UI features: describe visual states (loading, empty, error, success),
 user interactions, and responsive behavior.
 

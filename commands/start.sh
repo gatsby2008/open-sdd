@@ -18,7 +18,7 @@ slugify() {
 # (--keep, --branch <name>, interactive B/C) rather than the raw input — which
 # could be a long free-text description that would produce an unusable slug.
 slug_from_branch() {
-  slugify "$(echo "$1" | sed 's|^feature/||; s|^bugfix/||; s|^hotfix/||; s|^release/||')"
+  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli slug "$1"
 }
 
 detect_ticket() {

@@ -66,9 +66,14 @@ Pure Python with no git side effects. Key modules:
 
 | Module | Responsibility |
 |--------|---------------|
-| `cli.py` | Single dispatch entry point — maps 11 subcommands to `cmd_*` handlers |
-| `gates.py` | All preconditions: `resolve_slug`, `require_specwork`, `check_open_questions`, `check_plan_staleness`, `detect_stack`, `detect_risk_signals` |
-| `state.py` | `PipelineState` dataclass (17 fields + 8 computed properties) with load/save |
+| `cli.py` | Single dispatch entry point — maps ~30 subcommands (`DISPATCH`) to `cmd_*` handlers |
+| `gates.py` | Preconditions: `resolve_slug`, `require_specwork`, `check_open_questions`, `check_plan_staleness`, `detect_stack`, `detect_risk_signals` |
+| `triage.py` / `tier.py` | Tier classification of the spec; tier tables, the `/f-spec --tier` override and the plan-required rule |
+| `slug.py` | The one slug-from-branch derivation every caller uses |
+| `coverage.py` / `conformance.py` | Strict test-coverage gate; advisory Behavior-id (`spec: B<n>`) conformance check |
+| `audit.py` | High-risk auditor receipt (diff fingerprint + verdict) |
+| `promote.py` | Append-only rule promotion into `.claude/rules/*.md` for `/f-close` |
+| `state.py` | `PipelineState` dataclass with load/save |
 | `persistence.py` | Typed read/write helpers for each artifact under `.specwork/` |
 
 Commands output machine-readable tokens (`SPECWORK_OK`, `GATES_PASSED`, `UNRESOLVED_OQS`, JSON payloads) that the bash layer greps on.
@@ -103,8 +108,9 @@ The pipeline uses persistent rule layers:
 
 ```text
 repo-root/
+  .claude/rules/*.md          # team rules, committed
   .opensdd/
-    service-rules.md
+    service-rules.md          # personal copy synced from .claude/rules/ (gitignored)
 ```
 
 Purpose:
@@ -121,9 +127,12 @@ Examples:
 * duplicate prevention
 * service-specific architectural constraints
 
-This is the pipeline's persistent operational memory.
+This is the pipeline's persistent operational memory. It grows with use: before
+`/f-close` deletes a finished spec, it offers the spec's Safe Constraints and resolved
+Open Questions as candidate rules, and appends the ones you approve to
+`.claude/rules/*.md` (append-only, with a provenance marker).
 
-**Compilation**: at `/f-start`, the project's pipeline instructions + `.opensdd/service-rules.md` are compiled into `.specwork/_state/<slug>-rules.json`. Compilation is lossy: regex `(?m)^- (.+)$` captures only top-level bullets, capped at 20. The LLM reads both files directly for full semantics.
+**Snapshot**: at `/f-start`, the full text of `templates/rules.md` (`global_rules`) and of `.opensdd/service-rules.md` plus any `.opensdd/rules/*.md` (`service_rules`) is stored in `.specwork/_state/<slug>-rules.json`. Nothing is parsed or truncated; rules edited later are not in the snapshot.
 
 ---
 
@@ -140,7 +149,7 @@ The pipeline uses machine-readable state artifacts:
     <slug>-path.json
 ```
 
-`path.json` is written by `engine triage <slug>` (runs after `/f-spec` first draft, NOT during `/f-start`). It records the recommended pipeline path based on ticket complexity analysis.
+`path.json` is written by `engine triage <slug>` (runs after `/f-spec` first draft, NOT during `/f-start`). It records the tier and recommended pipeline path. When the keyword classifier misjudges a ticket, `/f-spec --tier <tier> "<reason>"` forces the tier; the override is stored in `path.json` next to the automatic tier and survives later triage runs.
 
 These artifacts are the reusable execution source for downstream commands.
 
@@ -160,12 +169,14 @@ Benefits:
 | Detected file(s) | Returns |
 |-----------------|---------|
 | `build.gradle` / `build.gradle.kts` / `pom.xml` | `java` |
-| `package.json` | `node` |
+| `package.json` + a frontend config (Vite, Next, Angular, Svelte, Nuxt…) or framework dependency | `frontend` |
+| `package.json` otherwise | `node` |
 | None of the above | `unknown` |
 
 Every command script calls `engine detect-stack` to switch heuristics:
 
 - **java**: Spring Boot patterns (Exception handlers, ControllerAdvice, JUnit/Mockito test layout)
+- **frontend**: components/pages/hooks/stores, error boundaries, RTL/MSW test patterns
 - **node**: Jest/Vitest mock patterns, `__tests__/` test detection, Express/NestJS infra
 
 ---
@@ -183,12 +194,12 @@ Artifacts:
 .specwork/_spec/<slug>-source.md
 ```
 
-The spec structure (8 top-level sections):
+The spec structure (core sections; frontend features add UI sections):
 
 ```markdown
 ## Summary
 ## Scope (### In scope / ### Out of scope)
-## Behavior
+## Behavior            (1. **B1** — … stable ids that tests reference)
 ## Implementation Context
 ## Expected Change Scope
 ## Safe Constraints (### Safe / ### Unsafe)
@@ -228,7 +239,8 @@ Open Questions use the format `- [ ] **#N** <question>` in `spec.md` (and option
 
 ## 8. Optional Planning
 
-Planning is optional and lightweight.
+Planning is optional and lightweight — except for **high-risk** pipelines, where
+`/f-implement` refuses to run without a plan.
 
 Plans are stored at `.specwork/_plan/<slug>-plan.md`.
 
@@ -255,7 +267,7 @@ Implementation uses bounded focused execution:
 * detection of already implemented behavior
 * utility reuse detection
 
-Strict gates: spec must exist, no unresolved OQs, plan must not be stale. Bounded retry: 2 direct attempts, 1 setup-reset attempt, then escalation to human review. Failures are logged to `.specwork/_progress/escalations.md`.
+Strict gates: spec must exist, no unresolved OQs, a plan on high-risk pipelines, plan must not be stale. Tests carry `spec: B<n>` tags so `/f-commit` can report Behaviors nobody tested. Bounded retry: 2 direct attempts, 1 setup-reset attempt, then escalation to human review. Failures are logged to `.specwork/_progress/escalations.md`.
 
 ---
 
@@ -291,10 +303,10 @@ high-quality human constraints outperform autonomous AI discovery
 
 ## 11. Non-Interactive Autopilot (`/f-auto`)
 
-`/f-auto` runs the pipeline up to implementation without bash prompts:
+`/f-auto` runs the whole pipeline up to the open MR without bash prompts:
 
 ```text
-/f-start → /f-spec → OQ check → /f-plan → /f-implement → (handoff)
+/f-start → /f-spec → OQ check → /f-plan → /f-implement → /f-commit → /f-mr
 ```
 
 It sets `SDD_NON_INTERACTIVE=1` to skip the routine bash prompts. Branch confirmation still happens: when a human drives it, `start.sh`'s interactive A/B/C prompt fires (it runs whenever no `--choose/--branch/--keep` flag is passed and stdin is a terminal); when the agent drives it, the agent confirms the branch in chat and then calls `start.sh` with an explicit `--choose A`/`--branch`/`--keep`. It then runs straight through `/f-spec → /f-plan → /f-implement → /f-commit → /f-mr` and stops at the open MR, pausing for human input at only two points:
@@ -416,14 +428,15 @@ The AI handles:
 
 ## 16. Vibe Coding (Standalone Commands)
 
-Four commands work on **any branch with no pipeline setup** — no `.specwork/`, no spec, no plan:
+Five commands work on **any branch with no pipeline setup** — no `.specwork/`, no spec, no plan:
 
 | Command | Purpose |
 |---------|---------|
-| `/f-commit` | Stage + run quality gate + semantic commit message |
-| `/f-mr` | Validate tests + push + open MR |
+| `/f-commit` | Stage + test-coverage gate + semantic commit message |
+| `/f-mr` | Run `check.sh` + push + open MR |
 | `/f-code-review` | Stack-aware quality + security review of your own diff |
 | `/f-mr-review` | Stack-aware quality + security review of a peer's branch or MR |
+| `/f-undo` | Discard uncommitted changes reversibly |
 
 See [VIBE-CODING.md](vibe-coding.md) for the full workflow.
 
@@ -433,9 +446,11 @@ See [VIBE-CODING.md](vibe-coding.md) for the full workflow.
 
 ```text
 repo-root/
+  .claude/rules/
+    <topic>.md            # committed team rules (+ promoted ones)
+
   .opensdd/
-    service-rules.md
-    mr-config.json
+    service-rules.md      # gitignored personal copy
 
   .specwork/
     _spec/
@@ -460,6 +475,7 @@ repo-root/
 
     _review/
       <slug>-code-review.md
+      <slug>-audit.json
       <slug>-mr-address.md
       <slug>-peer-review.md
 
@@ -547,7 +563,7 @@ Execution remains bounded.
 
 Primary pipeline references:
 
-* Full protocol: [`agent/PIPELINE.md`](../../agent/PIPELINE.md)
+* Full protocol: [`agent/PIPELINE.md`](../../agent/PIPELINE.md) (on-demand detail: [`agent/REFERENCE.md`](../../agent/REFERENCE.md))
 * Pipeline init: [`/f-start`](../../commands/start.sh) (writes source.md only; spec.md is created by /f-spec)
 * Spec draft + refine: [`/f-spec`](../../commands/spec.sh)
 * Implementation plan: [`/f-plan`](../../commands/plan.sh)

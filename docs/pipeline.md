@@ -191,7 +191,7 @@ feedback).
 - No state machine — each downstream command checks its own artifact preconditions
 - Next: `/f-spec`
 
-### /f-spec \<files | jira \<ticket\> | paste | free text\>
+### /f-spec \<files | jira \<ticket\> | paste | free text\> [--tier \<tier\> "\<reason\>"]
 
 - Single command for both the first draft and every subsequent refine
 - **Draft mode** (`spec.md` does not exist yet): synthesizes the first
@@ -206,6 +206,9 @@ feedback).
   tree has uncommitted changes
 - Never deletes user content, never touches `source.md` / `rules.json`,
   never modifies git state
+- Gives each `## Behavior` item a stable id (`B1`, `B2`, …) and never renumbers
+- `--tier <trivial|focused|standard|high-risk|auto> "<reason>"` forces the triage
+  tier when the keyword classifier misjudged it (sticky; `auto` drops it)
 
 ### /f-plan *(optional)*
 
@@ -235,7 +238,9 @@ feedback).
 - Changes accumulate in working tree (no commits between steps)
 - **Strict gates** (abort with no writes):
   - Unresolved Open Questions in spec.md or plan.md
+  - high-risk pipeline with no plan (`/f-spec --tier` can re-tier it)
   - plan.md exists and is stale (newer spec.md)
+- Tags each test with the Behavior id(s) it verifies (`// spec: B2`)
 - Complexity assessment at the end:
   - Low/isolated → `/f-commit`
   - High/multi-layer → `/f-test-design`
@@ -258,6 +263,9 @@ feedback).
 - Auto-stages modified/new files when nothing is staged
 - Generates a semantic commit message from spec title + optional ticket ref
 - User approves before commit
+- **Strict test-coverage gate**; does **not** run `check.sh` (that gates the push)
+- Advisory: spec-conformance line (Behaviors with no tagged test) and, on
+  high-risk pipelines, the `/f-code-review --auditor` request (once per diff)
 
 ### /f-code-review (optional)
 
@@ -282,11 +290,11 @@ feedback).
 
 - **Empty-MR guards**: aborts if on the default branch, or if the branch has no commits beyond its base
 - **Host detection**: creates the MR on the *project's own* remote — `gh` for GitHub, `glab` for GitLab. Override with `OPEN_SDD_MR_PROVIDER=github|gitlab` (needed for self-hosted GitLab)
-- **Pre-push validation**: runs the test suite before push, but **skips it when HEAD was already validated by `/f-commit`**
+- **Pre-push validation**: runs `commands/check.sh` before every push — the only
+  place it runs (after an auto-rebase, the run that followed the rebase counts)
   - Tests fail → stops, does not push
 - Builds concise MR title and description from spec + commits
 - Pushes branch and creates or updates the MR
-- Optional: `--skip-validation` for emergencies
 
 ### /f-handoff (optional)
 
@@ -300,11 +308,16 @@ feedback).
 - Address unresolved MR comments thread by thread
 - Tracks progress in `.specwork/_review/<slug>-mr-address.md`
 
-### /f-close
+### /f-close [--promote '\<json\>' | --no-promote]
 
-- Wipes `.specwork/` after merge
-- Verifies MR merge status via `gh`
-- Never reverts or deletes source-tree changes outside `.specwork/`
+- Refuses when `.specwork/` belongs to another branch
+- First pass (interactive, spec present): prints the spec's Safe Constraints and
+  resolved Open Questions and stops — nothing deleted — so the agent can propose
+  up to 4 durable rules; approved ones are appended to `.claude/rules/*.md` with a
+  provenance marker (existing lines are never edited)
+- **Reverts uncommitted changes** (`git restore .` + `git clean -fd`), then wipes
+  `.specwork/` and `.opensdd/` — run it after the MR is merged
+- Offers branch cleanup: delete + switch, keep + switch, or stay
 
 ---
 
@@ -315,15 +328,15 @@ documentation and architecture decisions (registered via install.sh):
 
 | Command | What it does |
 |---------|--------------|
-| **`/doc-catalog`** | Scan the current microservice and generate `docs/service-info.md` with endpoints, integrations, and config |
-| **`/doc-publish`** | Publish the catalog to the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`). `--with-docs` also publishes `docs/architecture/`, `docs/product/`, `docs/security/`, `docs/features/` |
-| **`/doc-query`** | Ask cross-service questions across all registered documents (catalogs + extra docs) |
-| **`/doc-freshness`** | Detect drift between docs and repo: broken links, orphan files, version mismatch, stale dates, missing endpoints |
-| **`/doc-adr`** | Create an Architecture Decision Record in `docs/adr/` |
-| **`/adr-publish`** | Publish all ADRs to the central registry (`$OPEN_SDD_DOC_HOME/adr-registry/<service>/`) |
-| **`/adr-query`** | Ask decision-history questions across all registered ADRs |
-| **`/spec-publish`** | Publish a hand-written or standalone spec to the central registry (`spec-registry/<service>/`). Publish-only counterpart to `/f-mr`, which publishes automatically inside the pipeline |
-| **`/spec-query`** | Ask feature/spec questions across specs published by `/spec-publish` or `/f-mr` (`spec-registry/<service>/`) |
+| **`/doc-catalog`** | Scan the current service and store its catalog in the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`); `list` shows what is registered |
+| **`/doc-catalog-query`** | Ask cross-service architecture questions across all catalogs |
+| **`/doc-adr`** | Create an Architecture Decision Record and store it in the registry (`adr-registry/<service>/`); `list` shows them |
+| **`/doc-adr-query`** | Ask decision-history questions across all registered ADRs |
+| **`/doc-spec`** | Store a hand-written or standalone spec in the registry (`spec-registry/<service>/`) — `/f-mr` does it inside the pipeline |
+| **`/doc-spec-query`** | Ask feature/spec questions across the spec registry |
+| **`/doc-investigation`** | Capture the current investigation as a structured document (`investigation-registry/<service>/`) |
+| **`/doc-investigation-query`** | Ask questions across all captured investigations |
+| **`/arch-query`** | Query architecture design documents (`$OPEN_SDD_ARCH_HOME`) |
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.

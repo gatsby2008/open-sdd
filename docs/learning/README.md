@@ -24,7 +24,7 @@ Recommended reading order to avoid duplicated context.
 
 ## 5) Docs/ADR ecosystem
 
-- [`doc-adr-cheatsheet.md`](doc-adr-cheatsheet.md) — catalog, publish/query, ADR workflows
+- [`doc-adr-cheatsheet.md`](doc-adr-cheatsheet.md) — the four registries (catalog, ADR, spec, investigation) and their queries
 
 ## 6) Playbooks
 

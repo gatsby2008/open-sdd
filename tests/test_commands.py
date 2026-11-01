@@ -4,6 +4,7 @@ Each test class runs an actual shell script (start.sh, auto.sh) via subprocess
 inside a temporary git repository. Tests focus on error paths that don't
 require a real Jira instance or network access.
 """
+import json
 import os
 import subprocess
 import tempfile
@@ -240,3 +241,141 @@ class TestAutoJiraNotConfigured(TmpGitRepo):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# f-close — durable-rule promotion
+# ---------------------------------------------------------------------------
+
+class TestClosePromotion(TmpGitRepo):
+    SPEC = (
+        "# x — y\n\n## Behavior\n\n1. **B1** — a\n\n"
+        "## Safe Constraints\n\n### Safe\n\n- Leads are idempotent per applicationId.\n\n"
+        "## Open Questions\n\n- [x] **#1** Retry? — resolved: at most 3 times\n"
+    )
+
+    def setUp(self):
+        super().setUp()
+        Path(".gitignore").write_text(".specwork/\n.opensdd/\n")
+        subprocess.run(["git", "add", ".gitignore"], check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "ignore"], check=True)
+        subprocess.run(["git", "checkout", "-q", "-b", "feature/x"], check=True)
+        state = Path(".specwork/_state")
+        state.mkdir(parents=True)
+        (state / "x-state.json").write_text(
+            '{"id": "x", "slug": "x", "branch": "feature/x", "base_branch": "main"}\n')
+        spec = Path(".specwork/_spec")
+        spec.mkdir(parents=True)
+        (spec / "x-spec.md").write_text(self.SPEC)
+
+    def _run_close(self, args, stdin="s\n"):
+        env = os.environ.copy()
+        env.pop("SDD_NON_INTERACTIVE", None)
+        return subprocess.run(
+            ["bash", str(COMMANDS_DIR / "close.sh")] + args,
+            capture_output=True, text=True, cwd=str(self.repo), env=env,
+            input=stdin, timeout=15,
+        )
+
+    def test_first_pass_prints_candidates_and_deletes_nothing(self):
+        r = self._run_close([])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("PROMOTE DURABLE RULES", r.stdout)
+        self.assertIn("Leads are idempotent per applicationId.", r.stdout)
+        self.assertIn("resolved: at most 3 times", r.stdout)
+        self.assertTrue(Path(".specwork/_spec/x-spec.md").exists())
+
+    def test_rejected_target_closes_nothing(self):
+        r = self._run_close(["--promote", '[{"file": ".opensdd/service-rules.md", "section": "S", "rule": "r"}]'])
+        self.assertNotEqual(r.returncode, 0)
+        self.assertTrue(Path(".specwork/_spec/x-spec.md").exists())
+
+    def test_approved_rules_are_written_and_pipeline_closed(self):
+        r = self._run_close(["--promote", '[{"section": "Business Invariants", "rule": "Leads are idempotent per applicationId."}]'])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rules = Path(".claude/rules/service-rules.md").read_text()
+        self.assertIn("- Leads are idempotent per applicationId. _(from spec x, ", rules)
+        self.assertFalse(Path(".specwork").exists())
+
+    def test_no_promote_closes_without_writing_rules(self):
+        r = self._run_close(["--no-promote"])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(Path(".claude/rules").exists())
+        self.assertFalse(Path(".specwork").exists())
+
+
+# ---------------------------------------------------------------------------
+# f-spec --tier — forced triage tier in refine mode
+# ---------------------------------------------------------------------------
+
+class TestSpecTier(TmpGitRepo):
+    SPEC = ("# x — y\n\n## Behavior\n\n1. **B1** — It does not publish to Kafka.\n\n"
+            "## Implementation Context\n\n- MenuController\n\n## Open Questions\n\n")
+
+    def setUp(self):
+        super().setUp()
+        subprocess.run(["git", "checkout", "-q", "-b", "feature/x"], check=True)
+        state = Path(".specwork/_state")
+        state.mkdir(parents=True)
+        (state / "x-state.json").write_text(
+            '{"id": "x", "slug": "x", "branch": "feature/x", "ticket_type": "high-risk"}\n')
+        for name in ("x-rules.json", "x-implementation-cache.json"):
+            (state / name).write_text("{}\n")
+        spec = Path(".specwork/_spec")
+        spec.mkdir(parents=True)
+        (spec / "x-spec.md").write_text(self.SPEC)
+        (spec / "x-source.md").write_text("# x\n")
+
+    def _run_spec(self, args):
+        env = os.environ.copy()
+        env.pop("SDD_NON_INTERACTIVE", None)
+        return subprocess.run(["bash", str(COMMANDS_DIR / "spec.sh")] + args,
+                              capture_output=True, text=True, cwd=str(self.repo), env=env, timeout=15)
+
+    def test_tier_only_forces_tier_and_leaves_spec_untouched(self):
+        r = self._run_spec(["--tier", "focused", "read-only"])
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Tier forced", r.stdout)
+        data = json.loads(Path(".specwork/_state/x-path.json").read_text())
+        self.assertEqual(data["override"]["tier"], "focused")
+        self.assertEqual(Path(".specwork/_spec/x-spec.md").read_text(), self.SPEC)
+
+    def test_tier_without_reason_is_rejected(self):
+        r = self._run_spec(["--tier", "focused"])
+        self.assertNotEqual(r.returncode, 0)
+        self.assertFalse(Path(".specwork/_state/x-path.json").exists())
+
+
+# ---------------------------------------------------------------------------
+# f-commit — check.sh gates the push, not the commit
+# ---------------------------------------------------------------------------
+
+class TestCommitDoesNotRunCheck(TmpGitRepo):
+    def test_failing_check_sh_does_not_block_the_commit(self):
+        Path("commands").mkdir()
+        Path("commands/check.sh").write_text("#!/usr/bin/env bash\necho CHECK_RAN\nexit 1\n")
+        Path("app.txt").write_text("v1\n")
+        subprocess.run(["git", "add", "."], check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "base"], check=True)
+        Path("app.txt").write_text("v2\n")
+        subprocess.run(["git", "add", "app.txt"], check=True)
+        env = os.environ.copy()
+        env["SDD_NON_INTERACTIVE"] = "1"
+        r = subprocess.run(["bash", str(COMMANDS_DIR / "commit.sh")], capture_output=True,
+                           text=True, cwd=str(self.repo), env=env, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("CHECK_RAN", r.stdout + r.stderr)
+        log = subprocess.run(["git", "log", "--oneline"], capture_output=True, text=True).stdout
+        self.assertEqual(len(log.splitlines()), 3)
+
+    def test_standalone_non_interactive_commit_leaves_no_specwork(self):
+        Path("app.txt").write_text("v1\n")
+        subprocess.run(["git", "add", "app.txt"], check=True)
+        env = os.environ.copy()
+        env["SDD_NON_INTERACTIVE"] = "1"
+        r = subprocess.run(["bash", str(COMMANDS_DIR / "commit.sh")], capture_output=True,
+                           text=True, cwd=str(self.repo), env=env, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        log = subprocess.run(["git", "log", "-1", "--format=%s"], capture_output=True, text=True).stdout
+        self.assertTrue(log.strip().startswith("feat:"), log)
+        self.assertFalse(Path(".specwork").exists())

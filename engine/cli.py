@@ -22,23 +22,6 @@ from engine.gates import (
 from engine.persistence import load_plan, save_plan, load_cache, save_cache
 
 
-# Advisory flows per ticket type — used by triage to print the recommended
-# path. NOT enforced (no step machine); each command is independently
-# artifact-gated. Keep this table in sync with /f-help and docs/learning.
-#
-# triage() only ever produces "trivial", "focused", "standard", "high-risk".
-# "feature" is kept solely as the fallback default (see FLOW_MAP.get below and
-# the PipelineState.ticket_type default), used for any state whose type was not
-# reassigned by triage.
-FLOW_MAP: dict[str, list[str]] = {
-    "feature":   ["spec", "plan", "implement", "commit", "mr", "close"],
-    "high-risk": ["plan", "implement", "test-design", "test-impl", "commit", "mr", "close"],
-    "standard":  ["plan", "implement", "commit", "mr", "close"],
-    "focused":   ["implement", "commit", "mr", "close"],
-    "trivial":   ["commit", "mr", "close"],
-}
-
-
 def cmd_precheck(args: list[str]) -> int:
     fresh = "--fresh" in args
     args = [a for a in args if not a.startswith("--")]
@@ -69,104 +52,22 @@ def cmd_precheck(args: list[str]) -> int:
 
 
 def cmd_triage(args: list[str]) -> int:
+    # Usage: triage <slug> [--tier <tier|auto> "<reason>"]. Implementation:
+    # engine/triage.py (commands/triage.sh wraps this same entry point).
     if not args:
-        print("Usage: cli.py triage <slug>")
+        print('Usage: cli.py triage <slug> [--tier <tier|auto> "<reason>"]', file=sys.stderr)
         return 1
-    slug = args[0]
-    return triage(slug)
+    slug, rest = args[0], args[1:]
+    tier, reason = "", ""
+    if rest and rest[0] == "--tier":
+        tier = rest[1] if len(rest) > 1 else ""
+        reason = " ".join(rest[2:])
+    return triage(slug, tier, reason)
 
 
-def triage(slug: str) -> int:
-    from engine.persistence import load_spec
-
-    spec = load_spec(slug)
-    if not spec:
-        print(f"No spec found for slug: {slug}", file=sys.stderr)
-        return 1
-
-    import re
-    from pathlib import Path
-
-    spec_text = spec.lower()
-    impl_ctx_match = re.search(r"(?ms)^## Implementation Context\b(.*?)(?=^## |\Z)", spec)
-    impl_ctx = impl_ctx_match.group(1).lower() if impl_ctx_match else ""
-
-    scope_match = re.search(r"(?ms)^## Expected Change Scope\b(.*?)(?=^## |\Z)", spec)
-    scope = scope_match.group(1).lower() if scope_match else ""
-
-    # NOTE: keep this list in sync with commands/triage.sh (HIGH_KW).
-    high_kw = (
-        "async", "completablefuture", "executorservice", "@async",
-        "transactional", "retry", "retrytemplate",
-        "event", "sns", "sqs", "kafka", "consumer", "producer",
-        "auth", "authentication", "authorization", "security",
-        "migration", "flyway", "liquibase", "breaking", "concurrency",
-        # Frontend high-risk keywords
-        "state management", "redux", "zustand", "context api",
-        "routing", "navigation", "react-router", "next.router",
-        "accessibility", "a11y", "aria",
-        "ssr", "hydration", "code splitting",
-        "data fetching", "useSWR", "react-query", "tanstack query",
-        "component migration", "ui library", "design system",
-        "i18n", "localization",
-        "theming", "dark mode",
-    )
-    trivial_kw = ("typo", "rename", "copy change", "wording", "message change")
-
-    matched_high = [k for k in high_kw if k in spec_text or k in impl_ctx]
-    matched_triv = [k for k in trivial_kw if k in spec_text]
-
-    # NOTE: keep this list in sync with commands/triage.sh (known_layers).
-    known_layers = ("service", "controller", "repository", "config", "tests", "integration",
-                    "component", "page", "store", "hook", "screen", "layout", "util")
-    layers_match = re.search(r"expected layers[^\n]*?:\s*([^\n]+)", scope)
-    layers = [L for L in known_layers if layers_match and L in layers_match.group(1)]
-    num_layers = len(layers)
-
-    files_match = re.search(r"expected files touched[^\n]*?:\s*(\d+)(?:\s*-\s*(\d+))?", scope)
-    if files_match:
-        lo = int(files_match.group(1))
-        hi = int(files_match.group(2)) if files_match.group(2) else lo
-        files_estimate = (lo + hi) // 2
-    else:
-        files_estimate = 0
-
-    if matched_triv and not matched_high and num_layers <= 1 and files_estimate <= 2:
-        ticket_type, complexity = "trivial", "LOW"
-    elif matched_high or num_layers >= 4 or files_estimate >= 7:
-        ticket_type, complexity = "high-risk", "HIGH"
-    elif num_layers >= 2 or files_estimate >= 3:
-        ticket_type, complexity = "standard", "MEDIUM"
-    else:
-        ticket_type, complexity = "focused", "MEDIUM"
-
-    flow = FLOW_MAP.get(ticket_type, FLOW_MAP["feature"])
-    signals = []
-    if matched_high:
-        signals.append("high-risk keywords: " + ", ".join(matched_high[:3]))
-    if matched_triv and ticket_type == "trivial":
-        signals.append("trivial-change keywords: " + ", ".join(matched_triv[:3]))
-    if num_layers:
-        signals.append(f"{num_layers} layer(s): {', '.join(layers)}")
-    if files_estimate:
-        signals.append(f"~{files_estimate} files expected")
-
-    payload = {
-        "schema_version": 1,
-        "id": slug,
-        "ticket_type": ticket_type,
-        "complexity": complexity,
-        "recommended_path": flow,
-        "signals": signals,
-        "reason": " · ".join(signals) if signals else "default",
-    }
-
-    out_path = Path(f".specwork/_state/{slug}-path.json")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    print(f"Written {out_path}")
-    print(json.dumps(payload, indent=2))
-    return 0
+def triage(slug: str, tier: str = "", reason: str = "") -> int:
+    from engine.triage import run
+    return run(slug, tier, reason)
 
 
 def cmd_status(args: list[str]) -> int:
@@ -244,10 +145,16 @@ def cmd_implement_check(args: list[str]) -> int:
                 print(f"  {l}", file=sys.stderr)
         return 1
 
-    # Plan is optional. /f-implement falls back to inline discovery from the
-    # spec when plan.json is absent (small/obvious changes don't require a
-    # plan). Staleness only applies when a plan exists.
+    # Plan is optional except on high-risk pipelines (forced tier wins over the
+    # automatic one — /f-spec --tier). Elsewhere /f-implement falls back to
+    # inline discovery from the spec when plan.json is absent. Staleness only
+    # applies when a plan exists.
+    from engine.tier import plan_required
     plan = load_plan(slug)
+    plan_md = SPECWORK / "_plan" / f"{slug}-plan.md"
+    if plan_required(slug) and not plan and not plan_md.exists():
+        print("PLAN_REQUIRED")
+        return 1
     if plan and check_plan_staleness(slug):
         print("PLAN_STALE")
         return 1
@@ -392,16 +299,29 @@ def cmd_extract_reference_targets(args: list[str]) -> int:
 
 
 def cmd_derive_branch(args: list[str]) -> int:
-    import re
     from engine.gates import ticket_from_branch, _current_branch
+    from engine.slug import slug_from_branch
     branch = args[0] if args else _current_branch()
     if not branch:
         print("COULD_NOT_RESOLVE_BRANCH", file=sys.stderr)
         return 1
-    unprefixed = re.sub(r"^(feature|hotfix|release|bugfix)/", "", branch)
-    slug = re.sub(r"[^a-z0-9]+", "-", unprefixed.lower()).strip("-")
+    slug = slug_from_branch(branch)
     tkt, itype = ticket_from_branch(branch)
     print(json.dumps({"branch": branch, "slug": slug, "ticket": tkt, "input_type": itype}, indent=2))
+    return 0
+
+
+def cmd_slug(args: list[str]) -> int:
+    # Print the slug for a branch (default: current). The one derivation every
+    # shell caller uses — start.sh, resync.sh and lib/gates.sh resolve_slug.
+    from engine.gates import _current_branch
+    from engine.slug import slug_from_branch
+    branch = args[0] if args else _current_branch()
+    slug = slug_from_branch(branch) if branch else ""
+    if not slug:
+        print("COULD_NOT_RESOLVE_SLUG", file=sys.stderr)
+        return 1
+    print(slug)
     return 0
 
 
@@ -517,6 +437,75 @@ def cmd_coverage_check(args: list[str]) -> int:
     return 1
 
 
+def cmd_conformance_check(args: list[str]) -> int:
+    # Advisory spec-conformance check run by /f-commit: lists the spec's Behavior
+    # ids (B1, B2, …) that no test added on this branch tags with `spec: B<n>`.
+    # Always rc 0 — reports, never gates; silent for specs without ids.
+    from engine.conformance import check
+    slug = args[0] if args else resolve_slug()
+    return check(slug) if slug else 0
+
+
+def cmd_promote_apply(args: list[str]) -> int:
+    # Append the rules the user approved in /f-close into .claude/rules/*.md,
+    # append-only with provenance. All targets are validated before any write.
+    # rc 0 = written (or would be, with --dry-run), 1 = rejected, 2 = usage.
+    from engine.promote import apply_all
+    dry_run = "--dry-run" in args
+    args = [a for a in args if a != "--dry-run"]
+    if len(args) != 2:
+        print("Usage: promote-apply <slug> '<json>' [--dry-run]", file=sys.stderr)
+        return 2
+    slug, raw = args
+    try:
+        entries = json.loads(raw)
+        if not isinstance(entries, list):
+            raise ValueError("expected a JSON list")
+    except ValueError as exc:
+        print(f"✗ Invalid JSON: {exc}", file=sys.stderr)
+        return 2
+    try:
+        written = apply_all(slug, entries, dry_run=dry_run)
+    except ValueError as exc:
+        print(f"✗ {exc}", file=sys.stderr)
+        return 1
+    verb = "Would promote" if dry_run else "Promoted"
+    for target, count in written.items():
+        print(f"✓ {verb} {count} rule(s) into {target}")
+    return 0
+
+
+def cmd_audit_required(args: list[str]) -> int:
+    # High-risk auditor trigger for /f-commit. rc 1 = run /f-code-review
+    # --auditor (high-risk pipeline, diff not yet audited); rc 0 = skip — every
+    # other tier, an already-audited diff, or any internal error (fails open).
+    from engine.audit import audit_required
+    slug = args[0] if args else resolve_slug()
+    if slug and audit_required(slug):
+        print("AUDIT_REQUIRED reason=high-risk")
+        return 1
+    return 0
+
+
+def cmd_audit_record(args: list[str]) -> int:
+    # Stamp the auditor verdict for the current diff so it is never reviewed
+    # twice. Advisory: a FAIL verdict is recorded like any other.
+    from engine.audit import record
+    if len(args) < 2:
+        print("Usage: audit-record <slug> <PASS|PASS WITH WARNINGS|FAIL>", file=sys.stderr)
+        return 2
+    try:
+        record(args[0], " ".join(args[1:]))
+    except ValueError as exc:
+        print(f"✗ {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:
+        print(f"⚠ audit receipt not recorded: {exc}", file=sys.stderr)
+        return 0
+    print("✓ audit receipt recorded")
+    return 0
+
+
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -552,9 +541,14 @@ DISPATCH = {
     "extract-reference-targets": cmd_extract_reference_targets,
     "bump-spec-ts": cmd_bump_spec_ts,
     "coverage-check": cmd_coverage_check,
+    "conformance-check": cmd_conformance_check,
+    "promote-apply": cmd_promote_apply,
+    "audit-required": cmd_audit_required,
+    "audit-record": cmd_audit_record,
     "count-oqs": cmd_count_oqs,
     "audit": cmd_audit,
     "derive-branch": cmd_derive_branch,
+    "slug": cmd_slug,
     "worktree-clean": cmd_worktree_clean,
     "worktree-dirty": cmd_worktree_dirty,
     "commit-subject": cmd_commit_subject,

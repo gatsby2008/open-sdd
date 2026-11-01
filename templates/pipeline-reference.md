@@ -67,10 +67,10 @@ Do not create for:
 
 ## Quality Gates
 
-- `bash commands/check.sh` must pass before committing (`/f-commit`) and again before pushing (`/f-mr`).
+- `bash commands/check.sh` must pass before pushing (`/f-mr`). It is not required before committing — `/f-commit` does not run it.
 - SDD pipeline ships a stack-detecting default at `$OPEN_SDD_ROOT/commands/check.sh` (auto-detects Gradle / Maven / npm / pnpm / yarn / pytest / Cargo / Go). The framework runs that script by default — no setup needed for the common case.
-- To override (e.g. Spring Boot with `integrationTest`, Maven with profiles, extra lint steps), drop a project-local `commands/check.sh` in the project root. `/f-commit` and `/f-mr` prefer it over the framework default. Template lives at `$OPEN_SDD_ROOT/templates/check.sh.example`.
-- Failed quality checks block progression — do not commit or push on failure.
+- To override (e.g. Spring Boot with `integrationTest`, Maven with profiles, extra lint steps), drop a project-local `commands/check.sh` in the project root. `/f-mr` prefers it over the framework default. Template lives at `$OPEN_SDD_ROOT/templates/check.sh.example`.
+- Failed quality checks block progression — do not push on failure.
 
 ## Command mappings
 
@@ -90,10 +90,12 @@ Do not create for:
 | `/f-auto <ticket>` | `bash $OPEN_SDD_ROOT/commands/auto.sh <ticket>` |
 | `/f-spec` | `bash $OPEN_SDD_ROOT/commands/spec.sh` |
 | `/f-spec <args>` | `bash $OPEN_SDD_ROOT/commands/spec.sh <args>` |
+| `/f-spec --tier <tier> "<reason>"` | `bash $OPEN_SDD_ROOT/commands/spec.sh --tier <tier> "<reason>"` (force the triage tier; `auto` drops it) |
 | `/f-resync` | `bash $OPEN_SDD_ROOT/commands/resync.sh` |
-| `/f-resync <name>` | `bash $OPEN_SDD_ROOT/commands/resync.sh <name>` |
+| `/f-resync --rename-branch <name>` | `bash $OPEN_SDD_ROOT/commands/resync.sh --rename-branch <name>` |
 | `/f-code-review` | `bash $OPEN_SDD_ROOT/commands/code-review.sh` |
 | `/f-code-review --recheck` | `bash $OPEN_SDD_ROOT/commands/code-review.sh --recheck` |
+| `/f-code-review --auditor` | `bash $OPEN_SDD_ROOT/commands/code-review.sh --auditor` (asked for by `/f-commit` on high-risk pipelines) |
 | `/f-mr-review <branch\|mr-url\|mr-iid>` | `bash $OPEN_SDD_ROOT/commands/mr-review.sh <arg>` |
 | `/f-undo` | `bash $OPEN_SDD_ROOT/commands/undo.sh` (reversible; `--restore` to recover, `--hard --force` to discard) |
 | `/f-help` | `bash $OPEN_SDD_ROOT/commands/help.sh` |
@@ -101,21 +103,19 @@ Do not create for:
 | `/f-mr-address` | `bash $OPEN_SDD_ROOT/commands/mr-address.sh` |
 | `/f-handoff` | `bash $OPEN_SDD_ROOT/commands/handoff.sh` |
 | `/f-mr` | `bash $OPEN_SDD_ROOT/commands/mr.sh` |
-| `/f-close` | `bash $OPEN_SDD_ROOT/commands/close.sh` |
+| `/f-close` | `bash $OPEN_SDD_ROOT/commands/close.sh` (re-run with `--promote '<json>'` or `--no-promote` after the rule-promotion pass) |
 | `/doc-catalog` | `bash $OPEN_SDD_ROOT/commands/doc-catalog.sh` |
-| `/doc-publish` | `bash $OPEN_SDD_ROOT/commands/doc-publish.sh` |
-| `/doc-publish list` | `bash $OPEN_SDD_ROOT/commands/doc-publish.sh list` |
-| `/doc-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-query.sh <question>` |
+| `/doc-catalog list` | `bash $OPEN_SDD_ROOT/commands/doc-catalog.sh list` |
+| `/doc-catalog-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-catalog-query.sh <question>` |
 | `/doc-adr <desc>` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh <desc>` |
 | `/doc-adr open-questions` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh open-questions` |
-| `/adr-publish` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh` |
-| `/adr-publish list` | `bash $OPEN_SDD_ROOT/commands/adr-publish.sh list` |
-| `/adr-query <question>` | `bash $OPEN_SDD_ROOT/commands/adr-query.sh <question>` |
-| `/spec-publish` | `bash $OPEN_SDD_ROOT/commands/spec-publish.sh` |
-| `/spec-publish <path>` | `bash $OPEN_SDD_ROOT/commands/spec-publish.sh <path>` |
-| `/spec-publish list` | `bash $OPEN_SDD_ROOT/commands/spec-publish.sh list` |
-| `/spec-query <question>` | `bash $OPEN_SDD_ROOT/commands/spec-query.sh <question>` |
-| `/doc-freshness` | `bash $OPEN_SDD_ROOT/commands/doc-freshness.sh` — detect drift between docs and code |
-| `/doc-freshness <path>` | `bash $OPEN_SDD_ROOT/commands/doc-freshness.sh <path>` — check docs in another repo |
+| `/doc-adr list` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh list` |
+| `/doc-adr-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-adr-query.sh <question>` |
+| `/doc-spec <path>` | `bash $OPEN_SDD_ROOT/commands/doc-spec.sh <path>` |
+| `/doc-spec list` | `bash $OPEN_SDD_ROOT/commands/doc-spec.sh list` |
+| `/doc-spec-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-spec-query.sh <question>` |
+| `/doc-investigation` | `bash $OPEN_SDD_ROOT/commands/doc-investigation.sh` |
+| `/doc-investigation-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-investigation-query.sh <question>` |
+| `/arch-query <question>` | `bash $OPEN_SDD_ROOT/commands/arch-query.sh <question>` |
 
 All commands run from the root of the current project.

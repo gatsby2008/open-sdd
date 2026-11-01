@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Project-local validation script consumed by /f-commit and /f-mr.
+# Project-local validation script consumed by /f-mr (before push).
 #
 # open-sdd ships a stack-detecting default at $OPEN_SDD_ROOT/commands/check.sh
 # that runs `./gradlew check`, `mvn verify`, `npm test`, `pytest`, `cargo test`,
@@ -14,10 +14,9 @@
 #   - Monorepos that need to chain multiple test commands
 #   - Spotless / Checkstyle / lint steps not wired into the default lifecycle
 #
-# /f-commit and /f-mr prefer this file over the framework default when it
-# exists. Treat:
-#   exit 0  → clean, continue (commit or push)
-#   exit !0 → stop, do not commit/push
+# /f-mr prefers this file over the framework default when it exists. Treat:
+#   exit 0  → clean, continue (push)
+#   exit !0 → stop, do not push
 #
 # Goal: match what CI runs, so a green run locally implies a green run in CI.
 # Avoid network calls, cache reliance, and randomness — runs should be

@@ -38,9 +38,8 @@ def resolve_slug() -> Optional[str]:
                     return data.get("slug", data.get("id", ""))
             except Exception:
                 continue
-    branch_clean = branch.split("/", 1)[-1] if "/" in branch else branch
-    slug = re.sub(r"[^a-z0-9]+", "-", branch_clean.lower()).strip("-")
-    return slug
+    from engine.slug import slug_from_branch
+    return slug_from_branch(branch)
 
 
 def pipeline_branch_status(branch: Optional[str] = None) -> dict:

@@ -78,8 +78,10 @@ PY_SCRIPT=$(mktemp)
 cat > "$PY_SCRIPT" <<'PYEOF'
 import re, sys
 branch = sys.argv[1]
+sys.path.insert(0, sys.argv[2])
+from engine.slug import slug_from_branch  # same derivation /f-start uses
 unprefixed = re.sub(r'^(feature|hotfix|release|bugfix)/', '', branch)
-slug = re.sub(r'-+', '-', re.sub(r'[^a-z0-9]+', '-', unprefixed.lower())).strip('-')
+slug = slug_from_branch(branch)
 strict = re.match(r'^([A-Z]+-[0-9]+)(?:-|$)', unprefixed.upper())
 loose  = re.match(r'^([A-Z]+-[0-9.]+)(?:-|$)', unprefixed.upper())
 if strict:
@@ -93,7 +95,7 @@ print(f"ticket={ticket}")
 print(f"input_type={input_type}")
 PYEOF
 
-DERIVED=$(python3 "$PY_SCRIPT" "$CURRENT_BRANCH" 2>/dev/null)
+DERIVED=$(python3 "$PY_SCRIPT" "$CURRENT_BRANCH" "$SCRIPT_DIR/.." 2>/dev/null)
 rm -f "$PY_SCRIPT"
 
 NEW_SLUG=$(echo "$DERIVED" | grep "^slug=" | cut -d= -f2-)

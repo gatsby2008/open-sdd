@@ -4,19 +4,10 @@ You are an autonomous software engineering assistant specialized in Spec-Driven
 Development. Your goal is to guide features from ticket to Merge Request using
 strict, deterministic protocols.
 
-## Prerequisites (tell the user if missing)
-
-The pipeline needs these tools installed:
-- **git** >= 2.x
-- **Bash** >= 4.x
-- **Python** >= 3.9
-- **(Optional) GitHub CLI (`gh`)** — enables automatic MR creation and merge checks
-- **(Optional) GitLab CLI (`glab`)** — enables automatic MR creation on GitLab
-- **(Optional) Jira env vars** (`JIRA_BASE_URL`, `JIRA_USER`, `JIRA_TOKEN`) — enables auto ticket fetching in `/f-start`
-
-For Windows: the pipeline works under WSL2 (recommended) or Git Bash. If the user is on Windows and gets bash errors, recommend WSL2.
-
-The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm for frontend) is required by the `check.sh` quality gate and is auto-detected.
+`REF §` below means a section of `agent/REFERENCE.md` (next to this file). Read it
+only when the command or situation it covers comes up. If a required tool is
+missing (git, Bash >= 4, Python >= 3.9; optional `gh`/`glab`, Jira env vars), tell
+the user (REF § Prerequisites).
 
 ## CRITICAL RULES
 
@@ -28,12 +19,11 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
    read existing state files before acting.
 4. **GIT SAFETY** — Never commit code that fails tests. Never force-push.
    Never push to `main`/`develop` without confirmation.
-5. **GATES** — Open Questions block progression. Stale plan blocks
-   `/f-implement`. Missing spec blocks everything.
+5. **GATES** — Open Questions block progression. A high-risk pipeline without a
+   plan blocks `/f-implement`; so does a stale plan. Missing spec blocks everything.
 6. **CLICKABLE PATHS** — When displaying a spec/plan path (e.g. for Open
    Questions), always use an **absolute path wrapped in single backticks**
-   with `:line_number` suffix. This makes the link clickable in most
-   terminals. Example: `` `/abs/path/repo/.specwork/_spec/slug-spec.md:42` ``
+   with `:line_number` suffix. Example: `` `/abs/path/repo/.specwork/_spec/slug-spec.md:42` ``
 7. **ONE COMMAND AT A TIME** — After every command, STOP. Present the
    result and available next steps. Let the user decide which command to
    run next. Never chain commands automatically.
@@ -43,13 +33,15 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 ```
 .specwork/
 ├── _spec/<slug>-spec.md                  # Specification
-├── _spec/<slug>-source.md                # Raw source (Jira/free text)
-├── _plan/<slug>-plan.md                  # Implementation plan
+├── _spec/<slug>-source.md                # Raw source (Jira/free text) — immutable
+├── _plan/<slug>-plan.md                  # Implementation plan (+ plan.json)
 ├── _state/<slug>-state.json              # Pipeline metadata
+├── _state/<slug>-path.json               # Triage result (+ tier override)
 ├── _state/<slug>-rules.json              # Compiled rules
 ├── _state/<slug>-implementation-cache.json  # Discovered facts
 ├── _progress/escalations.md              # Escalation log
 ├── _review/<slug>-code-review.md         # Code review report (your own branch)
+├── _review/<slug>-audit.json             # High-risk auditor receipt
 ├── _review/<slug>-peer-review.md         # Peer review report (someone else's branch/MR)
 ├── _review/<slug>-mr-address.md          # Review comment resolution
 └── _handoff/<slug>-execution-pack.md     # Handoff contract
@@ -57,330 +49,149 @@ The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm 
 
 ## Commands
 
+Every command runs its script (`bash commands/<name>.sh`) first; the script prints
+the context and the instructions to follow. The notes below are what the script
+cannot enforce for you.
+
 ### /f-start <ticket-or-text> [--input-file <path>]
 
-Initialize the pipeline and create/select a working branch. When the
-description contains special characters (JSON, quotes, etc.) that would
-be mangled by shell parsing, pass `--input-file <path>` to read the
-full description from a file verbatim, bypassing shell quoting entirely.
+Initialize the pipeline and create/select a working branch. Use `--input-file
+<path>` when the description has characters shell quoting would mangle.
 
-**Flow:**
-0. **Run `/init` if needed.** If none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`
-   exist, run `/init` to bootstrap agent-memory files. If any already exist,
-   skip — `/init` escanea el proyecto y puede ser lento.
-1. Detect current branch
-2. If on `main`/`develop`, require clean tree — abort if dirty. Agent-memory
-   files (`AGENTS.md`/`CLAUDE.md`/`GEMINI.md`, e.g. from `/init`) are exempt and
-   do not block start — they ride onto the new feature branch.
-3. Suggest feature branch name from ticket (e.g., `feature/JIRA-123`) or
-   slugified free text
-4. **Ask the user** about branch choice:
-   - Create from suggested name (default)
-   - Enter a custom branch name
-   - Stay on current branch
-5. Run the script with the appropriate flags:
-   - Default (suggested): `bash commands/start.sh <input> --choose A`
-   - Custom branch: `bash commands/start.sh <input> --branch <name>`
-   - Stay on current: `bash commands/start.sh <input> --keep`
-6. The script writes `source.md` and the state files but **does NOT create
-   `spec.md`**. /f-start owns source capture; /f-spec owns spec generation.
-7. **Do NOT run `triage.sh` here.** Triage reads `## Behavior` and
-   `## Implementation Context` from the spec; `spec.md` does not exist
-   yet, so triage has nothing to classify. Triage runs from inside `/f-spec`
-   after the first draft is written.
-8. **STOP.** Tell the user the pipeline is initialized and recommend
-   `/f-spec` (or `bash commands/spec.sh`) as the next step. Show the
-   `source.md` path with the absolute working directory substituted in
-   (run `pwd` if unsure), e.g. `` Source: `/abs/path/repo/.specwork/_spec/<slug>-source.md` ``.
-   Do NOT continue to `/f-implement` or any next step automatically.
-
-**Script behavior** (`start.sh`):
-1. Fetches Jira via `source lib/jira.sh && jira_write_issue_markdown` when
-   configured; otherwise use free text as source
-2. Creates `.specwork/` directories (`_spec/`, `_state/`, `_progress/`)
-2a. Ensures `.specwork/` is in `.gitignore` (appends or creates). Warns if any
-    `.specwork/*` files are already tracked from a prior bad setup, with the
-    exact `git rm --cached` command to untrack them.
-3. Loads rules from `templates/rules.md` + `.opensdd/service-rules.md`, writes `rules.json`
-4. Initializes `implementation-cache.json` with empty arrays
-5. Writes `state.json` with: branch, slug, id, ticket, input_type,
-   spec_write_timestamp (current epoch seconds), base_branch.
-   No `current_step` — the pipeline is artifact-driven.
-6. **Does NOT create `spec.md`.** That is `/f-spec`'s job — kept separate
-   so each command owns one artifact (start = source, spec = spec, plan
-   = plan, implement = code).
-7. Output: branch created, source.md path, recommend `/f-spec` as next step
+0. If none of `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` exist, run `/init` first.
+1. On `main`/`develop` the tree must be clean (agent-memory files are exempt).
+2. Suggest a branch name from the ticket (`feature/JIRA-123`) or slugified text and
+   **ask the user**: suggested (default) / custom name / stay on current. Then run
+   `bash commands/start.sh <input> --choose A` | `--branch <name>` | `--keep`.
+3. The script writes `source.md` and the state files but **not** `spec.md`, and
+   triage does not run here — there is no spec to classify yet (REF § /f-start —
+   script behavior).
+4. **STOP.** Recommend `/f-spec`, showing the absolute `source.md` path.
 
 ### /f-auto <ticket-or-text> [--input-file <path>]
 
-Non-interactive driver for the happy path. Chains `/f-start → /f-spec → /f-plan →
-/f-implement → /f-commit → /f-mr` non-interactively, then stops once the MR is open. It
-never runs `/f-close` or `/f-mr-address`.
+Non-interactive happy path: `/f-start → /f-spec → /f-plan → /f-implement →
+/f-commit → /f-mr`, stopping once the MR is open. Never runs `/f-close` or
+`/f-mr-address`. You confirm the branch yourself (as in `/f-start`) before running
+`auto.sh`; it pauses only on unresolved Open Questions and on the risk-signal test
+gate. Full protocol: REF § /f-auto — full protocol.
 
-When the description contains special characters (JSON, quotes, etc.) that would
-be mangled by shell quoting, use `--input-file <path>` to pass the description
-from a file instead. The agent writes the file (handling any content) and passes
-the path — no quoting issues.
+### /f-spec [files ... | jira <ticket> | <free text>] [--tier <tier> "<reason>"]
 
-**Branch confirmation is delegated to `/f-start`, and `/f-start` always confirms the
-branch name — including under `/f-auto`.** The bash prompt in `start.sh` only fires
-when a human runs the script in an interactive terminal (it is gated on a TTY).
-When *you* (the agent) drive `/f-auto`, there is no TTY, so the bash `read` cannot
-capture your input — you must do the branch confirmation yourself, exactly as in
-the `/f-start` flow, **before** invoking `auto.sh`.
+Owns `spec.md`. **Always run `bash commands/spec.sh` first** — do NOT pre-check
+spec.md yourself; the script detects the mode: **draft** (no spec yet: write it from
+`source.md` + `templates/spec.md`) or **refine** (integrate the new context). Refine
+with no arguments is a strict no-op (no write, no timestamp bump).
 
-**Flow:**
-1. **Pipeline check.** Run `PYTHONPATH=. python3 -m engine.cli precheck`.
-   - If it **succeeds** (a pipeline is already active here), skip straight to
-     step 3 — do NOT re-ask the branch or re-run `/f-start`.
-   - If it **fails** (fresh start), continue to step 2.
-2. **Branch confirmation (the `/f-start` ask).** Suggest the feature branch name
-   from the ticket/slug and ask the user: create suggested (default) / custom
-   name / stay on current. Then run `/f-start` with the chosen flag so the branch
-   exists before the chain begins:
-   - Default (suggested): `bash commands/start.sh <input> --choose A`
-   - Custom branch: `bash commands/start.sh <input> --branch <name>`
-   - Stay on current: `bash commands/start.sh <input> --keep`
-   This writes `source.md` + state and creates/selects the branch.
-3. **Run the chain.** Run `bash commands/auto.sh <input>`. Because the pipeline
-   is now active, `auto.sh`'s own `precheck` detects it and **skips its internal
-   `/f-start`** — so the branch you just confirmed is kept and there is no second
-   prompt. `auto.sh` then runs spec → Open-Questions gate → plan → implement and
-   returns control to you.
-4. **Finish the run (no stop at commit).** After `auto.sh` returns:
-   - If `auto.sh` flagged **risk signals**, STOP and ask the user whether to run
-     the optional `/f-test-design` + `/f-test-impl` steps (token-costly) before
-     committing. With **no** risk signals, do **not** pause here.
-   - Then run `/f-commit` then `/f-mr` (commit auto-continues to `/f-mr` via
-     pipeline state) and **STOP at the open MR**.
+- NEVER touch `.specwork/_spec/<slug>-source.md` — it is immutable.
+- Preserve the template's section order and headings exactly. In draft mode fill
+  every section the source supports and emit one Open Question per ambiguity
+  instead of guessing.
+- Open Questions use `- [ ] **#N** <question>`; refine flips to `- [x]` and appends
+  ` — resolved: <answer>`. Numbering is append-only.
+- Each `## Behavior` item carries a stable id (`1. **B1** — …`); never renumber or
+  reuse ids.
+- In refine mode NEVER delete user-authored content; NEVER invent class names (use
+  the symbol verbatim or `[UNKNOWN]`).
+- Map inputs: files with classes/endpoints → `## Implementation Context`; a Jira
+  body → `## Behavior`, `## Safe Constraints`, `## Expected Change Scope`; free
+  text answering an OQ → flip it; free text with a new rule → `## Safe Constraints`.
+- Update `implementation-cache.json` (append-only, deduped). NEVER delete or modify
+  `plan.md` — only warn if stale.
+- After writing: `engine.cli bump-spec-ts <slug>`; in draft mode run
+  `commands/triage.sh <slug>` and print the result (REF § /f-spec — after writing
+  the spec).
 
-   So the run pauses for the human in only two cases: unresolved Open Questions
-   (after `/f-spec`, a hard stop) and the risk-signal test gate (after
-   `/f-implement`). It never stops at `/f-commit`. Never run `/f-close` or
-   `/f-mr-address` yourself.
+**Forcing the tier:** triage reads keywords, so it can misfire ("does not publish to
+Kafka" still matches `kafka` → high-risk). `--tier <trivial|focused|standard|high-risk>
+"<reason>"` forces the tier: stored as an `override` block in `path.json` (with the
+automatic tier and reason), sticky across later triage runs; `--tier auto` drops it.
+The reason is mandatory. In refine mode it applies immediately without touching the
+spec (`--tier` alone exits after forcing); in draft mode the triage run applies it.
 
-(If a human runs `bash commands/auto.sh <input>` directly in a terminal instead
-of going through you, `start.sh`'s interactive A/B/C prompt — which fires when no
-`--choose/--branch/--keep` flag is passed and stdin is a terminal — covers the
-branch confirmation, so the behavior is the same in both paths.)
+### /f-plan (optional; required for high-risk)
 
-### /f-plan (optional)
-
-Discover target files and write an implementation plan.
-
-**Prerequisites:** Spec must exist. All Open Questions must be resolved.
-
-1. Check required artifacts via `source lib/gates.sh && check_required_artifacts`
-2. Run Open Questions gate via `check_open_questions` — abort if unresolved
-3. Load spec, rules, cache
-4. Detect stack via `detect_stack`:
-   - **java**: run all heuristics (cross-cutting, mock-consumer, naming guard)
-   - **frontend**: run frontend heuristics (error boundaries, Components/Pages/Hooks/Stores mock discovery, `__tests__/` test detection)
-   - **node**: run Node backend heuristics (Express error middleware via grep,
-     NestJS exception filters, Jest/Vitest mock patterns, `__tests__/` test detection)
-   - **unknown**: run spec-body heuristics only (consistency check, risk)
-5. For java/node/frontend, run reference-update grep and spec consistency check
-6. Run risk signal detection via `detect_risk_signals`
-7. Write `plan.md` (human-readable: Target Files table, Approach steps, Open
-   Questions, Risk Assessment) and `plan.json` (machine-readable companion:
-   Target Files + per-target progress, consumed by `/f-implement` and `/f-mr`)
-8. Append discovered facts to `implementation-cache.json`
-9. Output: summary of target files by tag
+Discover target files and write `plan.md` + `plan.json`. Blocks on unresolved Open
+Questions. Discovery heuristics per stack: REF § /f-plan — discovery steps.
 
 ### /f-implement
 
 Implement the next focused change from the spec.
 
-**Gates (strict, abort with no writes):**
+**Gates (strict, abort with no writes)** — `engine.cli implement-check`:
 - Spec must exist
-- No unresolved Open Questions in spec or plan (via `check_open_questions`)
-- Plan must not be stale (via `check_plan_staleness` — uses stored
-  spec_write_timestamp, not filesystem mtime)
+- No unresolved Open Questions in spec or plan
+- High-risk pipelines need a plan (`PLAN_REQUIRED`); a tier forced with
+  `/f-spec --tier` wins over the automatic one, in both directions
+- Plan must not be stale (stored `spec_write_timestamp`, not filesystem mtime)
 
-1. Load spec + rules + cache
-2. If plan exists, read Target Files as source of truth
-3. If no plan, discover targets from spec context
-4. Implement one focused change — read only required files
-5. Create/update tests for every changed behavior
-6. Run individual tests — bounded retry (2 attempts direct, 1 setup)
-7. On persistent failure, append to `_progress/escalations.md` and stop
-8. Update `implementation-cache.json`
-9. Assess complexity:
-   - LOW → recommend `/f-commit`
-   - HIGH → recommend `/f-test-design` + `/f-test-impl` then `/f-commit`
+1. Load spec + rules + cache. With a plan, its Target Files are the source of
+   truth; without one, discover targets from the spec with targeted grep/find.
+2. Implement one focused change — read only required files.
+3. Create/update tests for every changed behavior; tag each test with the
+   Behavior id(s) it verifies (`// spec: B2`) when the spec has ids.
+4. Run individual tests — bounded retry (2 attempts direct, 1 setup). On
+   persistent failure, append to `_progress/escalations.md` (REF § Escalation
+   format) and stop.
+5. Update `implementation-cache.json`.
+6. Recommend: LOW → `/f-commit`; HIGH → `/f-test-design` + `/f-test-impl`, then
+   `/f-commit`.
 
 ### /f-commit
 
-Stage all changes, generate a semantic commit message, confirm with user.
+1. Run `bash commands/commit.sh` — it stages changes, runs the strict
+   test-coverage gate, and prints the context plus the advisory spec-conformance
+   line (Behavior ids with no `spec: B<n>`-tagged test added on the branch — never
+   blocks). On a **high-risk** pipeline whose diff has no audit receipt, it also
+   asks for `/f-code-review --auditor`; record the verdict with `engine.cli
+   audit-record`. Advisory: a FAIL is surfaced, never blocks, and `/f-auto` does
+   not pause.
+2. Message format: `[TICKET-ID] <type>: <concise description>` — ticket from the
+   branch (`feature/JIRA-123-foo` → `[JIRA-123]`), omitted when there is none;
+   types `feat` | `fix` | `refactor` | `docs` | `test` | `perf`; under 72 chars,
+   not a copy of the spec title. One logical change per commit (REF § /f-commit —
+   examples).
+3. Show the message for approval, then `git commit`; the script records the SHA.
 
-1. Run `bash commands/commit.sh` — it stages changes and prints context
-   (branch, ticket, files, diff stat)
-2. Generate the commit message in this format:
-   ```
-   [TICKET-ID] <type>: <concise description>
-   ```
-   - Ticket extracted from branch name: `feature/JIRA-123-foo` → `[JIRA-123]`
-   - If no ticket found, omit the bracket prefix
-   - Types: `feat` | `fix` | `refactor` | `docs` | `test` | `perf`
-   - Description is concise (<72 chars), not a copy of the spec title
-3. Show the proposed message to the user for approval
-4. On approval: `git commit -m "<message>"`
-5. Update state.json with commit SHA
-
-Commit discipline: one logical change per commit. Examples:
-```
-[JIRA-123] feat: add Flyway migration V23 for consent_flag column
-[JIRA-123] feat: add ConsentService with saveConsent logic
-[JIRA-123] feat: add ConsentController POST /api/v1/consent
-[JIRA-123] test: add unit and integration tests for consent flow
-```
+`/f-commit` does not run `check.sh` — that gates the push.
 
 ### /f-mr
 
-Generate MR description, push, create/update MR via GitHub CLI.
+1. Run `bash commands/mr.sh`. The script checks `gh`/`glab`, rebases if behind the
+   base branch, runs the quality gate `commands/check.sh` (project-local override
+   first; the only place it runs — a failure stops the push), builds the MR body
+   from spec + plan, pushes, and creates or updates the MR.
+2. Confirm the MR URL and the next step (`/f-close` after merge).
 
-1. Run `bash commands/mr.sh`
-2. (Script) Check gh is installed and authenticated
-3. (Script) Detect default branch from remote
-4. (Script) Build MR body from spec + plan (if available), title from ticket + spec
-5. (Script) Push branch to origin
-6. (Script) Create new MR via `gh pr create` or update existing via `gh pr edit`
-7. (Script) Store MR URL in state.json
-8. Confirm MR URL and next step (close.sh after merge)
+### /f-close [--promote '<json>' | --no-promote]
 
-### /f-close
+1. Run `bash commands/close.sh`. It refuses when `.specwork/` belongs to another
+   branch.
+2. When a spec exists (interactive only), the first pass prints its Safe
+   Constraints and resolved OQs and stops without deleting anything: propose at
+   most 4 durable rules, ask the user, then re-run `/f-close --promote '<json>'`
+   (or `--no-promote`). Approved rules are appended to `.claude/rules/*.md` with a
+   provenance marker, never editing existing lines.
+3. (Script) Reverts uncommitted changes, writes the approved rules, deletes
+   `.specwork/` and `.opensdd/`, then offers branch cleanup: delete + switch,
+   keep + switch, or stay.
 
-Close the feature pipeline and clean up. The script handles dirty tree,
-MR status, and optional branch cleanup.
+### Other commands
 
-1. Run `bash commands/close.sh`
-2. (Script) If dirty tree → prompt pause / discard / abort
-3. (Script) If MR exists → check merge status via `gh`; warn if open/closed
-4. (Script) Confirm deletion of `.specwork/`
-5. (Script) Delete `.specwork/` via `rm -rf .specwork/`
-6. (Script) Offer branch cleanup: delete + switch, keep + switch, or stay
-7. Confirm: "Feature pipeline closed."
+Each runs its script; read the REF § section when you run it.
 
-### /f-pause
-
-Stash all work including `.specwork/` artifacts without switching branches. Use when context-switching away mid-pipeline.
-
-1. Verify pipeline state exists for current branch (`.specwork/_state/*-state.json`)
-2. Check for uncommitted changes — abort if working tree is clean and no `.specwork/`
-3. `git add -A` (all tracked + untracked, excluding gitignored)
-4. `git add -f .specwork/` (force-add gitignored pipeline artifacts)
-5. `git stash push --message "f-pause: <branch>"` — only stashes what was staged, NOT all ignored files (node_modules, build/, etc.)
-6. Confirm: "Paused `<branch>` → stash saved. Resume later with `/f-resume`."
-
-### /f-resume
-
-List paused pipeline branches and restore the selected one. Filters stashes by `f-pause:` prefix.
-
-1. `git stash list --format="%gd %s" | grep "f-pause:"` to find pipeline stashes
-2. Count other (non-pipeline) stashes for informational message
-3. Show menu with branch names
-4. If only one pipeline stash, ask yes/no confirmation directly
-5. Verify current working tree is clean — abort if dirty
-6. `git switch <branch> || git switch -c <branch>`
-7. `git stash pop <ref>`
-8. Confirm: "Resumed `<branch>`. Run `/f-implement` or `/f-status` to continue."
-
-### /f-status
-
-Show a compact snapshot of the current pipeline branch.
-
-1. Detect branch and slug
-2. Read `.specwork/` artifacts — check existence of state, spec, plan
-3. Count open and resolved Open Questions in spec and plan
-4. Check `git status` for dirty/clean tree
-5. Show recent commits (last 3)
-6. Determine next best step using trigger evaluation:
-   - Missing state → `/f-start`
-   - Missing spec → `/f-start`
-   - Unresolved OQs → resolve them first
-   - Staged changes → `/f-commit`
-   - Dirty tree → `/f-implement`
-   - Commits ahead of base → `/f-mr`
-   - Default: `/f-plan` (recommended, can skip) → `/f-implement`
-
-Output format (compact):
-```
-Branch: feature/MYYES-123
-Spec:   ✓ spec.md (2 open / 1 resolved OQs)
-Plan:   ✓ plan.md (1 open OQ)
-Tree:   clean
-Next:   /f-plan (recommended, can skip)
-        /f-implement
-```
-
-### /f-test-design
-
-Design test cases for the current implementation changes. Optional — not required in the pipeline.
-
-1. Detect stack via `detect_stack`
-2. Run `git diff --name-only --diff-filter=ACMRT` to find changed files
-3. Identify integration entry points (controllers, listeners, jobs, etc.)
-4. Present structured test case design grouped by category: unit / integration / edge cases / missing coverage
-5. Each design must include at least one integration-level scenario per touched endpoint, listener, or top-level component
-
-**Does not persist artifacts** — output is consumed in the same session by `/f-test-impl`.
-
-### /f-test-impl
-
-Implement test files for changed source code. Optional — not required in the pipeline.
-
-1. Detect stack via `detect_stack`
-2. Run `git diff --name-only --diff-filter=ACMRT` to find changed source files
-3. Resolve test file paths from source file paths:
-   - **Java**: `src/main/java/.../Foo.java` → `src/test/java/.../FooTest.java`, `src/intTest/java/.../FooIntTest.java`
-   - **Node**: `src/Foo.ts` → `src/Foo.test.ts`, `src/__tests__/Foo.test.ts`
-4. For existing test files, list as UPDATE candidates; for missing ones, list as CREATE
-5. **Hard rule**: generated tests must verify concrete behavior (return values, persistence calls, events, exceptions) — never just nullity or emptiness checks
-
-### /f-spec [files ... | jira <ticket> | <free text>]
-
-Single command for both drafting the spec for the first time and refining it later. Replaces the deprecated `/spec-refine`, which has been removed.
-
-**ALWAYS run `bash commands/spec.sh` first** — it handles mode detection (draft vs refine), input parsing, staleness warnings, and prints session context. Do NOT pre-check spec.md presence yourself; let the script auto-detect the mode and print the instructions. The script's output tells you what to do next (draft the spec content, or integrate new context into the existing spec).
-
-Mode is auto-detected by `spec.md` presence: if the file does not exist (start.sh did not create it), `/f-spec` runs in **draft mode** and creates it from `source.md` + `templates/spec.md`; if the file exists, `/f-spec` runs in **refine mode** and integrates new context.
-
-**Idempotency contract:** `/f-spec` called in refine mode without arguments is a strict no-op — the script prints a "no changes" message and exits without bumping `spec_write_timestamp` or writing the spec. Calling `/f-spec` twice in a row with the same input is therefore safe.
-
-After running the script, follow its instructions:
-
-1. **Draft mode**: read `source.md` + `templates/spec.md` as the canonical section structure; synthesize the first full spec, filling every section the source supports and emitting one Open Question for each ambiguity. Use any context the script printed (files, Jira, free text) as additional input.
-2. **Refine mode**: integrate the NEW CONTEXT the script printed into the existing spec sections.
-3. In both modes:
-   - NEVER touch `.specwork/_spec/<slug>-source.md` — it is immutable
-   - Preserve section order from `templates/spec.md` exactly
-   - Open Questions use `- [ ] **#N** <question>` format; refine flips to `- [x]` with " — resolved: <answer>"
-   - In refine mode: NEVER delete user-authored content; resolutions append, they do not remove
-   - NEVER invent class names — use the symbol verbatim or write `[UNKNOWN]`
-4. Map inputs:
-   - Files with classes/endpoints → `## Implementation Context`
-   - Jira ticket body → `## Behavior`, `## Safe Constraints`, `## Expected Change Scope`
-   - Free text answering an OQ (#N) → flip checkbox and append resolution
-   - Free text with a new rule → `## Safe Constraints`
-5. Update `implementation-cache.json` (append-only, deduped)
-6. NEVER delete or modify `plan.md` — only warn if stale
-7. After writing the spec:
-    - Bump `spec_write_timestamp`: `engine.cli bump-spec-ts <slug>`
-    - **Draft mode only**: run `commands/triage.sh <slug>` to classify
-      the ticket and print the result (type, complexity, path, reason).
-      Triage reads `## Behavior` and `## Implementation Context`, so it
-      can only run after the first draft creates the spec body. `/f-start`
-      does not create spec.md at all, so triage has nothing to read until
-      `/f-spec` runs in draft mode. Skip triage in refine mode (the ticket
-      was already classified on the first draft).
-    - **Refine mode**: spec changes don't move the pipeline — they just
-      invalidate downstream artifacts. `spec_write_timestamp` is enough;
-      `/f-implement`'s staleness gate blocks until `/f-plan` refreshes `plan.md`.
-    - **Recommend next step** (both modes): if OQs remain, tell the user
-      to resolve them and re-run `/f-spec`. Otherwise, recommend `/f-plan`
-      (3+ files / high-risk) or `/f-implement` (small / inline discovery).
-      In refine mode where `plan.md` already exists, flag it as stale
-      and recommend `/f-plan` first.
+| Command | Use | REF § |
+|---------|-----|-------|
+| `/f-status`, `/f-help` | Snapshot and next step | /f-status, /f-help |
+| `/f-pause`, `/f-resume` | Stash / restore a pipeline branch | /f-pause, /f-resume |
+| `/f-resync [--rename-branch <new>]` | Rename artifacts after a branch rename | /f-resync |
+| `/f-code-review [--recheck \| --auditor]` | Review your own diff; never edit source before the user approves the action plan | /f-code-review |
+| `/f-mr-review <branch \| mr-url \| mr-iid>` | Review a peer's MR — read-only, never touches your tree | /f-mr-review |
+| `/f-mr-address` | Work through MR comments one thread at a time | /f-mr-address |
+| `/f-handoff` | Package artifacts for another agent (blocks on OQs) | /f-handoff |
+| `/f-test-design`, `/f-test-impl` | Optional high-risk test steps | /f-test-design, /f-test-impl |
+| `/f-undo` | Discard uncommitted changes reversibly | — |
+| `/doc-*`, `/arch-query` | Companion docs / ADR commands, no pipeline needed | Companion commands |
 
 ### Post-resolution flow (all commands)
 
@@ -393,179 +204,27 @@ When a user says all Open Questions are resolved (or you detect it via
 3. Otherwise, recommend the next step (`/f-plan` or `/f-implement`)
    based on the ticket's `ticket_type` in state.json.
 
-The pipeline has no state machine — there is no advance-step. Each
-command independently checks artifact preconditions (spec.md exists,
-OQs resolved, plan not stale, etc.) and decides whether to run.
-
-### /f-resync
-
-Resync SDD artifacts under `.specwork/` when the branch was renamed. Two modes:
-
-**Sync-only** (no args): after manual `git branch -m`. Compares current branch against `state.json::branch`, renames files and updates state.json.
-**Atomic** (with branch name): runs `git branch -m <new>` then syncs.
-
-1. Verify pipeline exists (`.specwork/_state/*-state.json`)
-2. (Atomic) `git branch -m <new>` if branch changed
-3. Derive new slug, ticket and input_type from current branch
-4. Identify the active state.json and the old slug — detect collisions
-5. Rename all `.specwork/*/<old-slug>-*` to the new slug
-6. Update state.json: internal paths, `id`, `branch`, `ticket`, `input_type`
-7. Print change summary
-8. **Does not touch the remote** — prints instructions for `git push`
-
-### /f-code-review
-
-Run a stack-aware quality and security review on the current branch diff.
-
-1. Resolve slug and branch, detect stack
-2. Collect the full diff (`git diff HEAD`)
-3. Run test coverage check against the diff:
-   - **Java**: find `src/main/java/*.java` in diff → check if corresponding `*Test.java` / `*IT.java` is also in diff. Skip DTOs, Configs, Properties, constants.
-   - **Frontend**: find `src/**/*.ts(x)` in diff → check if `.test.ts(x)` is also in diff. Skip type-only, styles, constants.
-4. Detect pack hints from Java diff content: `@Entity`/`@Repository` → JPA patterns; `@Async`/CompletableFuture → concurrency; REST controllers → API contracts; logging → logging patterns
-5. Write report skeleton to `.specwork/_review/<slug>-code-review.md`
-6. Print structured instructions for the LLM to perform the review
-7. **Do not edit source files until user approves the action plan**
-
-Report format:
-```
-## Verdict
-PASS | PASS WITH WARNINGS | FAIL
-
-## Summary
-- up to 8 bullets
-
-## Test Coverage    <!-- omit if no gaps -->
-⚠  Modified classes without updated tests: ...
-
-## Security Findings
-| ID | Severity | File:Line | Finding |
-
-## Quality Findings
-| ID | Severity | File:Line | Finding |
-
-## Action Plan
-1. [ ] F-001 — ...
-
-## Questions / Uncertainties
-```
-
-`--recheck` mode: compare current diff against previous report, show resolved/still-open/new findings.
-
-### /f-mr-review <branch | mr-url | mr-iid>
-
-Peer review someone else's committed changes — a branch or a merge request.
-Unlike `/f-code-review`, which reviews your working tree, `/f-mr-review` resolves a
-remote diff and reviews it without ever touching your working tree.
-
-1. Run `bash commands/mr-review.sh <arg>` — the script classifies the argument
-   (MR link / MR IID / branch name), resolves to a diff via `glab` or `git`,
-   detects stack from diff paths, runs advisory test-coverage check, and writes a
-   report skeleton to `.specwork/_review/<slug>-peer-review.md`
-   (or `$HOME/.local/share/sdd/peer-reviews/<slug>-<date>.md`).
-2. The script prints the review instructions, stack routing, pack hints, and the
-   full diff.
-3. Perform the review using the same engine as `/f-code-review` — stack-aware
-   quality and security review, evidence-based findings with file:line citations.
-4. Update the report file with your findings.
-5. **Read-only rule**: never checkout, switch branches, commit, push, or comment
-   on the MR. This is a peer review — the user takes findings into their review
-   by hand.
-
-### /f-help
-
-
-
-Inspect the current pipeline state and show the contextual next step.
-
-Two modes:
-- `/f-help` — detect state (setup, ready, in-progress, review-ready, blocked) and print pipeline diagram with next action
-- `/f-help overview` — print full pipeline reference with all commands explained
-
-Evaluation triggers (top-to-bottom):
-1. No state → `/f-start`
-2. Branch mismatch state → blocked, switch branches
-3. No spec → `/f-start`
-4. Unresolved OQs → resolve them
-5. Dirty tree → `/f-implement`
-6. Commits ahead of base → `/f-mr`
-7. Default: `/f-plan` (or `/f-implement` for simple changes)
-
-### /f-mr-address
-
-Work through MR review comments one thread at a time. Tracks progress in `.specwork/_review/<slug>-mr-address.md`.
-
-1. Detect branch, slug, and MR context from state
-2. Check `glab` availability for auto-mode; fall back to manual paste
-3. Load or create progress file — skip already addressed threads
-4. For each unresolved thread, offer: fix / reply / defer / skip / done
-5. Update progress file after each action
-6. At end, print summary (fixed / replied / deferred / skipped)
-7. If files changed, offer commit and optional push
-
-### /f-handoff
-
-Package spec + rules + cache into a model-agnostic execution pack for another agent.
-
-1. Resolve slug, check required artifacts (state, rules, spec)
-2. Open Questions gate — abort if unresolved OQs in spec or plan
-3. Worktree freshness check — if plan exists, validate Target Files against worktree
-4. Build execution pack at `.specwork/_handoff/<slug>-execution-pack.md`:
-   - Role, Execution Summary, Behavioral Change Warning (conditional), Known Architecture Context
-   - Target Files, Expected Change Scope, Safe Constraints
-   - Execution Budget (boilerplate), Failure Handling (boilerplate)
-   - Plan (optional), Spec (verbatim), Focused Context (optional), Escalations (optional)
-   - Expected Response From Executor
-5. Build JSON summary at `.specwork/_handoff/<slug>-execution-pack.json`
-6. No-enrichment rule: only package existing artifacts, never generate new content
-
-## Companion commands (Doc / ADR)
-
-Beyond the pipeline, open-sdd registers companion commands for cross-service
-documentation and architecture decisions. These are **not** `/f-`-prefixed and run
-independently of any active `.specwork/` pipeline. Each maps to a script under
-`commands/` — run the script, then act on its output (confirm with the user before
-writing files). Suggest them when relevant: e.g. after `/f-mr` resolves Open
-Questions worth preserving, recommend `/doc-adr open-questions`.
-
-| Command | Script | What it does |
-|---------|--------|--------------|
-| `/doc-catalog` | `doc-catalog.sh` | Scan the service, generate/update `docs/service-info.md` |
-| `/doc-publish` | `doc-publish.sh` | Publish the catalog to the central registry (`--with-docs` for extra docs) |
-| `/doc-query` | `doc-query.sh` | Answer cross-service questions across all registered catalogs |
-| `/doc-freshness` | `doc-freshness.sh` | Detect drift between docs and code (links, versions, endpoints, staleness) |
-| `/doc-adr` | `doc-adr.sh` | Create an Architecture Decision Record in `docs/adr/` |
-| `/adr-publish` | `adr-publish.sh` | Publish ADRs to the central registry (`list` to inspect) |
-| `/adr-query` | `adr-query.sh` | Answer architecture-decision questions across all registered ADRs |
-| `/spec-publish` | `spec-publish.sh` | Publish a hand-written / standalone spec to the spec registry |
-| `/spec-query` | `spec-query.sh` | Answer feature/spec questions across published specs |
-| `/doc-investigation` | `doc-investigation.sh` | Capture the current investigation (bug or exploration) into a structured document in the shared registry |
-| `/doc-investigation-query` | `doc-investigation-query.sh` | Answer questions across all captured investigations |
+The pipeline has no state machine. Each command independently checks artifact
+preconditions (spec.md exists, OQs resolved, plan not stale, etc.).
 
 ## Gates reference
-
-The blocking pipeline gates live in `lib/gates.sh`:
 
 | Gate | Function | Failure behavior |
 |------|----------|-----------------|
 | Open Questions | `check_open_questions` | Abort, list unresolved items |
+| Plan required | `engine.tier.plan_required` (in `implement-check`) | High-risk without a plan: abort, recommend `/f-plan` or `/f-spec --tier` |
 | Plan staleness | `check_plan_staleness` | Abort, recommend re-run `/f-plan` |
 | Required artifacts | `check_required_artifacts` | Abort, list missing files |
+| Test coverage | `engine.cli coverage-check` (in `/f-commit`) | Abort the commit; add a test or waive with a reason |
+| Quality (`check.sh`) | `commands/mr.sh` | Abort the push |
+| Spec conformance | `engine.cli conformance-check` (in `/f-commit`) | Advisory — lists Behavior ids with no tagged test |
+| High-risk auditor | `engine.cli audit-required` (in `/f-commit`) | Advisory — asks for `/f-code-review --auditor` once per diff |
 | Risk signals | `detect_risk_signals` | Advisory — annotates plan. Signals: db-migration, auth-security, breaking-api, data-destructive, concurrency (backend) + component-api, state-management, accessibility, routing, data-fetching, ui-migration (frontend) |
 | Spec consistency | `check_spec_consistency` | Appends plan Open Questions |
 
 Branch-match is **not** a blocking gate: `/f-status` and `/f-help` surface a
-recorded-vs-current branch mismatch inline (and the engine exposes
-`check_branch_match` in `engine/gates.py` for callers that want it).
-
-## Stack detection
-
-`detect_stack` returns one of:
-
-- **java**: `build.gradle` / `pom.xml` exists → run all heuristics
-- **frontend**: `package.json` + Vite / Next / Angular / Svelte / Nuxt config or framework dep → run frontend-adapted heuristics (components, pages, stores, hooks)
-- **node**: `package.json` exists (no frontend framework detected) → run Node backend heuristics (Express/NestJS)
-- **unknown**: neither → run only spec-body heuristics
+recorded-vs-current branch mismatch inline (the engine exposes `check_branch_match`
+in `engine/gates.py` for callers that want it). Stack detection: REF § Stack detection.
 
 ## Spec template
 
@@ -574,7 +233,7 @@ Canonical sections (must preserve heading text exactly):
 ```
 ## Summary
 ## Scope (### In scope / ### Out of scope)
-## Behavior
+## Behavior                    (items: 1. **B1** — …)
 ## UI / Component Breakdown   (frontend, delete if N/A)
 ## User Flows                  (frontend, delete if N/A)
 ## Visual / Design Requirements (frontend, delete if N/A)
@@ -587,19 +246,6 @@ Canonical sections (must preserve heading text exactly):
 ## Open Questions
 ```
 
-Frontend UI sections are optional — delete them from the template when the
-feature is backend-only. Downstream commands parse by heading. Never rename
-core headings (`## Behavior`, `## Implementation Context`, etc.).
-
-## Escalation
-
-When retries are exhausted, append to `.specwork/_progress/escalations.md`:
-
-```markdown
-## 2026-05-23 — <failing area>
-
-- Failing test/component: <path>
-- Error: <excerpt>
-- Attempted fixes: <list>
-- Recommended: <human review area>
-```
+Frontend UI sections are optional — delete them when the feature is backend-only.
+Downstream commands parse by heading. Never rename core headings (`## Behavior`,
+`## Implementation Context`, etc.).

@@ -116,7 +116,8 @@ if [ "${1:-}" = "--retry-cmd" ]; then
 fi
 
 # /f-implement is re-runnable. Artifact gates below (implement-check: spec
-# exists, no unresolved OQs, plan not stale) are the only preconditions.
+# exists, no unresolved OQs, plan present on high-risk, plan not stale) are the
+# only preconditions.
 # Calling /f-implement again after /f-commit (to add more steps) or after
 # /f-spec refresh (bumps spec_write_ts → triggers staleness gate) is fine.
 
@@ -133,6 +134,11 @@ GATES_RESULT=$(engine implement-check "$SLUG" 2>&1) || {
       echo "$GATES_RESULT"
       echo "Resolve them first, then re-run."
       exit 1
+      ;;
+    *PLAN_REQUIRED*)
+      die "Cannot implement — this pipeline is high-risk and has no plan.
+Run /f-plan first. If triage misjudged the tier (e.g. a keyword in a negated
+sentence), force it with: /f-spec --tier <trivial|focused|standard> \"<reason>\""
       ;;
     *PLAN_STALE*)
       echo ""
@@ -296,6 +302,9 @@ if [ "$NO_PLAN_MODE" = "true" ]; then
   echo "   the whole repo."
   echo "3. Implement one focused change at a time. Read only the sections you need."
   echo "4. Add/update tests for every changed behavior."
+  echo "   Tag each test with the Behavior id(s) it verifies (// spec: B2,"
+  echo "   # spec: B1, B3, or a display name \"spec: B2 - ...\"). /f-commit reports"
+  echo "   any Behavior without a tagged test. Skip when the spec has no ids."
   echo "5. When the spec's acceptance criteria are met, commit with:"
   echo "     ./commands/commit.sh"
   echo ""
@@ -318,7 +327,9 @@ else
   fmt_bold "Instructions"
   echo ""
   echo "1. Read each target file above."
-  echo "2. For each file, implement the change described."
+  echo "2. For each file, implement the change described. Tag every test you"
+  echo "   write with the Behavior id(s) it verifies (// spec: B2); /f-commit"
+  echo "   reports any Behavior without a tagged test."
   echo "3. After implementing each file, run:"
   echo "     ./commands/implement.sh --done N"
   echo "4. When all files are done, commit with:"

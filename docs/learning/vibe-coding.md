@@ -2,19 +2,20 @@
 
 You don't always want the full spec-driven pipeline (`/f-start` → `/f-spec` →
 `/f-plan` → `/f-implement`). Sometimes you just want to code — hack, iterate,
-follow your nose — and still get the *quality helpers*: a test-gated semantic
-commit, a clean MR, and peer review.
+follow your nose — and still get the *quality helpers*: a coverage-gated semantic
+commit, a test-gated MR, peer review, and a reversible undo.
 
-open-sdd has four **standalone** commands for exactly this. They need **no
+open-sdd has five **standalone** commands for exactly this. They need **no
 pipeline state** (`.specwork/`), no spec, no plan. They work on any branch, any
 time, in any repo — even one that has never seen `/f-start`.
 
 | Command | What it does standalone | Needs pipeline? |
 |---------|-------------------------|-----------------|
-| **`/f-commit`** | Stage + run the test gate + semantic commit message | No |
-| **`/f-mr`** | Validate + push + open the MR | No |
+| **`/f-commit`** | Stage + test-coverage gate + semantic commit message | No |
+| **`/f-mr`** | Run `check.sh` + push + open the MR | No |
 | **`/f-code-review`** | Stack-aware quality + security review of your diff | No |
 | **`/f-mr-review`** | Stack-aware quality + security review of a peer's branch or MR | No |
+| **`/f-undo`** | Discard uncommitted changes reversibly (`--restore` to recover) | No |
 
 Everything else (`/f-start`, `/f-spec`, `/f-plan`, `/f-implement`, `/f-test-design`, `/f-test-impl`, `/f-status`, `/f-pause`, `/f-resume`, `/f-close`, `/f-resync`, `/f-handoff`) **requires** an active pipeline and is not part of the vibe-coding flow.
 
@@ -25,8 +26,8 @@ Everything else (`/f-start`, `/f-spec`, `/f-plan`, `/f-implement`, `/f-test-desi
 ```
 1. branch + code freely        (git switch -c feature/whatever; edit, edit, edit)
 2. /f-code-review              ← optional: catch bugs/security before you commit
-3. /f-commit                   ← test gate + semantic commit
-4. /f-mr                       ← push + open MR
+3. /f-commit                   ← coverage gate + semantic commit
+4. /f-mr                       ← check.sh + push + open MR
 ```
 
 No spec to write, no Open Questions to resolve, no plan to keep fresh. Just the
@@ -36,35 +37,33 @@ helpers when you want them.
 
 ## How each behaves without a pipeline
 
-### `/f-commit` — test-gated semantic commit
+### `/f-commit` — coverage-gated semantic commit
 - **Auto-stages** tracked changes if nothing is staged (asks first when
   interactive; auto-stages when not).
-- Runs the **quality gate**: `commands/check.sh` (project-local override) or the
-  stack-detecting default (`./gradlew check`, `mvn verify`, `pytest`, `npm test`,
-  `go test ./...`, `cargo test`, …). A non-zero exit **stops the commit**.
+- Runs the **test-coverage gate** (a changed class without a matching test stops
+  the commit). The **quality gate** (`commands/check.sh`) is not run here — it
+  gates the push, in `/f-mr`.
 - Builds the message from the **branch**, not a spec:
   - Ticket parsed from the branch name (`feature/JIRA-123-foo` → `JIRA-123`).
   - `[JIRA-123] feat: <slug>` — or `feat: <slug>` when there's no ticket.
   - You approve / edit / abort before it commits.
-- Pipeline-only extras (writing `checked_sha`/commit SHA into `state.json`) are
+- Pipeline-only extras (writing the commit SHA into `state.json`) are
   simply skipped when there's no state.
 
 ### `/f-mr` — push + open MR
 - **Guards** against meaningless MRs: aborts on the default branch, or when the
   branch has no commits beyond its base.
-- Runs the test gate before pushing (skips it only if `/f-commit` already
-  validated this exact HEAD — which doesn't happen in pure vibe mode, so it
-  validates).
+- Runs the quality gate (`commands/check.sh`) before every push — the only place
+  it runs; a failure stops the push.
 - Detects the host from `origin`: **`gh`** for GitHub, **`glab`** for GitLab.
   Override with `OPEN_SDD_MR_PROVIDER=github|gitlab` (needed for self-hosted
   GitLab). Needs an `origin` remote and the matching CLI installed.
 - Builds a concise title + description from the commits.
-- `--skip-validation` for emergencies.
 
 ### `/f-code-review` — review your diff
 - Reviews `git diff HEAD` (staged + unstaged). Errors out if there's nothing to
   review.
-- Stack-aware (Java / Node) quality + security pass, test-coverage check
+- Stack-aware (Java / frontend / Node) quality + security pass, test-coverage check
   (modified classes should have updated tests), and pack hints (JPA,
   concurrency, API contracts, logging).
 - Writes the report to `.specwork/_review/<slug>-code-review.md` (it creates

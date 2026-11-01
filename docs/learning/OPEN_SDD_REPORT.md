@@ -1,5 +1,17 @@
 # Open SDD (Spec-Driven Development) Pipeline
 
+> **Historical report (June 2026).** It was reconciled against the `claude-tools`
+> distribution (`contrib/skills/sdd/`, `~/.claude/skills/sdd/`), not this repo, and
+> predates several changes. For how open-sdd behaves today read
+> [`sdd-pipeline-cheatsheet.md`](sdd-pipeline-cheatsheet.md),
+> [`sdd-key-concepts.md`](sdd-key-concepts.md) and [`../concepts.md`](../concepts.md).
+> Known differences: `/f-mr` has no `--skip-validation`; `check.sh` gates only the
+> push; `/f-close` does not check MR status — it promotes rules, reverts uncommitted
+> changes and deletes `.specwork/`; high-risk pipelines need a plan and `/f-spec --tier`
+> can force the tier; specs carry Behavior ids checked by `/f-commit`; rules live in
+> `.claude/rules/` and `rules.json` stores them verbatim; ADRs go to the central
+> registry, not `docs/adr/`.
+
 ## Consolidated Report
 
 > This report consolidates the key concepts, terminology, architecture, workflows, decisions, and lessons learned from the SDD pipeline. It has been **reconciled against the actual codebase** (`contrib/skills/sdd/`) so the stage names, artifact paths, and rules match what the tools really do today.

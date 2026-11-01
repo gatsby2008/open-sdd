@@ -15,10 +15,12 @@ fmt_dim()  { printf '\033[2m%s\033[0m\n' "$1"; }
 # ---- resolve context --------------------------------------------------------
 
 RECHECK=false
+AUDITOR=false
 ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --recheck) RECHECK=true ;;
+    --auditor) AUDITOR=true ;;
     *) ARGS+=("$arg") ;;
   esac
 done
@@ -34,7 +36,14 @@ echo "Mode: $([ "$RECHECK" = true ] && echo 'recheck' || echo 'normal')"
 
 # ---- collect diff -----------------------------------------------------------
 
-DIFF=$(git diff HEAD --unified=5 2>/dev/null || true)
+if [ "$AUDITOR" = true ] && [ -n "$SLUG" ]; then
+  # Auditor mode (/f-commit, high-risk): the branch diff the receipt covers —
+  # committed work since the merge-base plus what is staged.
+  AUDIT_REF=$(PYTHONPATH="$SCRIPT_DIR/.." python3 -c "from engine.audit import diff_ref; print(diff_ref('$SLUG'))" 2>/dev/null || echo HEAD)
+  DIFF=$(git diff --cached "$AUDIT_REF" --unified=5 2>/dev/null || true)
+else
+  DIFF=$(git diff HEAD --unified=5 2>/dev/null || true)
+fi
 
 if [ -z "$DIFF" ]; then
   die "No diff found — nothing to review.
@@ -342,6 +351,20 @@ After reviewing, update the report file at $REVIEW_FILE with:
 Do NOT edit any source files until the user approves the action plan.
 
 INSTRUCTIONS
+
+if [ "$AUDITOR" = true ]; then
+  cat <<INSTRUCTIONS
+AUDITOR MODE (invoked by /f-commit on a high-risk pipeline): report-only.
+Write the report, but do not ask about fixes and do not apply any. Finish by
+stamping the verdict so the same diff is never reviewed twice:
+
+  PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli audit-record ${SLUG} "<verdict>"
+
+The verdict is advisory — a FAIL is surfaced to the developer but never
+blocks the commit, and /f-auto does not pause for it.
+
+INSTRUCTIONS
+fi
 
 # ---- print stack routing -----------------------------------------------------
 

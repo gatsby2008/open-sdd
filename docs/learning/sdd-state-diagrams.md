@@ -21,7 +21,7 @@ stateDiagram-v2
     Start --> Auto: /f-auto
     Auto: /f-auto (non-interactive)
     Auto: /f-start → /f-spec → OQ check
-    Auto: → /f-plan → /f-implement → handoff
+    Auto: → /f-plan → /f-implement → /f-commit → /f-mr
     Auto --> Auto: prompt break for OQs / risk signal
     Auto --> MR
 
@@ -29,9 +29,9 @@ stateDiagram-v2
     Spec: drafts (first call) or refines (subsequent)
     Spec --> Spec: more context\n(files, jira, text)
     Spec --> Plan: OQs resolved, medium / large
-    Spec --> Implement: OQs resolved, small / obvious
+    Spec --> Implement: OQs resolved, small / obvious\n(not high-risk)
 
-    Plan: /f-plan (optional)
+    Plan: /f-plan (required for high-risk)
     Plan --> Implement
 
     Implement: /f-implement (N times)
@@ -57,25 +57,26 @@ stateDiagram-v2
     Address: /f-mr-address
     Address --> MR
 
-    Close: /f-close
+    Close: /f-close (promote rules, wipe .specwork/)
     Close --> [*]
 
     note right of Spec
-        /f-spec handles both draft and refine modes.
+        /f-spec handles both draft and refine modes;
+        --tier forces the triage tier.
         Re-running /f-spec from any later
         state mutates the spec and bumps
         spec_write_timestamp.
     end note
 ```
 
-> **Vibe coding** (no pipeline): `/f-commit`, `/f-mr`, and `/f-code-review`
-> work on any branch without `.specwork/`. See [VIBE-CODING.md](vibe-coding.md).
+> **Vibe coding** (no pipeline): `/f-commit`, `/f-mr`, `/f-code-review`,
+> `/f-mr-review` and `/f-undo` work on any branch without `.specwork/`. See [VIBE-CODING.md](vibe-coding.md).
 
 ---
 
 ## 2. Complete (gates + transversal commands)
 
-Adds the strict gates (`/f-implement`'s OQ + plan-staleness checks), the
+Adds the strict gates (`/f-implement`'s OQ, plan-required and plan-staleness checks), the
 `/f-spec` re-entry points from later states, and `/f-pause` / `/f-resume`.
 
 ```mermaid
@@ -105,13 +106,13 @@ stateDiagram-v2
 
     Spec --> Spec: more context / unresolved OQs
     Spec --> Plan: OQs resolved · 3+ files
-    Spec --> Implement: OQs resolved · 1-2 files\n(plan skip)
+    Spec --> Implement: OQs resolved · 1-2 files\n(plan skip, not high-risk)
 
     Plan --> Implement: OQs resolved
 
     state if_oq <<choice>>
     Implement --> if_oq
-    if_oq --> Implement: unresolved OQs\nor stale plan
+    if_oq --> Implement: unresolved OQs, high-risk\nwithout plan, or stale plan
     if_oq --> Implement: more steps
     if_oq --> TestDesign: HIGH risk
     if_oq --> Commit: LOW/MED risk
@@ -142,6 +143,7 @@ stateDiagram-v2
     note right of Implement
         Strict gates:
         · Open Questions in spec or plan
+        · high-risk tier (forced or automatic) without a plan
         · plan.md older than spec_write_timestamp
           (stored in state.json, not mtime)
     end note
@@ -171,10 +173,10 @@ stateDiagram-v2
     Started: (no spec.md — /f-spec owns it)
 
     state "Drafted" as Drafted
-    Drafted: + _spec/spec.md (created by /f-spec\nfrom source.md + template)
+    Drafted: + _spec/spec.md (created by /f-spec\nfrom source.md + template;\nBehaviors carry B1, B2… ids)
     Drafted: cache updated\n(repositories, related_tests)
     Drafted: spec_write_timestamp bumped
-    Drafted: _state/path.json\n(written by engine triage)
+    Drafted: _state/path.json\n(written by engine triage;\n/f-spec --tier adds an override)
 
     state "Planned" as Planned
     Planned: + _plan/plan.md + _plan/plan.json
@@ -192,7 +194,7 @@ stateDiagram-v2
     TestsImplemented: test files in working tree
 
     state "Committed" as Committed
-    Committed: commits in git\n(artifacts unchanged)
+    Committed: commits in git\n(+ _review/audit.json on high-risk)
 
     state "Reviewed" as Reviewed
     Reviewed: + _review/code-review.md
@@ -236,7 +238,7 @@ stateDiagram-v2
     Addressing --> MROpen: re-push
     MROpen --> Merged: merge in GitHub / GitLab
 
-    Merged --> Pristine: /f-close\n(wipes .specwork/)
+    Merged --> Pristine: /f-close\n(promotes approved rules to .claude/rules/,\nreverts uncommitted changes, wipes .specwork/)
 
     note right of Implementing
         Side-effects in _progress/:
@@ -257,10 +259,11 @@ stateDiagram-v2
 
 - Filenames assume the `<slug>-` prefix (omitted for brevity).
 - What lives **outside `.specwork/`**: commits, `docs/specs/<slug>-spec.md`
-  (published by `/f-mr`), eventually `docs/adr/ADR-NNNN-*.md` if `/doc-adr`
-  runs.
-- `/f-close` wipes the entire `.specwork/`. It keeps: commits, branch, MR,
-  published docs.
+  (published by `/f-mr`), the rules `/f-close` promoted into
+  `.claude/rules/`, and whatever `/doc-*` stored in the central registry.
+- `/f-close` reverts uncommitted changes and wipes the entire `.specwork/`
+  (and `.opensdd/`). It keeps: commits, branch, MR, published docs,
+  promoted rules.
 - `/f-start` writes only `source.md` plus state files — it does NOT
   create `spec.md`. `/f-spec` owns `spec.md`: draft mode (file missing)
   creates it; refine mode (file exists) integrates new context.
@@ -272,5 +275,7 @@ stateDiagram-v2
   are the staleness trap: re-running `/f-spec` bumps `spec_write_timestamp`,
   so any existing `plan.md` becomes stale and `/f-implement` will block
   until `/f-plan` re-runs (or the plan is deleted).
-- **Vibe coding**: `/f-commit`, `/f-mr`, `/f-code-review` work from the
-  `Pristine` state — they never create or depend on `.specwork/`.
+- **Vibe coding**: `/f-commit`, `/f-mr`, `/f-code-review`, `/f-mr-review`
+  and `/f-undo` work from the `Pristine` state — they never depend on
+  `.specwork/` (`/f-code-review` only writes its report under
+  `.specwork/_review/`).

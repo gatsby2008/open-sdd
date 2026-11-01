@@ -137,12 +137,14 @@ All three complement each other. SDD captures *what* and *why*; TDD/BDD capture 
   ┌────────────────────────────────────────────┐
   │         engine/  (Python, stdlib only)      │
   │                                            │
-  │  State machine, gates, persistence         │
-  │  No side effects on git or filesystem      │
+  │  Gates, triage, persistence                │
+  │  No state machine — artifact-driven        │
   └────────────────────────────────────────────┘
 ```
 
 **Why two layers:** bash handles I/O and git; Python handles decisions and data. Each layer is independently testable.
+
+On top sits `agent/PIPELINE.md` — the protocol the LLM reads before every `/f-*` command (detail on demand in `agent/REFERENCE.md`).
 
 ---
 
@@ -154,35 +156,38 @@ All three complement each other. SDD captures *what* and *why*; TDD/BDD capture 
 .specwork/
 ├── _spec/<slug>-spec.md            # Specification
 ├── _spec/<slug>-source.md          # Raw input (Jira / free text)
-├── _plan/<slug>-plan.md            # Implementation plan
+├── _plan/<slug>-plan.md            # Implementation plan (+ plan.json)
 ├── _state/<slug>-state.json        # Metadata (branch, slug, timestamps)
+├── _state/<slug>-path.json         # Triage tier (+ forced-tier override)
 ├── _state/<slug>-rules.json        # Compiled rules
 ├── _state/<slug>-implementation-cache.json  # Discovered facts
 ├── _progress/escalations.md        # Blockers log
 ├── _test/<slug>-test-design.md     # Test design (high-risk flow)
 ├── _review/<slug>-code-review.md   # Code review report
+├── _review/<slug>-audit.json       # High-risk auditor receipt
 ├── _review/<slug>-mr-address.md    # Review resolution progress
 └── _handoff/<slug>-*-pack.*        # Handoff artifacts
 ```
 
-**Permanent, committed:** `docs/specs/` (published spec), `docs/adr/` (architecture decisions).
+**Permanent:** `docs/specs/<slug>-spec.md` (committed by `/f-mr`), durable rules in `.claude/rules/` (promoted by `/f-close`), and the central registry (`/doc-*`: catalogs, ADRs, specs, investigations).
 
 ---
 
-## Commands at a glance (19)
+## Commands at a glance (20)
 
 ```
 Pipeline:
   /f-start          Initialize branch + capture source
   /f-spec           Draft or refine the spec
-  /f-plan           (optional) Technical plan with target files
+  /f-plan           Technical plan (optional; required on high-risk)
   /f-implement      One focused change per run
   /f-commit         Stage + semantic commit
   /f-mr             Push + create/update Merge Request
   /f-close          Clean .specwork/ after merge
 
 Quality:
-  /f-code-review    Stack-aware quality + security review
+  /f-code-review    Stack-aware quality + security review (your diff)
+  /f-mr-review      Same review for a peer's branch or MR (read-only)
   /f-mr-address     Address review comments thread by thread
 
 High-risk (optional):
@@ -199,8 +204,9 @@ Standalone:
   /f-status         Detailed pipeline state
   /f-resync         Sync artifacts after branch rename
   /f-handoff        Package artifacts for another agent
+  /f-undo           Discard uncommitted changes (reversible)
 
-Plus companion commands: /doc-adr, /doc-catalog, /doc-publish, /doc-query
+Plus companion commands: /doc-catalog, /doc-adr, /doc-spec, /doc-investigation (+ *-query)
 ```
 
 ---
@@ -222,13 +228,13 @@ Plus companion commands: /doc-adr, /doc-catalog, /doc-publish, /doc-query
            │  ◄──── re-run any time to add context, resolve OQs
            ▼
     ┌─────────────┐
-    │  /f-plan    │  (optional) → discover targets, draft plan, seed cache
+    │  /f-plan    │  (required for high-risk) → targets, plan, cache
     └──────┬──────┘  re-run after /f-spec to clear staleness
            │
            ▼
     ┌──────────────────────────────────┐
     │  /f-implement (repeat N times)   │
-    │                                  │  gates: OQs · stale plan
+    │                                  │  gates: OQs · plan · staleness
     │  /f-pause  ·  /f-resume          │  inline tests per step
     └──────────┬───────────────────────┘
                │
@@ -256,7 +262,7 @@ Plus companion commands: /doc-adr, /doc-catalog, /doc-publish, /doc-query
       └───────┬───────┘
               │  merged
       ┌──────────────┐
-      │  /f-close    │  → delete .specwork/
+      │  /f-close    │  → promote rules, delete .specwork/
       └──────────────┘
 ```
 
@@ -302,28 +308,29 @@ Draft (first call) or refine (subsequent calls) the specification.
 | **Refine** | `spec.md` exists | Integrates new context into existing spec — resolves OQs, expands sections |
 
 **The spec includes:**
-- Summary, Scope (in/out), Endpoint/Component, Behavior
-- Required Changes, New Configuration, Non-Functional Requirements
-- Acceptance Criteria
+- Summary, Scope (in/out), Implementation Context, Expected Change Scope, Safe Constraints
+- **Behavior** — each item with a stable id (`**B1**`, `**B2**`…) that tests reference
+- Frontend-only sections (components, flows, accessibility…) when they apply
 - **Open Questions** — unresolved `- [ ]` checkboxes that block progression
 
-**Idempotent:** refine mode with no arguments is a strict no-op.
+**Idempotent:** refine mode with no arguments is a strict no-op. The first draft runs **triage** (see *Triage*).
 
 ```bash
 /f-spec                              # draft mode (first call)
 /f-spec "add email case"             # refine: add context
 /f-spec jira MYYES-15535             # refine: fetch new ticket data
+/f-spec --tier focused "read-only"   # force the triage tier (with a reason)
 ```
 
 ---
 
-### `/f-plan` *(optional)*
+### `/f-plan` *(optional — required for high-risk)*
 
 Discover target files and write a technical implementation plan.
 
 **What it does:**
 1. Checks spec exists and has no unresolved Open Questions
-2. Detects stack: `build.gradle`/`pom.xml` → Java, `package.json` → Node
+2. Detects stack: `build.gradle`/`pom.xml` → Java, `package.json` → Node or frontend
 3. Runs heuristics per stack (mock-consumer, naming, reference-update, risk)
 4. Writes `plan.md` with Target Files, Approach steps, Risks, Open Questions
 5. Seeds `implementation-cache.json`
@@ -349,13 +356,14 @@ One focused implementation step per run.
 **Gates (strict, abort with no writes):**
 - Spec must exist
 - No unresolved Open Questions (spec or plan)
+- High-risk pipelines need a plan (a tier forced with `/f-spec --tier` wins)
 - Plan must not be stale (spec newer than plan)
 
 **Flow:**
 1. Reads spec + plan (or discovers inline if no plan)
 2. Shows target files and expected changes
 3. You implement the changes inline
-4. Runs tests with bounded retry (2 attempts)
+4. Writes tests tagged with the Behavior they verify (`// spec: B2`); runs them with bounded retry (2 attempts)
 5. On persistent failure: writes to `escalations.md`, stops
 6. Complexity assessment:
    - **Low** → recommends `/f-commit`
@@ -378,10 +386,12 @@ Stage all changes and create one semantic commit.
 
 **What it does:**
 1. Stages all tracked changes (`git add -u`)
-2. Runs the quality gate: `bash commands/check.sh`
+2. Runs the test-coverage gate (the quality gate `check.sh` runs at `/f-mr`)
 3. Proposes commit message: `[JIRA-123] feat: <spec title>`
 4. You approve (or edit, or abort)
-5. Updates `state.json` with commit SHA and validation flag
+5. Updates `state.json` with the commit SHA
+
+**Advisory, never blocks:** lists Behaviors with no `spec: B<n>`-tagged test; on high-risk pipelines asks once per diff for `/f-code-review --auditor`.
 
 **Format:** `[TICKET-ID] type: concise description` (feat | fix | refactor | docs | test | perf)
 
@@ -422,6 +432,7 @@ Stack-aware quality and security review of the full branch diff.
 ```bash
 /f-code-review                    # first review
 /f-code-review --recheck          # compare against previous report
+/f-code-review --auditor          # report-only, asked for by /f-commit on high-risk
 ```
 
 **Output:** `.specwork/_review/<slug>-code-review.md` with findings severity (Blocker / Major / Minor).
@@ -435,7 +446,7 @@ Push branch and create or update a Merge Request.
 **Pre-flight:**
 1. Detects host: `gh` for GitHub, `glab` for GitLab (override with `OPEN_SDD_MR_PROVIDER`)
 2. Validates branch is not the default branch and has commits
-3. Runs test suite before push — **skips if HEAD was already validated by `/f-commit`**
+3. Runs the quality gate (`check.sh`) before every push — the only place it runs
 4. Only pushes if tests pass
 
 **Output:**
@@ -444,8 +455,7 @@ Push branch and create or update a Merge Request.
 - MR created or updated
 
 ```bash
-/f-mr           # normal flow
-/f-mr --skip-validation  # emergencies only
+/f-mr           # validate, push, create or update the MR
 ```
 
 ---
@@ -472,9 +482,9 @@ Re-running picks up where it left off.
 Close the feature pipeline after merge.
 
 **What it does:**
-1. Checks for dirty tree → prompts to discard or abort
-2. Checks MR merge status via `gh` → warns if still open
-3. Deletes `.specwork/` (irreversible — asks confirmation)
+1. Refuses if `.specwork/` belongs to another branch
+2. **Promotes durable rules:** shows the spec's Safe Constraints and resolved OQs; you approve up to 4 rules, appended to `.claude/rules/*.md` (existing lines never edited)
+3. **Reverts uncommitted changes**, then deletes `.specwork/` and `.opensdd/` — run it after the merge
 4. Offers branch cleanup: delete + switch, keep + switch, or stay
 
 <div class="gate">
@@ -502,32 +512,26 @@ Close the feature pipeline after merge.
 ```
 
 **What it executes in sequence:**
-1. `/f-start` — creates branch, writes source.md (**confirms branch choice** in interactive TTY sessions)
-2. `/f-spec` — drafts the spec from source
+1. `/f-start` — the agent **confirms the branch** with you first, then creates it and writes source.md
+2. `/f-spec` — drafts the spec from source (and runs triage)
 3. **Stop if unresolved Open Questions** → alerts and exits
 4. `/f-plan` — creates technical plan
-5. `/f-implement` — prints spec + plan + target files
-6. Hands off to the LLM to implement, then **pauses before commit** for manual review
+5. `/f-implement` — the LLM implements the changes
+6. `/f-commit` → `/f-mr` — commits and opens the MR, then **stops**
 
 ---
 
-## Autopilot: stops at exactly two points
+## Autopilot: pauses at most twice
 
-**1. Unresolved Open Questions** (after `/f-spec`):
+**1. Unresolved Open Questions** (after `/f-spec`) — hard stop:
 ```
 BLOCKING — Unresolved Open Questions found in spec.
 Resolve them, then re-run /f-auto or continue manually.
 ```
 
-**2. Pre-commit review handoff** (after `/f-implement`):
-```
-Auto mode paused before /f-commit so you can review changes.
-Next: run /f-commit after your review.
-```
-
-Auto mode **always** pauses here. Any concrete risk signals found during spec
-analysis are surfaced informationally at this handoff to help you decide whether
-to run the (costly) `/f-test-design` + `/f-test-impl` steps before committing:
+**2. Risk-signal test gate** (after `/f-implement`) — only when the spec matched a concrete
+risk signal, the agent asks whether to run the (costly) `/f-test-design` + `/f-test-impl`
+steps before committing:
 
 | Risk signal | Keyword matches |
 |-------------|----------------|
@@ -537,40 +541,30 @@ to run the (costly) `/f-test-design` + `/f-test-impl` steps before committing:
 | `data-destructive` | delete data, purge, production data, truncate |
 | `concurrency` | @Transactional, race condition, distributed transaction |
 
-After your manual `/f-commit`, the run auto-opens the MR (`/f-mr`) and stops there.
+With no signal it does not pause: it commits, opens the MR (`/f-mr`) and stops there.
 
 ---
 
 ## Autopilot: architectural decisions
 
 **What `/f-auto` does NOT do:**
-- ❌ Does NOT commit automatically (pauses before commit for manual review)
 - ❌ Does NOT run `/f-close` (post-merge action, deletes your branch)
 - ❌ Does NOT run `/f-mr-address` (needs review comments that don't exist yet)
-- ❌ Does NOT force test steps (you decide at the pre-commit handoff)
+- ❌ Does NOT force test steps (you decide when risk signals appear)
+- ❌ Does NOT skip gates — OQs, plan-required and the push-time `check.sh` still apply
 
 **How it works:**
 - Exports `SDD_NON_INTERACTIVE=1` → commands skip routine bash prompts
-- `start.sh`: still confirms the branch choice — its interactive A/B/C prompt fires when no `--choose/--branch/--keep` flag is passed and stdin is a terminal; the agent passes `--choose A`/`--branch`/`--keep` after confirming in chat
+- `start.sh`: the agent confirms the branch in chat and passes `--choose A`/`--branch`/`--keep`
 - `implement.sh`: auto-re-runs `/f-plan` if stale
-- Stops after `/f-implement` and flags `auto_open_mr_after_commit` in state
-- `commit.sh`: on your manual `/f-commit`, auto-runs `/f-mr` when that flag is set
+- Sets `auto_open_mr_after_commit` in state → `/f-commit` continues to `/f-mr`
 - The LLM still implements code changes; only routine bash prompts are skipped
 
-**End state:** changes implemented, working tree paused before commit, `.specwork/` intact.
+**End state:** MR open, `.specwork/` intact for review rounds and `/f-close`.
 
 ```
-/f-auto  stops here
-   │
-   ▼
-[f-start → spec → plan → impl] ── (human reviews & commits)
-                                            │
-                                            ▼
-                                  commit → mr (auto) → stops
-                                            │
-                           (human takes over)
-                                            ▼
-                                   review → merge → close
+/f-auto:  start → spec → plan → impl → commit → mr    (stops at the open MR)
+human:    review → /f-mr-address → merge → /f-close
 ```
 
 ---
@@ -587,24 +581,39 @@ After your manual `/f-commit`, the run auto-opens the MR (`/f-mr`) and stops the
 Every command runs its own pre-flight checks. No central state machine.
 
 ```
-                 ┌─────────────────┐
-                 │  Open Questions │  ← blocks /f-plan, /f-implement, /f-handoff
-                 └─────────────────┘
-
-                 ┌─────────────────┐
-                 │   Stale plan    │  ← spec newer than plan → re-run /f-plan
-                 └─────────────────┘
-
-                 ┌─────────────────┐
-                 │ Missing spec    │  ← blocks everything except /f-start, /f-spec
-                 └─────────────────┘
-
-                 ┌─────────────────┐
-                 │  check.sh       │  ← runs tests before commit and push
-                 └─────────────────┘
+Open Questions   ← blocks /f-plan, /f-implement, /f-handoff
+Plan required    ← high-risk without a plan → /f-plan
+Stale plan       ← spec newer than plan → re-run /f-plan
+Missing spec     ← blocks everything except /f-start, /f-spec
+Test coverage    ← changed class without a test blocks /f-commit
+check.sh         ← runs tests before every push (/f-mr)
 ```
 
 **Staleness is timestamp-based:** `spec_write_timestamp` is stored in `state.json`, not filesystem mtime — survives `git stash` (which destroys mtime).
+
+**Advisory (never block):** spec conformance (Behaviors without a tagged test) and the high-risk auditor, both in `/f-commit`.
+
+---
+
+## Triage: four tiers
+
+The first `/f-spec` draft classifies the ticket from keywords and the expected change scope:
+
+| Tier | Recommended path |
+|------|------------------|
+| `trivial` | `/f-commit` → `/f-mr` |
+| `focused` | `/f-implement` → `/f-commit` → `/f-mr` |
+| `standard` | `/f-plan` → `/f-implement` → `/f-commit` → `/f-mr` |
+| `high-risk` | `/f-plan` (required) → `/f-implement` → `/f-test-design` → `/f-test-impl` → `/f-commit` → `/f-mr` |
+
+Keywords can misfire — *"does **not** publish to Kafka"* still matches `kafka`. Force the tier, with a reason:
+
+```bash
+/f-spec --tier focused "read-only endpoint; the Kafka mention is a negation"
+/f-spec --tier auto     # drop the override
+```
+
+The override is stored in `path.json` next to the automatic tier and survives later triage runs.
 
 ---
 
@@ -630,7 +639,7 @@ Unresolved markdown checkboxes **under the `## Open Questions` heading** in `spe
 
 ## Quality gate (`check.sh`)
 
-Every commit and push runs the project's test suite:
+Every push (`/f-mr`) runs the project's test suite — commits don't:
 
 | Project has | Command run |
 |-------------|-------------|
@@ -645,7 +654,7 @@ Every commit and push runs the project's test suite:
 
 **Custom override:** drop `commands/check.sh` in the project root for custom validation (integration tests, lint, format).
 
-**Duplicate runs skipped:** `/f-mr` skips the test suite when HEAD was already validated by `/f-commit` (reads `checked_sha` from `state.json`).
+**One run per push:** `/f-mr` runs it before every push; after an auto-rebase, the run that followed the rebase counts.
 
 ---
 
@@ -720,7 +729,7 @@ Rename artifacts after a branch rename.
 
 ```bash
 /f-resync                          # sync only (git rename already done)
-/f-resync feature/MYYES-124        # atomic: git branch -m + sync
+/f-resync --rename-branch feature/MYYES-124   # atomic: git branch -m + sync
 ```
 
 ---
@@ -757,12 +766,12 @@ Beyond the pipeline, open-sdd bundles companion commands:
 
 | Command | What it does |
 |---------|--------------|
-| **`/doc-catalog`** | Scan current microservice, generate `docs/service-info.md` |
-| **`/doc-publish`** | Publish catalog to central registry |
-| **`/doc-query`** | Ask cross-service questions across all catalogs |
-| **`/doc-adr`** | Create Architecture Decision Record in `docs/adr/` |
-| **`/adr-publish`** | Publish ADRs to central registry |
-| **`/adr-query`** | Ask decision-history questions across all ADRs |
+| **`/doc-catalog`** | Scan current service, store its catalog in the central registry |
+| **`/doc-catalog-query`** | Ask cross-service questions across all catalogs |
+| **`/doc-adr`** | Create an Architecture Decision Record in the registry |
+| **`/doc-adr-query`** | Ask decision-history questions across all ADRs |
+| **`/doc-spec`** / **`/doc-spec-query`** | Store / query feature specs |
+| **`/doc-investigation`** / **`/doc-investigation-query`** | Capture / query investigations |
 
 All loaded automatically by `install.sh`. Registry shared across team via `OPEN_SDD_DOC_HOME`.
 
@@ -777,8 +786,8 @@ Any branch, any time, no pipeline required:
 | `/f-commit` | Semantic commit on any branch |
 | `/f-mr` | MR description from git log + push |
 | `/f-code-review` | Quality + security on current diff |
-| `/f-handoff` | Package spec for another agent |
-| `/f-auto` | Full pipeline, one command |
+| `/f-mr-review` | Review a peer's branch or MR (read-only) |
+| `/f-undo` | Discard uncommitted changes, reversibly |
 
 No `.specwork/` required — each detects absence and adapts.
 
@@ -811,9 +820,8 @@ Install your preferred LLM agent (Claude Code, Copilot, GPT, Gemini, etc.) follo
 | Tool | When you need it | How to install |
 |------|-----------------|----------------|
 | **GitHub CLI (`gh`)** | Automatic MR creation and merge status checks | `brew install gh` (macOS), `winget install GitHub.cli` (Windows), or [cli.github.com](https://cli.github.com) |
-| **GitLab CLI (`glab`)** | Automatic MR creation on self-hosted GitLab | `brew install glab` (macOS) or `winget install glab` (Windows) |
+| **GitLab CLI (`glab`)** | Automatic MR creation on GitLab; `/f-mr-review` of MR links | `brew install glab` (macOS) or `winget install glab` (Windows) |
 | **Jira credentials** | Automatic ticket fetching in `/f-start` | Set env vars `JIRA_BASE_URL`, `JIRA_USER`, `JIRA_TOKEN` |
-| **`jq`** | Jira JSON response parsing (if using Jira) | `brew install jq` (macOS), `apt install jq` (Linux), `winget install jqlang.jq` (Windows) |
 
 ---
 
@@ -932,9 +940,8 @@ After installing open-sdd globally, initialize each consumer project:
 ```
 
 **First run auto-bootstraps:**
-- `.opensdd/mr-config.json` — MR target branch and strategy
-- `.opensdd/service-rules.md` — service invariants (copy template)
-- Appends `.specwork/` to `.gitignore`
+- `.opensdd/service-rules.md` — personal copy, synced from the team's `.claude/rules/*.md` (or the template)
+- Appends `.specwork/` and `.opensdd/` to `.gitignore`
 
 ---
 
@@ -948,17 +955,12 @@ export JIRA_USER="your.email@company.com"
 export JIRA_TOKEN="your-atlassian-api-token"
 ```
 
-**MR config** (`.opensdd/mr-config.json`, per project):
+**Service rules** (`.claude/rules/*.md`, committed, per project):
+Document service invariants, business rules, architecture constraints. `/f-start`
+syncs them into the personal `.opensdd/service-rules.md`; `/f-close` appends the
+rules you approve from each finished spec.
 
-```json
-{
-  "target_branch": "development",
-  "merge_strategy": "squash"
-}
-```
-
-**Service rules** (`.opensdd/service-rules.md`, per project):
-Document service invariants, business rules, architecture constraints.
+**MR target:** the remote's default branch — no config file.
 
 ---
 
@@ -996,20 +998,20 @@ Document service invariants, business rules, architecture constraints.
 | Autopilot | `/f-auto` | Full pipeline non-interactive → MR |
 | Entry | `/f-start` | Branch + source.md + state |
 | Spec | `/f-spec` | `.specwork/_spec/` |
-| Plan | `/f-plan` *(optional)* | `.specwork/_plan/` |
+| Plan | `/f-plan` *(required for high-risk)* | `.specwork/_plan/` |
 | Implement | `/f-implement` (×N) | Code changes |
 | Commit | `/f-commit` | One semantic commit |
 | Tests | `/f-test-design` + `/f-test-impl` *(high-risk)* | Test files |
 | Review | `/f-code-review` *(optional)* | `.specwork/_review/` |
 | MR | `/f-mr` | Published spec + GitLab/GitHub MR |
 | Post-review | `/f-mr-address` | Resolved review threads |
-| Close | `/f-close` | Clean workspace |
+| Close | `/f-close` | Promoted rules + clean workspace |
 
 **Autopilot:** `/f-auto <ticket-or-text>` — one command, no prompts, stops at OQs + risk signals, ends at open MR.
 
-**Standalone:** `/f-commit` · `/f-mr` · `/f-code-review` · `/f-handoff`
+**Standalone:** `/f-commit` · `/f-mr` · `/f-code-review` · `/f-mr-review` · `/f-undo`
 
-**Doc commands:** `/doc-adr` · `/doc-catalog` · `/doc-query`
+**Doc commands:** `/doc-catalog` · `/doc-adr` · `/doc-spec` · `/doc-investigation` (+ `*-query`)
 
 ---
 
