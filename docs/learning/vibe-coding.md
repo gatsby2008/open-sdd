@@ -36,17 +36,17 @@ helpers when you want them.
 
 ## How each behaves without a pipeline
 
-### `/f-commit` — test-gated semantic commit
+### `/f-commit` — coverage-gated semantic commit
 - **Auto-stages** tracked changes if nothing is staged (asks first when
   interactive; auto-stages when not).
-- Runs the **quality gate**: `commands/check.sh` (project-local override) or the
-  stack-detecting default (`./gradlew check`, `mvn verify`, `pytest`, `npm test`,
-  `go test ./...`, `cargo test`, …). A non-zero exit **stops the commit**.
+- Runs the **test-coverage gate** (a changed class without a matching test stops
+  the commit). The **quality gate** (`commands/check.sh`) is not run here — it
+  gates the push, in `/f-mr`.
 - Builds the message from the **branch**, not a spec:
   - Ticket parsed from the branch name (`feature/JIRA-123-foo` → `JIRA-123`).
   - `[JIRA-123] feat: <slug>` — or `feat: <slug>` when there's no ticket.
   - You approve / edit / abort before it commits.
-- Pipeline-only extras (writing `checked_sha`/commit SHA into `state.json`) are
+- Pipeline-only extras (writing the commit SHA into `state.json`) are
   simply skipped when there's no state.
 
 ### `/f-mr` — push + open MR

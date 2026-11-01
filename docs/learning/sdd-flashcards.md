@@ -61,7 +61,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 15   │ What happens when an OQ is BLOCKING?                       │ It stops progression. The pipeline refuses to advance until resolved. Blocking OQs gate `/f-implement`, `/f-commit`, and `/f-mr`.        │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 16   │ What must pass before committing?                          │ `bash commands/check.sh`. Applies to both `/f-commit` and `/f-mr`. Failed checks block progression.                                      │
+│ 16   │ What must pass before pushing?                             │ `bash commands/check.sh`, run by `/f-mr` before the push. `/f-commit` does not run it. Failed checks block the push.                     │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 17   │ Where are service catalogs stored?                         │ In `$OPEN_SDD_DOC_HOME/service-catalog/` (default `${OPEN_SDD_ROOT:-~}/.opensdd/registry/service-catalog/`). Managed by `/doc-publish`     │
 │      │                                                            │ and queried by `/doc-query`.                                                                                                               │
@@ -151,8 +151,8 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │ 45   │ What spec consistency pairs does check_spec_consistency      │ Four pairs: (a) idempotent + per-call side effect (needs resolver: transaction/saga/orchestrator). (b) remove + still-referenced.          │
 │      │ detect?                                                     │ (c) atomic + multi-step (needs resolver: coordinator/orchestrator). (d) cache + always fresh (needs resolver: invalidate/expire/ttl).     │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 46   │ How does /f-commit behave without a pipeline (vibe mode)?   │ Auto-stages tracked changes if nothing staged. Runs `commands/check.sh` as quality gate (non-zero stops commit). Builds message from      │
-│      │                                                            │ branch name (`feature/JIRA-123-foo` → `[JIRA-123] feat: ...`). Pipeline-only extras (writing checked_sha into state.json) are skipped.    │
+│ 46   │ How does /f-commit behave without a pipeline (vibe mode)?   │ Auto-stages tracked changes if nothing staged. Runs the test-coverage gate (not check.sh — that gates the push). Builds message from      │
+│      │                                                             │ branch name (`feature/JIRA-123-foo` → `[JIRA-123] feat: ...`). Pipeline-only extras (commit SHA into state.json) are skipped.             │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 47   │ How does /f-code-review detect pack hints?                  │ For Java: greps diff for `@Entity`/`@Repository` → JPA patterns; `@Async`/CompletableFuture → concurrency; `@RestController` → API        │
 │      │                                                            │ contracts; `@Slf4j`/MDC → logging patterns. Each match prints a "consider" hint linking to a review pack.                                 │
@@ -169,8 +169,8 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │ 51   │ What is the OQ format and how are they resolved?            │ Format: `- [ ] **#N** <question>` in spec.md or plan.md. /f-spec refine mode flips resolved OQs to `- [x] **#N** <question> — resolved:    │
 │      │                                                            │ <answer>`. The check_open_questions gate scans both files for any `- [ ]` under `## Open Questions`.                                      │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 52   │ What happens when check.sh fails?                           │ The commit or push is blocked. `/f-commit` refuses to create the commit. `/f-mr` refuses to push. The user must fix the failure and       │
-│      │                                                            │ re-run. Use `--skip-validation` on `/f-mr` for emergencies only (documented for incident response).                                      │
+│ 52   │ What happens when check.sh fails?                           │ The push is blocked: `/f-mr` refuses to push. Commits are not gated by check.sh (only by the test-coverage gate). The user must fix the   │
+│      │                                                             │ failure and re-run /f-mr.                                                                                                                 │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 53   │ How does /f-implement handle no-plan vs plan mode?          │ No-plan: discovers targets inline from the spec's Implementation Context. Plan mode: reads `plan.json` for target files, supports         │
 │      │                                                            │ `/f-implement --done N` to mark steps complete. Writes to `implementation-cache.json` in both modes.                                      │
@@ -190,7 +190,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │ 58   │ How does /f-test-impl list (dry-run) mode work?             │ `./commands/test-impl.sh list` runs a read-only preview. Reads the git diff, resolves each changed source file to expected test paths,   │
 │      │                                                            │ and prints which tests exist (UPDATE) and which don't (CREATE). No files are written. The real run (without `list`) implements them.       │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 59   │ How does /f-mr handle pre-push test validation?             │ Runs `commands/check.sh` before pushing. Skips validation if HEAD's `checked_sha` matches the current HEAD (meaning /f-commit already      │
-│      │                                                            │ validated this exact commit). Stops entirely if tests fail. `--skip-validation` bypasses the gate.                                         │
+│ 59   │ How does /f-mr handle pre-push test validation?             │ Runs `commands/check.sh` before every push — it is the only place the quality gate runs (/f-commit does not). After an auto-rebase the run │
+│      │                                                             │ that followed the rebase counts. Stops entirely if tests fail.                                                                             │
 └──────┴────────────────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```

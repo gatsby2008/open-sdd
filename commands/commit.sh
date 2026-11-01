@@ -35,9 +35,9 @@ hydrate_non_interactive_from_state "$SLUG"
 # /f-commit is artifact-driven and re-runnable. No step gate. Standalone
 # (git-only / vibe-coding) mode is allowed when no pipeline state exists.
 
-# ---- check for changes (before running the quality gate) --------------------
-# Detect / stage changes first so a no-op commit exits immediately instead of
-# paying for the full test suite (e.g. ./gradlew check) only to find nothing.
+# ---- check for changes -------------------------------------------------------
+# Detect / stage changes first so a no-op commit exits immediately.
+# The quality gate (check.sh) is NOT run here — it gates the push (/f-mr).
 
 HAS_STAGED=false
 if ! git diff --cached --quiet 2>/dev/null; then
@@ -90,17 +90,6 @@ if [ -n "$SLUG" ] && ! engine audit-required "$SLUG" >/dev/null; then
   echo "    PYTHONPATH=\"$ENGINE_ROOT\" python3 -m engine.cli audit-record $SLUG \"<PASS|PASS WITH WARNINGS|FAIL>\""
   echo "  Advisory: surface a FAIL to the developer, but it does not block the commit."
 fi
-
-# ---- quality gate: run tests ------------------------------------------------
-# Only reached when there is something to commit.
-
-echo "Running pre-commit checks..."
-CHECK_SCRIPT="$SCRIPT_DIR/check.sh"
-if [ -f "./commands/check.sh" ]; then
-  CHECK_SCRIPT="./commands/check.sh"
-  echo "Using project-local commands/check.sh"
-fi
-bash "$CHECK_SCRIPT" || die "Checks failed. Fix issues before committing."
 
 # ---- print context ----------------------------------------------------------
 
@@ -157,7 +146,6 @@ if sha not in commits:
     commits.append(sha)
 data["commits"] = commits
 data["last_commit"] = sha
-data["checked_sha"] = sha
 fp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 PY
     echo "State updated with commit $LAST_COMMIT"

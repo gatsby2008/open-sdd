@@ -378,10 +378,10 @@ Stage all changes and create one semantic commit.
 
 **What it does:**
 1. Stages all tracked changes (`git add -u`)
-2. Runs the quality gate: `bash commands/check.sh`
+2. Runs the test-coverage gate (the quality gate `check.sh` runs at `/f-mr`)
 3. Proposes commit message: `[JIRA-123] feat: <spec title>`
 4. You approve (or edit, or abort)
-5. Updates `state.json` with commit SHA and validation flag
+5. Updates `state.json` with the commit SHA
 
 **Format:** `[TICKET-ID] type: concise description` (feat | fix | refactor | docs | test | perf)
 
@@ -600,7 +600,7 @@ Every command runs its own pre-flight checks. No central state machine.
                  └─────────────────┘
 
                  ┌─────────────────┐
-                 │  check.sh       │  ← runs tests before commit and push
+                 │  check.sh       │  ← runs tests before every push    
                  └─────────────────┘
 ```
 
@@ -630,7 +630,7 @@ Unresolved markdown checkboxes **under the `## Open Questions` heading** in `spe
 
 ## Quality gate (`check.sh`)
 
-Every commit and push runs the project's test suite:
+Every push (`/f-mr`) runs the project's test suite — commits don't:
 
 | Project has | Command run |
 |-------------|-------------|
@@ -645,7 +645,7 @@ Every commit and push runs the project's test suite:
 
 **Custom override:** drop `commands/check.sh` in the project root for custom validation (integration tests, lint, format).
 
-**Duplicate runs skipped:** `/f-mr` skips the test suite when HEAD was already validated by `/f-commit` (reads `checked_sha` from `state.json`).
+**One run per push:** `/f-mr` runs it before every push; after an auto-rebase, the run that followed the rebase counts.
 
 ---
 

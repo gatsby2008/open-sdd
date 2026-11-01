@@ -52,9 +52,10 @@ command to untrack them.
 
 ### Validation script (`commands/check.sh`)
 
-`/f-commit` and `/f-mr` run `bash commands/check.sh` as the quality gate
-before committing and pushing. The pipeline treats `exit 0` as clean and
-any non-zero exit as a stop signal.
+`/f-mr` runs `bash commands/check.sh` as the quality gate before pushing
+(`/f-commit` does not run it — commits are gated only by the test-coverage
+check). The pipeline treats `exit 0` as clean and any non-zero exit as a stop
+signal.
 
 open-sdd ships a **stack-detecting default** at
 `$OPEN_SDD_ROOT/commands/check.sh`. It inspects the project root and runs
@@ -77,8 +78,7 @@ For most projects this is enough — no setup required.
 Spring Boot with a separate `integrationTest` source set, Maven with
 profiles, monorepos that chain multiple commands, lint/format steps not
 wired into the default lifecycle), drop a script at `commands/check.sh` in
-the project root and `/f-commit` and `/f-mr` will prefer it over the
-framework default. A template ships with open-sdd:
+the project root and `/f-mr` will prefer it over the framework default. A template ships with open-sdd:
 
 ```bash
 # from the project root

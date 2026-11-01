@@ -1445,10 +1445,10 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 <p><strong>What it does:</strong></p>
 <ol>
 <li>Stages all tracked changes (<code>git add -u</code>)</li>
-<li>Runs the quality gate: <code>bash commands/check.sh</code></li>
+<li>Runs the test-coverage gate (the quality gate <code>check.sh</code> runs at <code>/f-mr</code>)</li>
 <li>Proposes commit message: <code>[JIRA-123] feat: &lt;spec title&gt;</code></li>
 <li>You approve (or edit, or abort)</li>
-<li>Updates <code>state.json</code> with commit SHA and validation flag</li>
+<li>Updates <code>state.json</code> with the commit SHA</li>
 </ol>
 <p><strong>Format:</strong> <code>[TICKET-ID] type: concise description</code> (feat | fix | refactor | docs | test | perf)</p>
 <p><strong>Works on any branch</strong> — no pipeline required for standalone use.</p>
@@ -2371,7 +2371,7 @@ section.divider p { color: #aaa; font-size: 1.2em; }
                  └─────────────────┘
 
                  ┌─────────────────┐
-                 │  check.sh       │  ← runs tests before commit and push
+                 │  check.sh       │  ← runs tests before every push    
                  └─────────────────┘
 </code></pre>
 <p><strong>Staleness is timestamp-based:</strong> <code>spec_write_timestamp</code> is stored in <code>state.json</code>, not filesystem mtime — survives <code>git stash</code> (which destroys mtime).</p>
@@ -2527,7 +2527,7 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 .gate { background: #FFEBEE; border-left: 4px solid #D32F2F; padding: 8px 12px; border-radius: 4px; }
 ;" data-marpit-pagination-total="51">
 <h2 id="quality-gate-checksh">Quality gate (<code>check.sh</code>)</h2>
-<p>Every commit and push runs the project's test suite:</p>
+<p>Every push (<code>/f-mr</code>) runs the project's test suite — commits don't:</p>
 <table>
 <thead>
 <tr>
@@ -2571,7 +2571,7 @@ section.divider p { color: #aaa; font-size: 1.2em; }
 </tbody>
 </table>
 <p><strong>Custom override:</strong> drop <code>commands/check.sh</code> in the project root for custom validation (integration tests, lint, format).</p>
-<p><strong>Duplicate runs skipped:</strong> <code>/f-mr</code> skips the test suite when HEAD was already validated by <code>/f-commit</code> (reads <code>checked_sha</code> from <code>state.json</code>).</p>
+<p><strong>One run per push:</strong> <code>/f-mr</code> runs it before every push; after an auto-rebase, the run that followed the rebase counts.</p>
 </section>
 </foreignObject></svg><svg data-marpit-svg="" viewBox="0 0 1280 720"><foreignObject width="1280" height="720"><section id="31" data-paginate="true" data-theme="default" data-style="section {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

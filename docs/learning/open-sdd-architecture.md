@@ -420,7 +420,7 @@ Four commands work on **any branch with no pipeline setup** — no `.specwork/`,
 
 | Command | Purpose |
 |---------|---------|
-| `/f-commit` | Stage + run quality gate + semantic commit message |
+| `/f-commit` | Stage + test-coverage gate + semantic commit message |
 | `/f-mr` | Validate tests + push + open MR |
 | `/f-code-review` | Stack-aware quality + security review of your own diff |
 | `/f-mr-review` | Stack-aware quality + security review of a peer's branch or MR |

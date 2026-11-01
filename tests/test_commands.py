@@ -344,3 +344,28 @@ class TestSpecTier(TmpGitRepo):
         r = self._run_spec(["--tier", "focused"])
         self.assertNotEqual(r.returncode, 0)
         self.assertFalse(Path(".specwork/_state/x-path.json").exists())
+
+
+# ---------------------------------------------------------------------------
+# f-commit — check.sh gates the push, not the commit
+# ---------------------------------------------------------------------------
+
+class TestCommitDoesNotRunCheck(TmpGitRepo):
+    def test_failing_check_sh_does_not_block_the_commit(self):
+        Path("commands").mkdir()
+        Path("commands/check.sh").write_text("#!/usr/bin/env bash\necho CHECK_RAN\nexit 1\n")
+        Path("app.txt").write_text("v1\n")
+        subprocess.run(["git", "add", "."], check=True)
+        subprocess.run(["git", "commit", "-q", "-m", "base"], check=True)
+        Path("app.txt").write_text("v2\n")
+        subprocess.run(["git", "add", "app.txt"], check=True)
+        # Non-interactive commit.sh writes its message file under .specwork/_state/.
+        Path(".specwork/_state").mkdir(parents=True)
+        env = os.environ.copy()
+        env["SDD_NON_INTERACTIVE"] = "1"
+        r = subprocess.run(["bash", str(COMMANDS_DIR / "commit.sh")], capture_output=True,
+                           text=True, cwd=str(self.repo), env=env, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("CHECK_RAN", r.stdout + r.stderr)
+        log = subprocess.run(["git", "log", "--oneline"], capture_output=True, text=True).stdout
+        self.assertEqual(len(log.splitlines()), 3)

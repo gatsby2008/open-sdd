@@ -563,8 +563,8 @@ else
 fi
 
 echo "== commit standalone; test-* require a pipeline =="
-# commit.sh must pass the pipeline gate standalone (git-only mode) and only fail
-# later at check.sh — never at the gate.
+# commit.sh must pass the pipeline gate standalone (git-only mode) — never fail
+# at the gate.
 d=$(new_repo standalone-commit); cd "$d"
 out="$($TO bash "$REPO/commands/commit.sh" 2>&1 </dev/null)"
 if printf '%s' "$out" | grep -qiF "No pipeline"; then

@@ -4,6 +4,7 @@ set -euo pipefail
 # check.sh — stack-detecting test runner.
 # Detects the project stack and runs the standard test/check command.
 # Exit code mirrors the test command (0 = pass, non-zero = fail).
+# Run by /f-mr before pushing; /f-commit does not run it.
 #
 # Usage:
 #   bash commands/check.sh

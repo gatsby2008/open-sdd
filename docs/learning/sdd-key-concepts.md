@@ -14,7 +14,7 @@ Cross-cutting ideas that govern how the pipeline works in this project. Understa
 | **`spec_write_timestamp`** | An epoch-seconds field in `state.json` bumped by every `/f-spec` write. Used by the plan staleness gate (compares against `plan.md` mtime). Exists because `/f-pause` stashes destroy filesystem mtimes. |
 | **`SDD_NON_INTERACTIVE=1`** | Env var that suppresses bash prompts in `/f-start` (branch creation), `/f-commit` (message confirmation), and `/f-close` (confirmation). Set by `/f-auto` for the non-interactive autopilot. Override manually with `SDD_NON_INTERACTIVE=1` to skip prompts in any command. |
 | **Vibe coding** | `/f-commit`, `/f-mr`, and `/f-code-review` work on **any branch with no pipeline setup**. No `.specwork/`, no spec, no plan needed. See [VIBE-CODING.md](vibe-coding.md). |
-| **Quality gates** | `bash commands/check.sh` must pass before `/f-commit` and `/f-mr`. Failed checks block progression. open-sdd ships a stack-detecting default (`npm test`, `./gradlew check`, `mvn verify`, `pytest`, etc.). Projects override by placing their own `commands/check.sh`. |
+| **Quality gates** | `bash commands/check.sh` must pass before pushing (`/f-mr`); `/f-commit` does not run it. Failed checks block the push. open-sdd ships a stack-detecting default (`npm test`, `./gradlew check`, `mvn verify`, `pytest`, etc.). Projects override by placing their own `commands/check.sh`. |
 | **Service-rules are a convention** | `.opensdd/service-rules.md` is not auto-discovered by the LLM. The project's pipeline instructions tell the model to load it when present. It is a pipeline convention, not a framework feature. |
 
 ---

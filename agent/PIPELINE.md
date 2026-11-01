@@ -16,7 +16,7 @@ The pipeline needs these tools installed:
 
 For Windows: the pipeline works under WSL2 (recommended) or Git Bash. If the user is on Windows and gets bash errors, recommend WSL2.
 
-The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm for frontend) is required by the `check.sh` quality gate and is auto-detected.
+The project's own toolchain (e.g., Java + Gradle for Spring Boot, Node.js + npm for frontend) is required by the `check.sh` quality gate (run by `/f-mr` before pushing) and is auto-detected.
 
 ## CRITICAL RULES
 
@@ -250,10 +250,11 @@ Generate MR description, push, create/update MR via GitHub CLI.
 2. (Script) Check gh is installed and authenticated
 3. (Script) Detect default branch from remote
 4. (Script) Build MR body from spec + plan (if available), title from ticket + spec
-5. (Script) Push branch to origin
-6. (Script) Create new MR via `gh pr create` or update existing via `gh pr edit`
-7. (Script) Store MR URL in state.json
-8. Confirm MR URL and next step (close.sh after merge)
+5. (Script) Run the quality gate `commands/check.sh` (project-local override first) — a failure stops the push. This is the only place it runs; `/f-commit` does not
+6. (Script) Push branch to origin
+7. (Script) Create new MR via `gh pr create` or update existing via `gh pr edit`
+8. (Script) Store MR URL in state.json
+9. Confirm MR URL and next step (close.sh after merge)
 
 ### /f-close
 

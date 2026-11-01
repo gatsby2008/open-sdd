@@ -142,16 +142,12 @@ case "$PROVIDER" in
     die "Unknown provider '$PROVIDER'. Use OPEN_SDD_MR_PROVIDER=github|gitlab." ;;
 esac
 
-# ---- quality gate: run tests (skip if HEAD was already validated by f-commit) -
+# ---- quality gate: run tests before every push --------------------------------
+# /f-commit does not run check.sh; this is the only place it gates. Skipped
+# only when the rebase above already ran it on this exact HEAD.
 
-HEAD_SHA=$(git rev-parse HEAD)
-CHECKED_SHA=""
-if [ -f "$STATE_FILE" ]; then
-  CHECKED_SHA=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get('checked_sha',''))" "$STATE_FILE" 2>/dev/null || true)
-fi
-
-if [ -n "$CHECKED_SHA" ] && [ "$HEAD_SHA" = "$CHECKED_SHA" ]; then
-  echo "Skipping pre-push checks — HEAD already validated by f-commit ($HEAD_SHA)."
+if [ "$REBASED" = true ]; then
+  echo "Pre-push checks already ran after the rebase."
 else
   echo "Running pre-push checks..."
   bash "$CHECK_SCRIPT" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
