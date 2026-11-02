@@ -21,9 +21,10 @@ eliminó (no forma parte de esto).
 La lógica vive en `engine/registry.py` (`engine.cli ask`); `commands/doc-ask.sh`
 solo la llama.
 
-1. **Alcance.** `type:` filtra registros (sin él: los cuatro). `service:` o un
-   nombre de servicio presente en la pregunta acota a ese servicio, salvo
-   palabras de agregación ("all", "every", "across", "todos", "alguna vez"…).
+1. **Alcance.** `type:` filtra registros (sin él: los cuatro). Solo `service:`
+   explícito filtra por servicio. Un servicio nombrado en la pregunta **sube**
+   el puntaje de sus documentos pero no filtra: "¿quién consume X de
+   leads-service?" necesita los catálogos de los *otros* servicios.
 2. **Índice.** Siempre se imprime: una línea por documento (registro, ruta,
    título, fecha). Es la red de seguridad cuando la búsqueda falla (sinónimos,
    pregunta en castellano y docs en inglés): el agente elige por título y lee.
@@ -53,9 +54,17 @@ usa flags (`--type`, `--service`), no texto libre.
 | # | Fase | Estado |
 |---|---|---|
 | 0 | Test de paridad del resolver de servicio con sdd-plugin (`tests/test_service_name.py`) | hecho |
-| 1 | `engine/registry.py` + `engine.cli ask` + `tests/test_registry.py` | |
+| 1 | `engine/registry.py` + `engine.cli ask` + `tests/test_registry.py` | hecho |
 | 2 | `commands/doc-ask.sh`, registro en `install.sh`/`install.ps1`, smoke | |
 | 3 | Los cuatro `*-query` pasan a stubs deprecados que delegan en `doc-ask type:<x>` | |
 | 4 | Docs: `pipeline-reference.md` (4 filas → 1), `REFERENCE.md`, `AGENTS.md`, README, learning | |
 | 5 | Borrar los stubs (requiere OK): parity check exige `doc-ask`, `install.sh` limpia los `.md` viejos | |
 | 6 | Más adelante: navegar la capa `wiki/` si existe y avisar si está atrasada | |
+
+## Medición contra el registro real (2026-11-02, 96 docs, ~980 KB)
+
+| Pregunta | Hoy | `/doc-ask` |
+|---|---|---|
+| quién consume ApplicationStageChangeEvent? | `doc-catalog-query`: 568 KB | 30 KB; carga los 2 catálogos que lo mencionan, recortados a sus secciones |
+| who publishes DealLostEvent and who consumes it | 568 KB | 43 KB; carga el único catálogo que lo menciona |
+| por qué migramos a aws sdk v2? | dos comandos (adr + spec) | 79 KB; ADRs y specs de la migración en una consulta |
