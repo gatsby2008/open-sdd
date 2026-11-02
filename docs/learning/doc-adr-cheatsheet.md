@@ -71,7 +71,10 @@ MyYesGoClient (myyesgo-api)
 - **`--with-docs`** also stores the repo's extra docs (`docs/architecture/`,
   `docs/features/`, `docs/product/`, `docs/security/`, other top-level `docs/*.md`)
   under `service-catalog/docs/<service>/`.
-- **`/doc-catalog list`** shows this service's catalog and its extra-doc count.
+- **`/doc-catalog list`** shows this service's catalog, its extra-doc count and its
+  freshness: commits and code files changed since the `Verified at` commit recorded
+  in the catalog header. `/doc-ask` shows that commit too, and warns when a loaded
+  catalog was regenerated more than 90 days ago (`OPEN_SDD_CATALOG_MAX_AGE_DAYS`).
 
 **When to run:** after adding an endpoint, changing integrations, or when the catalog is stale.
 

@@ -551,8 +551,19 @@ def cmd_ask(args: list[str]) -> int:
     return 0
 
 
+def cmd_catalog_freshness(args: list[str]) -> int:
+    # Usage: catalog-freshness <catalog.md> — run inside the service repo.
+    if not args:
+        print("Usage: cli.py catalog-freshness <catalog.md>", file=sys.stderr)
+        return 1
+    from engine.registry import catalog_freshness
+    print(catalog_freshness(Path(args[0])))
+    return 0
+
+
 DISPATCH = {
     "precheck": cmd_precheck,
+    "catalog-freshness": cmd_catalog_freshness,
     "ask": cmd_ask,
     "triage": cmd_triage,
     "status": cmd_status,

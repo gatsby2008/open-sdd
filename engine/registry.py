@@ -21,6 +21,7 @@ questions ("who consumes X from leads-service?") need the other services.
 from __future__ import annotations
 
 import math
+import subprocess
 import os
 import re
 import unicodedata
@@ -75,6 +76,8 @@ HINTS = {
                      "before?' tell the history in order (bug / exploration / improvements).",
 }
 
+CATALOG_MAX_AGE_DAYS = 90       # older catalogs get a freshness warning (OPEN_SDD_CATALOG_MAX_AGE_DAYS)
+_VERIFIED_AT = re.compile(r"Verified at:\s*`?([0-9a-f]{7,40})`?")
 DEFAULT_BUDGET = 60_000          # characters printed for loaded documents
 TRIM_THRESHOLD = 12_000          # docs larger than this print matching sections only
 PREAMBLE_CAP = 1_500             # chars kept from a trimmed doc's header
@@ -304,6 +307,56 @@ def load_docs(root: Path, types: list[str]) -> list[Doc]:
     return docs
 
 
+# -------------------------------------------------------------- freshness ---
+
+def verified_at(text: str) -> Optional[str]:
+    """Commit a catalog was generated against (`Verified at: <sha>` in its header)."""
+    m = _VERIFIED_AT.search(text[:1500])
+    return m.group(1) if m else None
+
+
+def _git(args: list[str], cwd: str) -> Optional[str]:
+    try:
+        out = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    except OSError:
+        return None
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def _is_code(path: str) -> bool:
+    low = path.lower()
+    return not (low.endswith((".md", ".txt")) or low.startswith(("docs/", ".")) or
+                "/test/" in low or "/tests/" in low or low.startswith(("test/", "tests/")))
+
+
+def catalog_freshness(catalog: Path, repo: str = ".") -> str:
+    """How far the service repo at `repo` moved since its catalog was verified."""
+    sha = verified_at(catalog.read_text(errors="replace"))
+    if not sha:
+        return ("not tracked — the catalog has no 'Verified at' commit; regenerate it "
+                "with /doc-catalog to start tracking")
+    if _git(["cat-file", "-e", f"{sha}^{{commit}}"], repo) is None:
+        return (f"verified at {sha}, which is not in this repo's history (rebased, or "
+                "generated from another clone) — regenerate with /doc-catalog")
+    count = int(_git(["rev-list", "--count", f"{sha}..HEAD"], repo) or 0)
+    if count == 0:
+        return f"up to date — verified at {sha}, which is HEAD"
+    changed = [f for f in (_git(["diff", "--name-only", sha, "HEAD"], repo) or "").splitlines()
+               if _is_code(f)]
+    msg = f"{count} commit(s) since it was verified at {sha}; {len(changed)} code file(s) changed"
+    if changed:
+        msg += ": " + ", ".join(changed[:5]) + (" …" if len(changed) > 5 else "")
+        msg += f" — regenerate with /doc-catalog if endpoints, events or integrations changed"
+    return msg
+
+
+def _age_days(iso: str) -> Optional[int]:
+    try:
+        return (date.today() - date.fromisoformat(iso)).days
+    except ValueError:
+        return None
+
+
 # ---------------------------------------------------------------- ranking ---
 
 def _headings(text: str) -> str:
@@ -492,10 +545,18 @@ def render(res: Result) -> str:
     if not res.loaded and res.mode != "open-questions":
         out.append("  none — no document matched. Pick candidates from the INDEX by "
                    "title and read them; if nothing fits, say so — never invent.")
+    max_age = int(os.environ.get("OPEN_SDD_CATALOG_MAX_AGE_DAYS", CATALOG_MAX_AGE_DAYS))
     for d, body in _ordered(res.loaded):
+        sha = verified_at(d.text) if d.kind == "catalog" else None
         out.append("=" * 72)
         out.append(f"FILE: {d.rel}   [{d.kind} · {d.service} · {d.date}"
+                   + (f" · verified at {sha}" if sha else "")
                    + (f" · score {d.score:.1f}" if d.score else "") + "]")
+        age = _age_days(d.date) if d.kind == "catalog" else None
+        if age is not None and age > max_age:
+            out.append(f"⚠ This catalog was last regenerated {age} days ago; the service may "
+                       f"have changed since. Say so if the answer depends on it "
+                       f"(/doc-catalog in that repo refreshes it).")
         out.append("=" * 72)
         out.append(body.rstrip("\n"))
         out.append("")
