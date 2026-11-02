@@ -534,8 +534,26 @@ def cmd_bump_spec_ts(args: list[str]) -> int:
 # COMMANDS is derived from it so the two can never drift. The pipeline's
 # user-facing verbs (start, plan, implement, commit, mr, close, …) are handled by
 # the commands/*.sh wrappers, NOT here — they are intentionally absent.
+def cmd_ask(args: list[str]) -> int:
+    # Usage: ask [--budget N] <question> [type:<t>] [service:<s>]. Implementation:
+    # engine/registry.py (commands/doc-ask.sh wraps this entry point).
+    from engine.registry import ask
+    budget = None
+    if "--budget" in args:
+        i = args.index("--budget")
+        try:
+            budget = int(args[i + 1])
+        except (IndexError, ValueError):
+            print("Usage: cli.py ask [--budget N] <question>", file=sys.stderr)
+            return 1
+        args = args[:i] + args[i + 2:]
+    sys.stdout.write(ask(args, budget))
+    return 0
+
+
 DISPATCH = {
     "precheck": cmd_precheck,
+    "ask": cmd_ask,
     "triage": cmd_triage,
     "status": cmd_status,
     "check": cmd_check,

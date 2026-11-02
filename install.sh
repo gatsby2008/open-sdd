@@ -96,28 +96,28 @@ install_doc_cmd_directive "doc-catalog" "Scan codebase and store the service cat
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-catalog.sh list — it prints the catalog for the current repo's service. Stop after the list; do not scan the project.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-catalog.sh . It scans the project, detects the stack and service, and prints instructions to generate the catalog and write it STRAIGHT to the registry — no copy in the repo (no docs/service-info.md), no confirmation prompt. Follow the printed instructions and print the stored registry path. Use --with-docs to also publish docs/architecture/, docs/features/, docs/product/ to the registry alongside the catalog."
-install_doc_cmd_directive "doc-catalog-query" "Ask cross-service architecture questions" "\
-Run ${OPENSDD_PATH}/commands/doc-catalog-query.sh \"\$ARGUMENTS\". It prints all registered documents (catalogs + any extra docs published with --with-docs). Use that output to answer the user's architecture question, citing the source file for every claim."
+install_doc_cmd_directive "doc-ask" "Ask anything across the doc registries (catalogs, ADRs, specs, investigations)" "\
+Run ${OPENSDD_PATH}/commands/doc-ask.sh \"\$ARGUMENTS\" — pass the arguments verbatim; do not add type: or service: yourself. It prints an INDEX of every registered doc, the best-matching docs (large ones trimmed to their matching sections), other matches by path, and reading hints. Answer from that output, citing every claim as its registry path. If an INDEX entry looks relevant but was not loaded, read it before answering. If the registry does not cover the question, say what you read — never invent."
+install_doc_cmd_directive "doc-catalog-query" "Deprecated — use /doc-ask type:catalog" "\
+Run ${OPENSDD_PATH}/commands/doc-catalog-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:catalog: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 install_doc_cmd_directive "doc-adr" "Create an ADR and store it in the registry (list: /doc-adr list)" "\
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-adr.sh list — it prints ADRs for the current repo's service. Stop after the list; do not create a new ADR.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-adr.sh \$ARGUMENTS to find the next ADR number and gather context. Use the output to draft an ADR, then write it STRAIGHT to the registry — no copy in the repo (no docs/adr/), no confirmation prompt. Follow the printed instructions and print the stored registry path."
-install_doc_cmd_directive "doc-adr-query" "Ask architecture-decision questions across ADRs" "\
-Run ${OPENSDD_PATH}/commands/doc-adr-query.sh \$ARGUMENTS. It prints ADRs from the registry. Use that output to answer the user's question, citing every claim as <service>/<ADR-file>."
+install_doc_cmd_directive "doc-adr-query" "Deprecated — use /doc-ask type:adr" "\
+Run ${OPENSDD_PATH}/commands/doc-adr-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:adr: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 install_doc_cmd_directive "doc-spec" "Store a feature spec in the central spec registry (list: /doc-spec list)" "\
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-spec.sh list — it prints specs for the current repo's service. Stop after the list.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-spec.sh \$ARGUMENTS. It resolves the spec file (path argument or auto-detect from pipeline), detects the service, and prints instructions to store it in the registry. Counterpart to /f-mr (which stores automatically) — for hand-written or standalone specs."
-install_doc_cmd_directive "doc-spec-query" "Ask feature/spec questions across the spec registry" "\
-Run ${OPENSDD_PATH}/commands/doc-spec-query.sh \"\$ARGUMENTS\". It prints every spec stored by /doc-spec or /f-mr. Use that output to answer the user's feature/spec question (behavior, scope, constraints, open questions), citing every claim as <service>/<spec-file>."
+install_doc_cmd_directive "doc-spec-query" "Deprecated — use /doc-ask type:spec" "\
+Run ${OPENSDD_PATH}/commands/doc-spec-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:spec: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 install_doc_cmd_directive "doc-investigation" "Capture current investigation as a structured document (list: /doc-investigation list)" "\
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-investigation.sh list — it prints investigations for the current repo's service. Stop after the list.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh \$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Print the full draft, then write it straight to the registry — no yes/no gate; the user can still interrupt to edit."
-install_doc_cmd_directive "doc-investigation-query" "Answer questions across all captured investigations" "\
-Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"\$ARGUMENTS\". It lists investigation services, narrows scope by service name if possible, and prints every investigation file. Use that output to answer the user's question, citing every claim as <service>/<file>."
-install_doc_cmd_directive "arch-query" "Query architecture design documents (set OPEN_SDD_ARCH_HOME to the architecture repo path)" "\
-Run ${OPENSDD_PATH}/commands/arch-query.sh \"\$ARGUMENTS\". It reads architecture design documents from \$OPEN_SDD_ARCH_HOME (set this env var to the architecture repo path), lists available project areas, and narrows scope if a project area name matches the argument. Use the output to answer the user's architecture question. Cite every claim as the source file relative to the architecture repo. If OPEN_SDD_ARCH_HOME is not set, tell the user to set it."
+install_doc_cmd_directive "doc-investigation-query" "Deprecated — use /doc-ask type:investigation" "\
+Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:investigation: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").
@@ -134,6 +134,8 @@ rm -f "${CMD_DIR}/doc-publish.md" "${CMD_DIR}/adr-publish.md" "${CMD_DIR}/spec-p
 rm -f "${CMD_DIR}/doc-query.md" "${CMD_DIR}/adr-query.md" "${CMD_DIR}/spec-query.md"
 # doc-freshness removed (regenerating with doc-catalog already reflects current code).
 rm -f "${CMD_DIR}/doc-freshness.md"
+# arch-query removed.
+rm -f "${CMD_DIR}/arch-query.md"
 
 echo "open-sdd: 29 commands installed to $CMD_DIR"
 

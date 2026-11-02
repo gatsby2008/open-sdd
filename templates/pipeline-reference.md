@@ -106,16 +106,12 @@ Do not create for:
 | `/f-close` | `bash $OPEN_SDD_ROOT/commands/close.sh` (re-run with `--promote '<json>'` or `--no-promote` after the rule-promotion pass) |
 | `/doc-catalog` | `bash $OPEN_SDD_ROOT/commands/doc-catalog.sh` |
 | `/doc-catalog list` | `bash $OPEN_SDD_ROOT/commands/doc-catalog.sh list` |
-| `/doc-catalog-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-catalog-query.sh <question>` |
 | `/doc-adr <desc>` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh <desc>` |
 | `/doc-adr open-questions` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh open-questions` |
 | `/doc-adr list` | `bash $OPEN_SDD_ROOT/commands/doc-adr.sh list` |
-| `/doc-adr-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-adr-query.sh <question>` |
 | `/doc-spec <path>` | `bash $OPEN_SDD_ROOT/commands/doc-spec.sh <path>` |
 | `/doc-spec list` | `bash $OPEN_SDD_ROOT/commands/doc-spec.sh list` |
-| `/doc-spec-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-spec-query.sh <question>` |
 | `/doc-investigation` | `bash $OPEN_SDD_ROOT/commands/doc-investigation.sh` |
-| `/doc-investigation-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-investigation-query.sh <question>` |
-| `/arch-query <question>` | `bash $OPEN_SDD_ROOT/commands/arch-query.sh <question>` |
+| `/doc-ask <question>` | `bash $OPEN_SDD_ROOT/commands/doc-ask.sh "<question>"` — one query over catalogs, ADRs, specs and investigations; omit `type:` unless the question is clearly about one registry |
 
 All commands run from the root of the current project.

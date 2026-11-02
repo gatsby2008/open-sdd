@@ -118,7 +118,7 @@ into `.specwork/_state/<slug>-rules.json`.
 ### Doc registry (optional)
 
 open-sdd bundles doc commands (`/doc-catalog`, `/doc-adr`, `/doc-spec`,
-`/doc-investigation`, each with a `*-query` companion) that store and query a
+`/doc-investigation`, plus `/doc-ask` to query them all) that store and query a
 central registry of service catalogs, ADRs, specs and investigations. The registry location is
 controlled by:
 

@@ -333,14 +333,10 @@ documentation and architecture decisions (registered via install.sh):
 | Command | What it does |
 |---------|--------------|
 | **`/doc-catalog`** | Scan the current service and store its catalog in the central registry (`$OPEN_SDD_DOC_HOME/service-catalog/`); `list` shows what is registered |
-| **`/doc-catalog-query`** | Ask cross-service architecture questions across all catalogs |
 | **`/doc-adr`** | Create an Architecture Decision Record and store it in the registry (`adr-registry/<service>/`); `list` shows them |
-| **`/doc-adr-query`** | Ask decision-history questions across all registered ADRs |
 | **`/doc-spec`** | Store a hand-written or standalone spec in the registry (`spec-registry/<service>/`) — `/f-mr` does it inside the pipeline |
-| **`/doc-spec-query`** | Ask feature/spec questions across the spec registry |
 | **`/doc-investigation`** | Capture the current investigation as a structured document (`investigation-registry/<service>/`) |
-| **`/doc-investigation-query`** | Ask questions across all captured investigations |
-| **`/arch-query`** | Query architecture design documents (`$OPEN_SDD_ARCH_HOME`) |
+| **`/doc-ask`** | Ask anything across the four registries — prints an index plus the best-matching docs within a budget; optional `type:` / `service:` filters. `/doc-*-query` are deprecated aliases |
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.

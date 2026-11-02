@@ -6,15 +6,15 @@ publish step.
 
 Four registries, one mechanism:
 
-| Registry | Create (`list` to inspect) | Query |
+| Registry | Create (`list` to inspect) | Query (`/doc-ask` filter) |
 |---|---|---|
-| `service-catalog/` — endpoints, integrations, config | `/doc-catalog` | `/doc-catalog-query` |
-| `adr-registry/<service>/` — decision history | `/doc-adr` | `/doc-adr-query` |
-| `spec-registry/<service>/` — feature specs | `/doc-spec` (and `/f-mr` inside the pipeline) | `/doc-spec-query` |
-| `investigation-registry/<service>/` — bug / exploration / improvement notes | `/doc-investigation` | `/doc-investigation-query` |
+| `service-catalog/` — endpoints, integrations, config | `/doc-catalog` | `type:catalog` |
+| `adr-registry/<service>/` — decision history | `/doc-adr` | `type:adr` |
+| `spec-registry/<service>/` — feature specs | `/doc-spec` (and `/f-mr` inside the pipeline) | `type:spec` |
+| `investigation-registry/<service>/` — bug / exploration / improvement notes | `/doc-investigation` | `type:investigation` |
 
-Architecture design docs live apart, in the repo pointed to by `$OPEN_SDD_ARCH_HOME`;
-query them with `/arch-query`.
+One query command, `/doc-ask`, reads all four; the filter is optional. The old
+`/doc-*-query` commands still work as deprecated aliases of `/doc-ask type:<registry>`.
 
 > **Central registry** (`$OPEN_SDD_DOC_HOME`, default `${OPEN_SDD_ROOT:-~}/.opensdd/registry/`).
 > Set `OPEN_SDD_DOC_HOME` to a team-shared Git repo for cross-service queries.
@@ -28,12 +28,12 @@ query them with `/arch-query`.
 /doc-catalog
 /doc-catalog --with-docs    # also store docs/architecture/, docs/product/, … as extra docs
 
-# 2. Query catalogs from any project
-/doc-catalog-query "what services depend on consent-service?"
+# 2. Ask across every registry, from any project
+/doc-ask "what services depend on consent-service?"
 
 # 3. Record decisions and query them
 /doc-adr "we chose PostgreSQL for circuit breaker state"
-/doc-adr-query "why did consent-service pick PostgreSQL?"
+/doc-ask "why did consent-service pick PostgreSQL?"
 
 # 4. Store a hand-written spec, capture an investigation
 /doc-spec docs/my-feature-spec.md
@@ -75,17 +75,6 @@ MyYesGoClient (myyesgo-api)
 
 **When to run:** after adding an endpoint, changing integrations, or when the catalog is stale.
 
-### /doc-catalog-query
-
-Reads every catalog and extra doc in `service-catalog/` and answers cross-service
-questions, citing the source file.
-
-**Example questions:**
-- "Who calls /api/v1/consent?"
-- "What services depend on transunion-service?"
-- "Which services have SQS listeners?"
-- "What's the tech stack of leads-service?"
-
 ---
 
 ## ADRs (Architecture Decision Records)
@@ -102,15 +91,6 @@ the existing ADRs; the LLM drafts, confirms with you, then writes.
 - **`/doc-adr open-questions`** — pull context from the resolved OQs in `.specwork/` (pipeline) or `docs/decisions.md` / `docs/open-questions.md` (standalone). `/f-mr` suggests it when the spec resolved OQs worth preserving
 - **`/doc-adr list`** — ADRs already registered for this service
 
-### /doc-adr-query
-
-Reads ADRs from the registry and answers decision questions.
-
-- **Scope narrowing:** pass a service name; it matches registry directories by
-  substring, so `leads` matches `leads-service`.
-- **Aggregate queries:** "all services", "across", "compare", "which services" read
-  every ADR in the registry.
-
 ---
 
 ## Specs and investigations
@@ -120,14 +100,45 @@ Reads ADRs from the registry and answers decision questions.
 Stores a feature spec in `spec-registry/<service>/<slug>-spec.md` — for hand-written or
 standalone specs; inside the pipeline `/f-mr` does it automatically.
 `/doc-spec <path>` stores that file; with no argument it uses the active `.specwork/`
-spec; `/doc-spec list` shows the service's specs. Query with `/doc-spec-query`.
+spec; `/doc-spec list` shows the service's specs. Query with `/doc-ask`.
 
 ### /doc-investigation
 
 Captures the current session's investigation as a structured document in
 `investigation-registry/<service>/`, typed **bug**, **explore** or **improvements**:
 `/doc-investigation [title] [bug|explore|improvements]`; `list` shows the service's
-notes. Query with `/doc-investigation-query`.
+notes. Query with `/doc-ask`.
+
+---
+
+## Asking: /doc-ask
+
+`/doc-ask <question> [type:catalog|adr|spec|investigation] [service:<name>]`
+
+One query over the four registries (logic in `engine/registry.py`). It prints:
+
+1. **INDEX** — one line per document (path, title, date). Always there: when term
+   search misses (synonyms, a Spanish question over English docs) the model picks
+   by title and reads.
+2. **LOADED** — the best-matching documents, ranked by the question's terms
+   (identifiers such as `LeadCreated` or `/api/v1/consent` weigh most), up to a
+   budget (`OPEN_SDD_ASK_BUDGET`, default 60 000 characters). Large docs are
+   trimmed to their matching `##` sections. If everything fits, everything loads.
+3. **ALSO MATCHED** — the other matches by path, for the model to read on demand.
+4. **HINTS** — how to read each registry (event chains, supersedes, Open Questions,
+   investigations oldest first).
+
+**Filters are optional.** `type:` narrows to one registry; `service:` to one service.
+A service *named* in the question only boosts its documents — "who consumes X from
+leads-service?" still needs the other services' catalogs. "Which specs have open
+questions?" lists only the unresolved `- [ ]` items.
+
+**Example questions:**
+- "Who consumes ApplicationStageChangeEvent?"
+- "Who calls /api/v1/consent?"
+- "Why did we migrate to aws sdk v2?" (ADRs and specs in one answer)
+- "type:spec which specs have open questions?"
+- "type:investigation have we seen ReportToken reuse before?"
 
 ---
 
@@ -136,7 +147,6 @@ notes. Query with `/doc-investigation-query`.
 | Variable | Effect |
 |----------|--------|
 | `$OPEN_SDD_DOC_HOME` | Root of the shared registry (e.g. `~/team/docs-registry`). Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/` |
-| `$OPEN_SDD_ARCH_HOME` | Architecture design docs repo read by `/arch-query` |
 | `$OPEN_SDD_ROOT` | Absolute path to open-sdd (set if you installed the pipeline) |
 
 **Service name** (`lib/service-name.sh`, first hit wins): `spring.application.name`
@@ -182,9 +192,9 @@ $OPEN_SDD_DOC_HOME/
 /doc-investigation "why X breaks" bug         # keep what an investigation found
 
 # Cross-service queries
-/doc-catalog-query "which services use SQS?"
-/doc-adr-query "why did we decide X?"
-/doc-spec-query "which specs touch LeadProcessor?"
+/doc-ask "which services use SQS?"
+/doc-ask "why did we decide X?"
+/doc-ask "which specs touch LeadProcessor?"
 ```
 
 ---

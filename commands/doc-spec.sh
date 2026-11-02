@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # /doc-spec — store a feature spec.md in the central spec registry so
-# /doc-spec-query can read it. Publish-only counterpart to /f-mr (which publishes
+# /doc-ask can read it. Publish-only counterpart to /f-mr (which publishes
 # automatically inside the pipeline). For hand-written or standalone specs.
 #
 #   $OPEN_SDD_DOC_HOME/spec-registry/<service>/<slug>-spec.md
@@ -75,7 +75,7 @@ echo "Service: $SERVICE"
 echo "Spec file: $SPEC"
 echo ""
 
-# /doc-spec-query only discovers *-spec.md, so the destination name must end in it.
+# /doc-ask only discovers *-spec.md in spec-registry/, so the destination name must end in it.
 base="$(basename "$SPEC")"
 if [ "${base%-spec.md}" != "$base" ]; then
   DEST_NAME="$base"
@@ -108,11 +108,11 @@ echo "2. List the registry to confirm, and print the stored path:"
 echo "   ls -1 \"$REGISTRY/$SERVICE/\"*-spec.md 2>/dev/null | xargs -n1 basename | sort"
 echo ""
 
-# Nudge toward the canonical sections /doc-spec-query reads, without failing.
+# Nudge toward the canonical sections /doc-ask reads, without failing.
 if ! grep -qE '^## (Summary|Behavior)' "$SPEC" 2>/dev/null; then
-  echo "Tip: /doc-spec-query reads ## Summary, ## Behavior, ## Scope, ## Safe Constraints,"
+  echo "Tip: /doc-ask reads ## Summary, ## Behavior, ## Scope, ## Safe Constraints,"
   echo "and ## Open Questions — add them for richer answers."
   echo ""
 fi
 
-echo "Run /doc-spec-query to ask feature/spec questions across services."
+echo "Run /doc-ask to ask feature/spec questions across services."
