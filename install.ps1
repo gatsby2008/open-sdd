@@ -12,7 +12,9 @@ New-Item -ItemType Directory -Force -Path $CMD_DIR | Out-Null
 function Install-Cmd {
   param($Name, $Description)
   $content = @"
----description: ${Description}---
+---
+description: ${Description}
+---
 Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, spec template, stack detection, OQ rules), then run ${OPENSDD_PATH}/commands/${Name}.sh `$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
 "@
   Set-Content -Path (Join-Path $CMD_DIR "f-${Name}.md") -Value $content -Encoding UTF8
@@ -21,7 +23,9 @@ Read ${OPENSDD_PATH}/agent/PIPELINE.md for the full pipeline protocol (gates, sp
 function Install-CmdDirective {
   param($Name, $Description, $Directive)
   $content = @"
----description: ${Description}---
+---
+description: ${Description}
+---
 ${Directive}
 "@
   Set-Content -Path (Join-Path $CMD_DIR "f-${Name}.md") -Value $content -Encoding UTF8
@@ -30,7 +34,9 @@ ${Directive}
 function Install-DocCmdDirective {
   param($Name, $Description, $Directive)
   $content = @"
----description: ${Description}---
+---
+description: ${Description}
+---
 ${Directive}
 "@
   Set-Content -Path (Join-Path $CMD_DIR "${Name}.md") -Value $content -Encoding UTF8
@@ -121,6 +127,10 @@ Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh `$ARGUMENTS. It dete
 # Remove stale commands from previous versions
 Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContinue | Out-Null
 Remove-Item -Path (Join-Path $CMD_DIR "f-refine.md") -ErrorAction SilentlyContinue | Out-Null
+# f-review-address renamed to f-mr-address.
+Remove-Item -Path (Join-Path $CMD_DIR "f-review-address.md") -ErrorAction SilentlyContinue | Out-Null
+# sec-query dropped (registry queries go through /doc-ask).
+Remove-Item -Path (Join-Path $CMD_DIR "sec-query.md") -ErrorAction SilentlyContinue | Out-Null
 @("doc-adr", "doc-catalog", "doc-publish", "doc-query", "adr-publish", "adr-query") | ForEach-Object {
   Remove-Item -Path (Join-Path $CMD_DIR "f-$_.md") -ErrorAction SilentlyContinue | Out-Null
 }

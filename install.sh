@@ -11,7 +11,9 @@ mkdir -p "$CMD_DIR"
 install_cmd() {
   local name="$1" description="$2"
   cat > "${CMD_DIR}/f-${name}.md" <<EOF
----description: ${description}---
+---
+description: ${description}
+---
 Read ${OPENSDD_PATH}/agent/PIPELINE.md for the pipeline protocol (gates, spec template, OQ rules; on-demand detail in agent/REFERENCE.md), then run ${OPENSDD_PATH}/commands/${name}.sh \$ARGUMENTS. After the command finishes, STOP. Present the result to the user and let them decide what to do next. Never chain multiple commands automatically.
 EOF
 }
@@ -19,7 +21,9 @@ EOF
 install_cmd_directive() {
   local name="$1" description="$2" directive="$3"
   cat > "${CMD_DIR}/f-${name}.md" <<EOF
----description: ${description}---
+---
+description: ${description}
+---
 ${directive}
 EOF
 }
@@ -27,7 +31,9 @@ EOF
 install_doc_cmd_directive() {
   local name="$1" description="$2" directive="$3"
   cat > "${CMD_DIR}/${name}.md" <<EOF
----description: ${description}---
+---
+description: ${description}
+---
 ${directive}
 EOF
 }
@@ -117,6 +123,10 @@ Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh \$ARGUMENTS. It dete
 # Remove commands deregistered or renamed in newer versions (clean up stale installs).
 rm -f "${CMD_DIR}/f-triage.md"
 rm -f "${CMD_DIR}/f-refine.md"
+# f-review-address renamed to f-mr-address.
+rm -f "${CMD_DIR}/f-review-address.md"
+# sec-query dropped (registry queries go through /doc-ask).
+rm -f "${CMD_DIR}/sec-query.md"
 # Clean up f-prefixed variants from earlier buggy installs.
 rm -f "${CMD_DIR}/f-doc-adr.md" "${CMD_DIR}/f-doc-catalog.md" "${CMD_DIR}/f-doc-publish.md" "${CMD_DIR}/f-doc-query.md"
 rm -f "${CMD_DIR}/f-adr-publish.md" "${CMD_DIR}/f-adr-query.md"

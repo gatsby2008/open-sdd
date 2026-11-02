@@ -42,4 +42,39 @@ if [ "$bash_count" != "$ps_count" ]; then
   exit 1
 fi
 
-echo "Install parity OK (definitions and counters match: $bash_count)."
+# Generated command files must carry real YAML frontmatter. A one-line
+# "---description: x---" header is not frontmatter: opencode parses the file
+# without metadata and silently drops the command, so /f-* and /doc-* never
+# show up. Guard both installers against regressing to that form.
+if grep -q -- '---description:' "$BASH_INSTALL" "$PS_INSTALL"; then
+  echo "Malformed frontmatter: installers must emit '---' / 'description: ...' / '---' on separate lines." >&2
+  exit 1
+fi
+
+# End-to-end: install into a throwaway HOME and validate every command file.
+fake_home="$workdir/home"
+mkdir -p "$fake_home"
+HOME="$fake_home" bash "$BASH_INSTALL" >/dev/null 2>&1 || {
+  echo "install.sh failed when run against a throwaway HOME" >&2
+  exit 1
+}
+
+cmd_dir="$fake_home/.config/opencode/commands"
+generated=0
+for file in "$cmd_dir"/*.md; do
+  [ -f "$file" ] || continue
+  generated=$((generated + 1))
+  if [ "$(sed -n '1p' "$file")" != "---" ] \
+    || ! sed -n '2p' "$file" | grep -q '^description: .' \
+    || [ "$(sed -n '3p' "$file")" != "---" ]; then
+    echo "Invalid frontmatter in generated command: $file" >&2
+    exit 1
+  fi
+done
+
+if [ "$generated" -ne "$bash_count" ]; then
+  echo "install.sh generated $generated command files but reports $bash_count" >&2
+  exit 1
+fi
+
+echo "Install parity OK (definitions and counters match: $bash_count; $generated command files with valid frontmatter)."
