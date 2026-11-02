@@ -173,4 +173,4 @@ fi
 echo "Then list the registry to confirm, and print the stored path:"
 echo "   ls -1 \"$REGISTRY\"/*.md 2>/dev/null | xargs -n1 basename | sort"
 echo ""
-echo "Run /doc-catalog-query to ask cross-service questions."
+echo "Run /doc-ask to ask cross-service questions."

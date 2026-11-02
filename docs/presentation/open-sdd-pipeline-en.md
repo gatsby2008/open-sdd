@@ -767,11 +767,10 @@ Beyond the pipeline, open-sdd bundles companion commands:
 | Command | What it does |
 |---------|--------------|
 | **`/doc-catalog`** | Scan current service, store its catalog in the central registry |
-| **`/doc-catalog-query`** | Ask cross-service questions across all catalogs |
 | **`/doc-adr`** | Create an Architecture Decision Record in the registry |
-| **`/doc-adr-query`** | Ask decision-history questions across all ADRs |
-| **`/doc-spec`** / **`/doc-spec-query`** | Store / query feature specs |
-| **`/doc-investigation`** / **`/doc-investigation-query`** | Capture / query investigations |
+| **`/doc-spec`** | Store feature specs |
+| **`/doc-investigation`** | Capture investigations |
+| **`/doc-ask`** | One query across catalogs, ADRs, specs and investigations |
 
 All loaded automatically by `install.sh`. Registry shared across team via `OPEN_SDD_DOC_HOME`.
 

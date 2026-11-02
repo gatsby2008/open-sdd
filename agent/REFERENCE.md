@@ -417,13 +417,10 @@ Questions worth preserving, recommend `/doc-adr open-questions`.
 | Command | Script | What it does |
 |---------|--------|--------------|
 | `/doc-catalog` | `doc-catalog.sh` | Scan the codebase and store the service catalog in the registry (`list` to inspect) |
-| `/doc-catalog-query` | `doc-catalog-query.sh` | Answer cross-service architecture questions across all catalogs |
 | `/doc-adr` | `doc-adr.sh` | Create an Architecture Decision Record and store it in the registry (`list` to inspect) |
-| `/doc-adr-query` | `doc-adr-query.sh` | Answer architecture-decision questions across all ADRs |
 | `/doc-spec` | `doc-spec.sh` | Store a feature spec in the central spec registry (`list` to inspect) |
-| `/doc-spec-query` | `doc-spec-query.sh` | Answer feature/spec questions across the spec registry |
 | `/doc-investigation` | `doc-investigation.sh` | Capture the current investigation as a structured document (`list` to inspect) |
-| `/doc-investigation-query` | `doc-investigation-query.sh` | Answer questions across all captured investigations |
+| `/doc-ask` | `doc-ask.sh` | One query across catalogs, ADRs, specs and investigations: index + best-matching docs within a budget (`OPEN_SDD_ASK_BUDGET`). Optional `type:` / `service:`. The four `doc-*-query` commands are deprecated aliases (`type:<registry>`) |
 
 ## Stack detection
 

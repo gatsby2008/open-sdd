@@ -57,7 +57,7 @@ usa flags (`--type`, `--service`), no texto libre.
 | 1 | `engine/registry.py` + `engine.cli ask` + `tests/test_registry.py` | hecho |
 | 2 | `commands/doc-ask.sh`, registro en `install.sh`/`install.ps1`, smoke | hecho |
 | 3 | Los cuatro `*-query` pasan a stubs deprecados que delegan en `doc-ask type:<x>` | hecho |
-| 4 | Docs: `pipeline-reference.md` (4 filas → 1), `REFERENCE.md`, `AGENTS.md`, README, learning | |
+| 4 | Docs: `pipeline-reference.md` (4 filas → 1), `REFERENCE.md`, `AGENTS.md`, README, learning | hecho |
 | 5 | Borrar los stubs (requiere OK): parity check exige `doc-ask`, `install.sh` limpia los `.md` viejos | |
 | 6 | Más adelante: navegar la capa `wiki/` si existe y avisar si está atrasada | |
 
