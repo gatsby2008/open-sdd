@@ -121,6 +121,32 @@ class TestExtractTerms(unittest.TestCase):
         self.assertIn("leadcreated", terms)
 
 
+class TestStemming(unittest.TestCase):
+    """Regressions found against a real registry (20-question eval, 2026-11-02)."""
+
+    def terms(self, text):
+        return dict(extract_terms(text))
+
+    def test_english_es_plural(self):
+        self.assertIn("push", self.terms("duplicate pushes"))
+        self.assertIn("publish", self.terms("who publishes it"))
+
+    def test_long_words_meet_across_languages(self):
+        stem = next(iter(self.terms("duplicados")))
+        self.assertIn(stem, "duplicate")
+        self.assertIn(stem, "duplicados")
+        self.assertIn(next(iter(self.terms("invalidated"))), "invalidate the session")
+
+    def test_short_words_untouched(self):
+        self.assertIn("session", self.terms("session"))
+        self.assertIn("cognito", self.terms("cognito"))
+
+    def test_kind_words_are_intent_not_terms(self):
+        self.assertNotIn("spec", self.terms("which specs touch X"))
+        self.assertEqual(registry.kind_intent("which specs touch X"), {"spec"})
+        self.assertEqual(registry.kind_intent("decisiones sobre X"), {"adr"})
+        self.assertEqual(registry.kind_intent("who consumes X"), set())
+
 class TestLoadDocs(RegistryCase):
     def test_layout_service_title_date(self):
         docs = {d.rel: d for d in load_docs(self.root, list(registry.REGISTRIES))}
@@ -177,6 +203,11 @@ class TestSelect(RegistryCase):
         res = select(q, load_docs(self.root, q.types), 100_000)
         self.assertEqual(res.mode, "all")
         self.assertEqual(len(res.loaded), 2)
+
+    def test_kind_word_boosts_that_registry(self):
+        # both the catalog and the ADR mention LeadCreated; "decisions" favors the ADR
+        res = self.run_select("decisions about LeadCreated", budget=300)
+        self.assertEqual(res.loaded[0][0].kind, "adr")
 
     def test_open_questions_filter(self):
         res = self.run_select("which specs have open questions?")

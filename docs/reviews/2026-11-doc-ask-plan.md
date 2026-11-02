@@ -69,3 +69,17 @@ usa flags (`--type`, `--service`), no texto libre.
 | quién consume ApplicationStageChangeEvent? | `doc-catalog-query`: 568 KB | 30 KB; carga los 2 catálogos que lo mencionan, recortados a sus secciones |
 | who publishes DealLostEvent and who consumes it | 568 KB | 43 KB; carga el único catálogo que lo menciona |
 | por qué migramos a aws sdk v2? | dos comandos (adr + spec) | 79 KB; ADRs y specs de la migración en una consulta |
+
+## Evaluación de la búsqueda (2026-11-02)
+
+20 preguntas reales sobre el registro del equipo (castellano e inglés), cada una
+con el o los documentos que deben cargarse. Resultado: 19/20 → **20/20** tras dos
+ajustes, ambos con test de regresión en `tests/test_registry.py`:
+
+- **Stem:** "-es" inglés tras sh/ch/x/z/ss ("pushes" → "push") y prefijo para palabras
+  largas, para que derivados crucen idiomas ("duplicados"/"duplicate" → "duplic",
+  "decisiones"/"decisions" → "decisi").
+- **Intención de tipo:** palabras como "specs", "decisiones", "investigations" suben
+  ese registro (×1.5) y no cuentan como término de búsqueda.
+
+El set de preguntas no se versiona (usa el registro privado del equipo).

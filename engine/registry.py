@@ -50,6 +50,20 @@ TYPE_ALIASES = {
     "investigation-registry": "investigation",
 }
 
+# Words that say which kind of document the question wants. They boost that
+# registry (never filter) and are dropped from the search terms, since a word
+# like "spec" appears in half the registry.
+KIND_WORDS = {
+    "spec": "spec", "specs": "spec", "especificacion": "spec", "especificaciones": "spec",
+    "adr": "adr", "adrs": "adr", "decision": "adr", "decisions": "adr",
+    "decisiones": "adr",
+    "investigation": "investigation", "investigations": "investigation",
+    "investigacion": "investigation", "investigaciones": "investigation",
+    "catalog": "catalog", "catalogs": "catalog", "catalogo": "catalog",
+    "catalogos": "catalog",
+}
+KIND_BOOST = 1.5
+
 HINTS = {
     "catalog": "Catalogs: follow Publishes -> topic/queue -> Consumes across services "
                "to chain event flows; Endpoints tables answer who-calls-what.",
@@ -152,6 +166,25 @@ def _fold(word: str) -> str:
                    if unicodedata.category(c) != "Mn")
 
 
+def _stem(word: str) -> str:
+    """Crude, language-agnostic stem for plain words, matched as a substring:
+    drop an English '-es' after sh/ch/x/z/ss ('pushes' -> 'push') or a plural
+    's'; then cut long words to a prefix so derivations meet across languages
+    ('duplicados'/'duplicate' -> 'duplic', 'decisiones'/'decision' -> 'decisi')."""
+    if len(word) > 4 and word.endswith("es") and word[:-2].endswith(("sh", "ch", "x", "z", "ss")):
+        word = word[:-2]
+    elif len(word) > 4 and word.endswith("s") and not word.endswith("ss"):
+        word = word[:-1]
+    if len(word) >= 8:
+        word = word[:max(6, len(word) - 3)]
+    return word
+
+
+def kind_intent(text: str) -> set[str]:
+    """Registries the question names ('which specs…', 'decisiones sobre…')."""
+    return {KIND_WORDS[_fold(w)] for w in re.findall(r"[\w]+", text) if _fold(w) in KIND_WORDS}
+
+
 def extract_terms(text: str) -> list[tuple[str, bool]]:
     """Return (term, is_identifier) pairs, lowercased and de-duplicated.
     Identifiers (CamelCase, kebab/snake, paths, digits) are kept verbatim;
@@ -165,10 +198,9 @@ def extract_terms(text: str) -> list[tuple[str, bool]]:
                  or bool(re.search(r"[-_/.]", tok)) or bool(re.search(r"\d", tok)))
         low = tok.lower()
         if not ident:
-            if _fold(low) in STOPWORDS or len(low) < 3:
+            if _fold(low) in STOPWORDS or _fold(low) in KIND_WORDS or len(low) < 3:
                 continue
-            if len(low) > 4 and low.endswith("s") and not low.endswith("ss"):
-                low = low[:-1]
+            low = _stem(low)
         if low not in seen:
             seen[low] = ident
     return list(seen.items())
@@ -279,7 +311,7 @@ def _headings(text: str) -> str:
 
 
 def score_docs(docs: list[Doc], terms: list[tuple[str, bool]],
-               mentioned: set[str]) -> None:
+               mentioned: set[str], kinds: frozenset = frozenset()) -> None:
     """IDF-weighted distinct-term score: a term present in every document adds
     little; identifiers weigh double; title/heading hits get a bonus; documents
     of a service named in the question get a boost."""
@@ -299,6 +331,8 @@ def score_docs(docs: list[Doc], terms: list[tuple[str, bool]],
     for d in docs:
         if d.score and d.service in mentioned:
             d.score *= 1.5
+        if d.score and d.kind in kinds:
+            d.score *= KIND_BOOST
 
 
 # -------------------------------------------------------------- rendering ---
@@ -373,7 +407,7 @@ def select(query: Query, docs: list[Doc], budget: int = DEFAULT_BUDGET) -> Resul
     mentioned = {d.service for d in scope if d.service != "-"
                  and re.search(rf"(?<![\w-]){re.escape(d.service)}(?![\w-])",
                                query.text, re.I)}
-    score_docs(scope, terms, mentioned)
+    score_docs(scope, terms, mentioned, frozenset(kind_intent(query.text)))
     ranked = sorted((d for d in scope if d.score > 0), key=lambda d: -d.score)
 
     if sum(len(d.text) for d in scope) <= budget:
