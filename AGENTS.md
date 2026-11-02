@@ -55,7 +55,6 @@ Each command independently checks preconditions:
 | `/doc-spec-query` | `doc-spec-query.sh` | Query across all feature specs |
 | `/doc-investigation` | `doc-investigation.sh` | Capture investigation as structured document |
 | `/doc-investigation-query` | `doc-investigation-query.sh` | Query across all captured investigations |
-| `/arch-query` | `arch-query.sh` | Query architecture design documents (`$OPEN_SDD_ARCH_HOME`) |
 
 ### Registries
 
@@ -65,8 +64,6 @@ All doc registries under `$OPEN_SDD_DOC_HOME/${OPEN_SDD_ROOT:-$HOME}/.opensdd/re
 - `adr-registry/` — `/doc-adr` (query: `/doc-adr-query`)
 - `spec-registry/` — `/doc-spec` or `/f-mr` (query: `/doc-spec-query`)
 - `investigation-registry/` — `/doc-investigation`
-
-Architecture design docs live separately at `$OPEN_SDD_ARCH_HOME` (clone the architecture repo and set this env var):
 
 ### Stack detection
 

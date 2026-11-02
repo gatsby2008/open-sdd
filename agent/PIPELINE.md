@@ -197,7 +197,7 @@ Each runs its script; read the REF § section when you run it.
 | `/f-handoff` | Package artifacts for another agent (blocks on OQs) | /f-handoff |
 | `/f-test-design`, `/f-test-impl` | Optional high-risk test steps | /f-test-design, /f-test-impl |
 | `/f-undo` | Discard uncommitted changes reversibly | — |
-| `/doc-*`, `/arch-query` | Companion docs / ADR commands, no pipeline needed | Companion commands |
+| `/doc-*` | Companion docs / ADR commands, no pipeline needed | Companion commands |
 
 ### Post-resolution flow (all commands)
 

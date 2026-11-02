@@ -13,9 +13,6 @@ Four registries, one mechanism:
 | `spec-registry/<service>/` — feature specs | `/doc-spec` (and `/f-mr` inside the pipeline) | `/doc-spec-query` |
 | `investigation-registry/<service>/` — bug / exploration / improvement notes | `/doc-investigation` | `/doc-investigation-query` |
 
-Architecture design docs live apart, in the repo pointed to by `$OPEN_SDD_ARCH_HOME`;
-query them with `/arch-query`.
-
 > **Central registry** (`$OPEN_SDD_DOC_HOME`, default `${OPEN_SDD_ROOT:-~}/.opensdd/registry/`).
 > Set `OPEN_SDD_DOC_HOME` to a team-shared Git repo for cross-service queries.
 
@@ -136,7 +133,6 @@ notes. Query with `/doc-investigation-query`.
 | Variable | Effect |
 |----------|--------|
 | `$OPEN_SDD_DOC_HOME` | Root of the shared registry (e.g. `~/team/docs-registry`). Default: `${OPEN_SDD_ROOT:-$HOME}/.opensdd/registry/` |
-| `$OPEN_SDD_ARCH_HOME` | Architecture design docs repo read by `/arch-query` |
 | `$OPEN_SDD_ROOT` | Absolute path to open-sdd (set if you installed the pipeline) |
 
 **Service name** (`lib/service-name.sh`, first hit wins): `spring.application.name`

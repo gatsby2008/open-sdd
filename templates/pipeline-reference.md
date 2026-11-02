@@ -116,6 +116,5 @@ Do not create for:
 | `/doc-spec-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-spec-query.sh <question>` |
 | `/doc-investigation` | `bash $OPEN_SDD_ROOT/commands/doc-investigation.sh` |
 | `/doc-investigation-query <question>` | `bash $OPEN_SDD_ROOT/commands/doc-investigation-query.sh <question>` |
-| `/arch-query <question>` | `bash $OPEN_SDD_ROOT/commands/arch-query.sh <question>` |
 
 All commands run from the root of the current project.

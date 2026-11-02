@@ -137,7 +137,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 │      │                                                            │ (gates, triage, slug, coverage, audit, promotion) called via `python3 -m engine.cli <cmd>`. On top, `agent/PIPELINE.md` is the protocol    │
 │      │                                                            │ the LLM reads before each command.                                                                                                         │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ 39   │ How does install.sh work?                                  │ Writes one command file per command (29: `f-*`, `doc-*`, `arch-query`) into                              │
+│ 39   │ How does install.sh work?                                  │ Writes one command file per command (28: `f-*`, `doc-*`) into                                            │
 │      │                                                            │ `~/.config/opencode/commands/`, each pointing at `agent/PIPELINE.md` and `commands/<name>.sh`; installs  │
 │      │                                                            │ `templates/pipeline-reference.md` as global opencode instructions; prints a requirements check. It is    │
 │      │                                                            │ the source of truth for the command catalog (checked by `tests/check-install-parity.sh`).                │
@@ -198,7 +198,7 @@ Hard questions about the spec-driven development pipeline as it applies to this 
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 57   │ What doc/ADR companion commands does open-sdd bundle?         │ Four registries, each with a create command and a query companion: `/doc-catalog` + `/doc-catalog-query` (service catalogs), `/doc-adr` +  │
 │      │                                                               │ `/doc-adr-query` (ADRs), `/doc-spec` + `/doc-spec-query` (specs; `/f-mr` stores them too), `/doc-investigation` + `/doc-investigation-     │
-│      │                                                               │ query` (investigations). Plus `/arch-query` for `$OPEN_SDD_ARCH_HOME`.                                                                     │
+│      │                                                               │ query` (investigations).                                                                                                                   │
 ├──────┼────────────────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
 │ 58   │ How does /f-test-impl list (dry-run) mode work?             │ `./commands/test-impl.sh list` runs a read-only preview. Reads the git diff, resolves each changed source file to expected test paths,   │
 │      │                                                            │ and prints which tests exist (UPDATE) and which don't (CREATE). No files are written. The real run (without `list`) implements them.       │

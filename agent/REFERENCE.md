@@ -424,7 +424,6 @@ Questions worth preserving, recommend `/doc-adr open-questions`.
 | `/doc-spec-query` | `doc-spec-query.sh` | Answer feature/spec questions across the spec registry |
 | `/doc-investigation` | `doc-investigation.sh` | Capture the current investigation as a structured document (`list` to inspect) |
 | `/doc-investigation-query` | `doc-investigation-query.sh` | Answer questions across all captured investigations |
-| `/arch-query` | `arch-query.sh` | Query architecture design documents (`$OPEN_SDD_ARCH_HOME`) |
 
 ## Stack detection
 

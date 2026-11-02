@@ -13,7 +13,7 @@ Esfuerzo: **S** ≤ 1 día · **M** 2–4 días · **L** ≥ 1 semana.
 
 **No hay un equivalente directo.** open-sdd no es un plugin de Claude Code: un solo
 `install.sh` registra todos los comandos en opencode. El prefijo de los comandos no
-depende de un nombre de plugin (`/f-*` el pipeline, `/doc-*` y `/arch-query` los
+depende de un nombre de plugin (`/f-*` el pipeline, `/doc-*` los
 companion). Separar no cambia ningún nombre.
 
 - **C (adelgazar):** acá ya está aplicada en lo que más pesa. `agent/PIPELINE.md`

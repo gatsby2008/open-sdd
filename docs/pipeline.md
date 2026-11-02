@@ -340,7 +340,6 @@ documentation and architecture decisions (registered via install.sh):
 | **`/doc-spec-query`** | Ask feature/spec questions across the spec registry |
 | **`/doc-investigation`** | Capture the current investigation as a structured document (`investigation-registry/<service>/`) |
 | **`/doc-investigation-query`** | Ask questions across all captured investigations |
-| **`/arch-query`** | Query architecture design documents (`$OPEN_SDD_ARCH_HOME`) |
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.
