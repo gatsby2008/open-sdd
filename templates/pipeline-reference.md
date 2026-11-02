@@ -70,7 +70,7 @@ Do not create for:
 - `bash commands/check.sh` must pass before pushing (`/f-mr`). It is not required before committing — `/f-commit` does not run it.
 - SDD pipeline ships a stack-detecting default at `$OPEN_SDD_ROOT/commands/check.sh` (auto-detects Gradle / Maven / npm / pnpm / yarn / pytest / Cargo / Go). The framework runs that script by default — no setup needed for the common case.
 - To override (e.g. Spring Boot with `integrationTest`, Maven with profiles, extra lint steps), drop a project-local `commands/check.sh` in the project root. `/f-mr` prefers it over the framework default. Template lives at `$OPEN_SDD_ROOT/templates/check.sh.example`.
-- Failed quality checks block progression — do not push on failure.
+- Failed quality checks block progression — do not push on failure. `/f-mr` may run a guarded repair loop (max 3 attempts, counted by `mr.sh`; never edits `check.sh`, test configs or existing tests) before giving up.
 
 ## Command mappings
 

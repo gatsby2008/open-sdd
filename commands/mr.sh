@@ -72,14 +72,31 @@ if [ -f "./commands/check.sh" ]; then
   CHECK_SCRIPT="./commands/check.sh"
 fi
 
+# ---- repair loop pre-check (engine/repair.py) ----------------------------------
+# A repair loop opens when the quality gate below fails. While it is open, every
+# /f-mr run first re-runs its guard and counts the attempt — before the rebase, so
+# the loop's base never moves under the guard. Nothing is pushed until the loop
+# closes green. REF § /f-mr — repair loop.
+
+REPAIR_STEP="NONE"
+if [ "$(engine repair-status)" != "none" ]; then
+  REPAIR_OUT=$(engine repair-pre) || { echo "$REPAIR_OUT"; exit 1; }
+  REPAIR_STEP=$(printf '%s\n' "$REPAIR_OUT" | tail -1)
+fi
+
 # ---- branch sync check: rebase if behind target branch -----------------------
 
 REBASED=false
 TARGET_BRANCH="$DEFAULT_BRANCH"
+BEHIND=0
 echo ""
-echo "Checking branch sync with $TARGET_BRANCH..."
-git fetch origin "$TARGET_BRANCH" --quiet 2>/dev/null || true
-BEHIND=$(git rev-list --count HEAD..origin/"$TARGET_BRANCH" 2>/dev/null || echo 0)
+if [ "$REPAIR_STEP" != "NONE" ]; then
+  echo "Repair loop open — branch sync skipped until it closes."
+else
+  echo "Checking branch sync with $TARGET_BRANCH..."
+  git fetch origin "$TARGET_BRANCH" --quiet 2>/dev/null || true
+  BEHIND=$(git rev-list --count HEAD..origin/"$TARGET_BRANCH" 2>/dev/null || echo 0)
+fi
 
 if [ "$BEHIND" -gt 0 ]; then
   echo "Branch is $BEHIND commit(s) behind origin/$TARGET_BRANCH."
@@ -111,9 +128,59 @@ if [ "$BEHIND" -gt 0 ]; then
       die "Canceled by user."
       ;;
   esac
-else
+elif [ "$REPAIR_STEP" = "NONE" ]; then
   echo "Branch is up to date with origin/$TARGET_BRANCH."
 fi
+
+# ---- quality gate: run tests before every push --------------------------------
+# /f-commit does not run check.sh; this is the only place it gates. It runs before
+# the host CLI checks, so a red build can be repaired without gh/glab set up.
+# Skipped only when the rebase above already ran it on this exact HEAD, or when a
+# repair loop already saw this exact content pass (SKIP_CHECK).
+
+print_repair_block() {
+  local mode="ask the user first; if they decline, run: PYTHONPATH=$ENGINE_ROOT python3 -m engine.cli repair-reset"
+  [ "${SDD_NON_INTERACTIVE:-}" = "1" ] && mode="non-interactive: start without asking"
+  echo ""
+  echo "✗ Checks failed. Nothing was pushed."
+  echo "$1"
+  echo ""
+  fmt_bold "REPAIR LOOP ($mode)"
+  echo "  Fix the code within the spec, then re-run /f-mr — it re-checks the guard,"
+  echo "  counts the attempt (max 3) and re-runs the checks. Never edit check.sh or a"
+  echo "  test-runner config, change or delete existing tests, or skip one."
+  echo "  REF § /f-mr — repair loop."
+}
+
+if [ "$REBASED" = true ]; then
+  echo "Pre-push checks already ran after the rebase."
+elif [ "$REPAIR_STEP" = "SKIP_CHECK" ]; then
+  echo "Pre-push checks already passed on this exact content (repair loop)."
+else
+  echo "Running pre-push checks..."
+  if ! bash "$CHECK_SCRIPT"; then
+    RED_RC=0
+    RED_OUT=$(engine repair-red) || RED_RC=$?
+    if [ "$RED_RC" -eq 3 ]; then
+      echo "$RED_OUT"
+      exit 1
+    fi
+    print_repair_block "$RED_OUT"
+    exit 1
+  fi
+fi
+
+GREEN_RC=0
+GREEN_OUT=$(engine repair-green) || GREEN_RC=$?
+[ -n "$GREEN_OUT" ] && echo "$GREEN_OUT"
+case "$GREEN_RC" in
+  0) ;;
+  4) echo ""
+     echo "NOT PUSHED YET: stage the files listed above, commit with /f-commit, then re-run /f-mr."
+     exit 1 ;;
+  *) exit 1 ;;
+esac
+echo ""
 
 # ---- determine the host provider --------------------------------------------
 # The target host is the project's own remote, NOT where open-sdd lives. An
@@ -141,18 +208,6 @@ case "$PROVIDER" in
   *)
     die "Unknown provider '$PROVIDER'. Use OPEN_SDD_MR_PROVIDER=github|gitlab." ;;
 esac
-
-# ---- quality gate: run tests before every push --------------------------------
-# /f-commit does not run check.sh; this is the only place it gates. Skipped
-# only when the rebase above already ran it on this exact HEAD.
-
-if [ "$REBASED" = true ]; then
-  echo "Pre-push checks already ran after the rebase."
-else
-  echo "Running pre-push checks..."
-  bash "$CHECK_SCRIPT" || { echo "Checks failed. Fix issues before pushing."; exit 1; }
-fi
-echo ""
 
 # ---- build MR body ----------------------------------------------------------
 

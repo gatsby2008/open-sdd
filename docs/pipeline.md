@@ -177,6 +177,9 @@ It pauses to hand control back to the human in only two cases:
   (token-costly) before committing. With no risk signals it does **not** stop —
   it runs straight through `/f-commit` and `/f-mr`.
 
+If `check.sh` fails in `/f-mr`, it runs the repair loop without asking (max 3
+attempts, guarded and counted by `mr.sh`); still red → it stops without pushing.
+
 It never runs `/f-close` (post-merge) or `/f-mr-address` (requires human review
 feedback).
 
@@ -292,7 +295,8 @@ feedback).
 - **Host detection**: creates the MR on the *project's own* remote — `gh` for GitHub, `glab` for GitLab. Override with `OPEN_SDD_MR_PROVIDER=github|gitlab` (needed for self-hosted GitLab)
 - **Pre-push validation**: runs `commands/check.sh` before every push — the only
   place it runs (after an auto-rebase, the run that followed the rebase counts)
-  - Tests fail → stops, does not push
+  - Tests fail → does not push; opens a **repair loop**. The agent asks first (`/f-auto` doesn't), fixes the code and re-runs `/f-mr`; `mr.sh` guards and counts each attempt (max 3): no edits to `check.sh` or test configs, no changes to existing tests, no skips. Green → `NOT PUSHED YET` (rc 1): `git add` the listed paths (new files included), `/f-commit`, then `/f-mr`. Still red, declined, or rejected → stops
+  - Runs before the `gh`/`glab` checks, so a red build can be repaired without the host CLI set up
 - Builds concise MR title and description from spec + commits
 - Pushes branch and creates or updates the MR
 

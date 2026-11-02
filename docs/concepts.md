@@ -33,7 +33,7 @@ Each gate **aborts with no writes** rather than guessing.
 | **Plan required** | `/f-implement` | A **high-risk** pipeline with no plan blocks the step (`PLAN_REQUIRED`). A tier forced with `/f-spec --tier <tier> "<reason>"` wins over the automatic one, in both directions |
 | **Plan staleness** | `/f-implement` | If `plan.md` exists and the spec is newer, the step blocks. Staleness is tracked by **`spec_write_timestamp`** in `state.json`, not filesystem mtime (so `/f-pause`/`/f-resume` stashing can't produce false negatives). Re-run `/f-plan`, or delete `plan.md` to fall back to inline discovery |
 | **Test coverage** | `/f-commit` | A changed production class with no matching test blocks the commit; waive a class with no testable surface (with a reason) in the coverage-waivers file |
-| **Quality (`check.sh`)** | `/f-mr` | The project's test suite must pass before every push. `/f-commit` does not run it |
+| **Quality (`check.sh`)** | `/f-mr` | The project's test suite must pass before every push. `/f-commit` does not run it. On red, `/f-mr` offers a guarded repair loop (below) |
 | **Empty-MR** | `/f-mr` | Aborts on the default branch or when the branch has no commits beyond its base |
 | **Spec conformance** *(advisory)* | `/f-commit` | Lists Behavior ids (`B1`, `B2`, …) with no test tagged `spec: B<n>` in the lines added on the branch. Never blocks |
 | **High-risk auditor** *(advisory)* | `/f-commit` | On high-risk pipelines, asks for `/f-code-review --auditor` once per distinct diff and stores the verdict in `_review/<slug>-audit.json`. Never blocks |
@@ -41,6 +41,23 @@ Each gate **aborts with no writes** rather than guessing.
 The rows marked *(advisory)* only report. `/f-spec` also **warns** (does not block)
 when `plan.md` is stale or the tree has uncommitted changes, and `/f-code-review`
 repeats a soft test-coverage check in its report.
+
+When `check.sh` fails, `/f-mr` pushes nothing and opens a **repair loop**. The
+agent asks first (`/f-auto` starts without asking), fixes the code and re-runs
+`/f-mr`, at most **3 attempts**. A loop is only as good as a metric it cannot
+edit, so `mr.sh` holds it in code (`engine/repair.py`): the state lives in
+`.git/open-sdd-repair-<branch>-<hash>.json` (one loop per branch, never
+committed), and every `/f-mr` run while it is open re-runs a guard and — when the
+content changed since the last red check — counts an attempt before the checks — and before any rebase, which is skipped until the loop closes. The guard
+rejects any change to the project's `commands/check.sh` or to a test-runner
+config (`pytest.ini`, `conftest.py`, `jest.config.*` …), an added line that
+excludes tests in a build file (`pyproject.toml`, `package.json`, `pom.xml` …),
+any removed or modified line in an existing test file, a deleted or renamed test
+file, and any added skip/disable/focus marker (`@Disabled`, `skipif`,
+`assumeTrue(`, `it.only(` …). New tests and new assertions are allowed. A green
+repair is committed with `/f-commit` before the push. This raises the bar rather
+than being tamper-proof: a raw `git push` or `repair-reset` gets past it, and the
+guard cannot see production code that special-cases a test's inputs.
 
 ---
 

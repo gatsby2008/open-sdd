@@ -161,7 +161,13 @@ Implement the next focused change from the spec.
    base branch, runs the quality gate `commands/check.sh` (project-local override
    first; the only place it runs — a failure stops the push), builds the MR body
    from spec + plan, pushes, and creates or updates the MR.
-2. Confirm the MR URL and the next step (`/f-close` after merge).
+2. If the check fails, the script prints a **REPAIR LOOP** block and pushes
+   nothing. Interactive: ask the user whether to repair. Non-interactive
+   (`/f-auto`): start without asking. Each attempt = fix the code, re-run `/f-mr`;
+   the script guards and counts it (max 3). Green → `NOT PUSHED YET` (rc 1): `git add`
+   the listed paths, `/f-commit`, then `/f-mr`.
+   Full protocol: REF § /f-mr — repair loop.
+3. Confirm the MR URL and the next step (`/f-close` after merge).
 
 ### /f-close [--promote '<json>' | --no-promote]
 

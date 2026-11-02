@@ -689,6 +689,43 @@ else
   bad "spec.md should not exist after start"
 fi
 
+echo "== f-mr repair loop: red → guarded attempt → commit → push gate passes =="
+d="$SCRATCH_ROOT/repair"; mkdir -p "$d"; git init -q --bare -b main "$d/remote.git"
+mkdir -p "$d/work"; cd "$d/work"
+git init -q -b main && git config user.email "smoke@open-sdd.test" && git config user.name "open-sdd smoke"
+git remote add origin "$d/remote.git"
+mkdir -p commands tests
+printf 'python3 -m unittest discover -s tests -t .\n' > commands/check.sh
+printf 'import unittest\nfrom calc import add\n\nclass T(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(add(2, 3), 5)\n' > tests/test_calc.py
+: > tests/__init__.py; printf '.specwork/\n__pycache__/\n' > .gitignore
+printf 'def add(a, b):\n    return a + b\n' > calc.py
+git add -A && git commit -qm base && git push -q origin main
+git checkout -q -b feature/repair
+printf 'def add(a, b):\n    return a - b\n' > calc.py; git commit -qam "break add"
+export PYTHONDONTWRITEBYTECODE=1
+assert_out "REPAIR LOOP" "red check prints the repair block" -- bash "$REPO/commands/mr.sh"
+assert_rc 1 "red check exits 1 without pushing" -- bash "$REPO/commands/mr.sh"
+printf '[pytest]\naddopts = -k "not add"\n' > pytest.ini
+assert_out "test-runner config" "re-run rejects a pytest.ini deselect" -- bash "$REPO/commands/mr.sh"
+rm pytest.ini
+printf 'def add(a, b):\n    return a + b\n' > calc.py
+assert_out "NOT PUSHED YET" "green repair asks to commit first" -- bash "$REPO/commands/mr.sh"
+assert_rc 1 "NOT PUSHED YET exits 1" -- bash "$REPO/commands/mr.sh"
+git commit -qam "fix: repair"
+assert_out "already passed on this exact content" "re-run after commit skips the re-check" -- bash "$REPO/commands/mr.sh"
+assert_out "none" "loop closed" -- python3 -m engine.cli repair-status
+
+echo "== f-mr repair loop: a new test file from the repair still closes the loop =="
+printf 'def add(a, b):\n    return a * b\n' > calc.py; git commit -qam "break add again"
+assert_out "REPAIR LOOP" "red check reopens the loop" -- bash "$REPO/commands/mr.sh"
+printf 'def add(a, b):\n    return a + b\n' > calc.py
+printf 'from calc import add\n\ndef test_extra():\n    assert add(1, 1) == 2\n' > tests/test_extra.py
+assert_out "tests/test_extra.py" "green lists the new untracked test file" -- bash "$REPO/commands/mr.sh"
+git add -A && git commit -qm "fix: repair with a new test"
+assert_out "already passed on this exact content" "re-run after commit closes the loop" -- bash "$REPO/commands/mr.sh"
+assert_out "none" "loop closed with the new file committed" -- python3 -m engine.cli repair-status
+unset PYTHONDONTWRITEBYTECODE
+
 echo "------------------------------------------------------------------"
 printf " RESULT: %d passed, %d failed\n" "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

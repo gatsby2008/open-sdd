@@ -65,6 +65,10 @@ This command drives the entire pipeline non-interactively — no bash prompts.
    If auto.sh reported no risk signal, skip this step silently.
 4. Run: ${OPENSDD_PATH}/commands/commit.sh
 5. Run: ${OPENSDD_PATH}/commands/mr.sh — then STOP.
+   If mr.sh prints a 'REPAIR LOOP' block (check.sh failed, nothing pushed), run
+   the repair loop WITHOUT asking (agent/REFERENCE.md § /f-mr — repair loop):
+   fix the code and re-run mr.sh (it guards and counts, max 3); on 'NOT PUSHED
+   YET' run the printed git add, then commit.sh, then mr.sh. Never push on red.
 
 Auto mode ends at the merge request. Do NOT run close.sh (it deletes the branch
 and is a post-merge action) and do NOT run mr-address.sh (it needs human review

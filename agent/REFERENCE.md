@@ -77,7 +77,9 @@ the `/f-start` flow, **before** invoking `auto.sh`.
      the optional `/f-test-design` + `/f-test-impl` steps (token-costly) before
      committing. With **no** risk signals, do **not** pause here.
    - Then run `/f-commit` then `/f-mr` (commit auto-continues to `/f-mr` via
-     pipeline state) and **STOP at the open MR**.
+     pipeline state) and **STOP at the open MR**. If `/f-mr` prints a
+     `REPAIR LOOP` block, run the repair loop without asking (§ /f-mr — repair
+     loop); still red after 3 attempts → stop without pushing.
 
    So the run pauses for the human in only two cases: unresolved Open Questions
    (after `/f-spec`, a hard stop) and the risk-signal test gate (after
@@ -277,6 +279,60 @@ PASS | PASS WITH WARNINGS | FAIL
 ```
 
 `--recheck` mode: compare current diff against previous report, show resolved/still-open/new findings.
+
+## /f-mr — repair loop
+
+A bounded loop against `check.sh`: fix the code, re-check, at most **3 attempts**.
+`check.sh` is the metric, so the loop must not be able to edit it. `mr.sh` — the
+only command that pushes — holds the loop in code through `engine/repair.py`:
+state in the git dir, one file per branch (`.git/open-sdd-repair-<branch>-<hash>.json`,
+never committed), a guard re-run on every `/f-mr` run while the loop is open and an
+attempt counted whenever the content changed since the last red check (re-running
+on the same content is free),
+no rebase while it is open, and no push until it closes green. It raises the bar;
+it is not tamper-proof (a raw `git push` or `repair-reset` gets past it).
+
+The guard rejects: any change to the project's `commands/check.sh` or to a
+test-runner config (`pytest.ini`, `conftest.py`, `jest.config.*`, `.mocharc*` …);
+an added line that excludes or deselects tests in a build file (`pyproject.toml`,
+`package.json`, `pom.xml`, `build.gradle` …); a removed or modified line in an
+existing test file; a deleted or renamed test file; an added skip/disable/focus
+marker (`@Disabled`, `skipif`, `assumeTrue(`, `it.only(`, `t.Skip(` …). When the
+project has no `commands/check.sh` of its own (framework default), only the test
+and config rules apply.
+
+**When.** `mr.sh` printed a `REPAIR LOOP` block after a failed pre-push check.
+Nothing was pushed. Not offered after a post-rebase failure (`mr.sh` dies there).
+
+**Ask first, unless non-interactive.** Interactive: show the failure and ask
+"Try to repair it? (max 3 attempts, without touching check.sh, test configs or
+existing tests)". On anything but yes, drop the loop and stop:
+`PYTHONPATH=$OPEN_SDD_ROOT python3 -m engine.cli repair-reset`. `/f-auto`
+(`SDD_NON_INTERACTIVE=1`): start without asking.
+
+**Each attempt:**
+
+1. Read the `check.sh` output and find the cause (failing test, compile error, lint).
+2. Fix the **code**, staying inside the spec (and plan, when present). Allowed:
+   production code, and *new* lines or files in tests. Not allowed: anything the
+   guard rejects. Never special-case the failing test's inputs in production code
+   (`if price == 200: …`) — the guard cannot see that. If the test itself looks
+   wrong, or the fix needs a business decision the spec does not settle, stop —
+   that is an Open Question, not a repair.
+3. Re-run `/f-mr`. It runs the guard and counts the attempt, then the checks:
+   - red → a new `REPAIR LOOP` block (next attempt), or "attempts are used" → stop;
+   - guard rejection → stop, do not push;
+   - green → `NOT PUSHED YET` (rc 1): it lists the paths to commit and the exact
+     `git add -- <paths>`. Run it — `/f-commit` only stages tracked files, so a new
+     test file would be left out — then commit with `/f-commit` (its coverage gate
+     and conformance check apply) and re-run `/f-mr`. The re-run sees the same
+     content already passed, skips the re-check, closes the loop and pushes.
+     Files that were already untracked when the loop opened (`.DS_Store`, local
+     scratch) are ignored by the guard and never block the close.
+
+**Stopped** (guard rejection or exhausted) → report the reason and the last
+failure. The changes stay in the working tree for the user (`/f-undo` discards
+them; `repair-reset` drops the loop once a human has reviewed them).
 
 ## /f-mr-review
 

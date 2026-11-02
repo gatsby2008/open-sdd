@@ -506,6 +506,15 @@ def cmd_audit_record(args: list[str]) -> int:
     return 0
 
 
+def _repair(cmd):
+    # /f-mr repair loop (engine/repair.py): state in the git dir, attempt cap,
+    # metric guard. commands/mr.sh drives it; see its docstring for the rcs.
+    def handler(args: list[str]) -> int:
+        from engine.repair import run
+        return run(cmd, args)
+    return handler
+
+
 def cmd_bump_spec_ts(args: list[str]) -> int:
     slug = args[0] if args else resolve_slug()
     if not slug:
@@ -545,6 +554,12 @@ DISPATCH = {
     "promote-apply": cmd_promote_apply,
     "audit-required": cmd_audit_required,
     "audit-record": cmd_audit_record,
+    "repair-red": _repair("red"),
+    "repair-pre": _repair("pre"),
+    "repair-green": _repair("green"),
+    "repair-reset": _repair("reset"),
+    "repair-status": _repair("status"),
+    "repair-guard": _repair("guard"),
     "count-oqs": cmd_count_oqs,
     "audit": cmd_audit,
     "derive-branch": cmd_derive_branch,
