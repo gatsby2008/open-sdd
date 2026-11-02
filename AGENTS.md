@@ -51,7 +51,7 @@ Each command independently checks preconditions:
 | `/doc-adr` | `doc-adr.sh` | Architecture Decision Record |
 | `/doc-spec` | `doc-spec.sh` | Store a feature spec in the central registry |
 | `/doc-investigation` | `doc-investigation.sh` | Capture investigation as structured document |
-| `/doc-ask` | `doc-ask.sh` | One query across all registries (`engine/registry.py`); the `doc-*-query` commands are deprecated aliases |
+| `/doc-ask` | `doc-ask.sh` | One query across all registries (`engine/registry.py`) |
 
 ### Registries
 

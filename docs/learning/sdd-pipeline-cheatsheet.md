@@ -82,7 +82,7 @@ Without these commands, the fallback is often `/f-close`, which wipes `.specwork
 
 ---
 
-**29 commands total** (20 pipeline + 9 doc commands: four create commands, `/doc-ask`, and four deprecated `/doc-*-query` aliases).
+**25 commands total** (20 pipeline + 5 doc commands: four create commands and `/doc-ask`).
 
 **See also:**
 - [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview

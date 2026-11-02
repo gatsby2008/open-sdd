@@ -20,8 +20,8 @@ grep -q 'f-refine.md' "$INSTALL_SH" || {
   exit 1
 }
 
-# Ensure the doc command surface (4 nouns × create + query, plus doc-ask) is registered.
-for cmd in doc-ask doc-catalog doc-catalog-query doc-adr doc-adr-query doc-spec doc-spec-query doc-investigation doc-investigation-query; do
+# Ensure the doc command surface (4 create commands + doc-ask) is registered.
+for cmd in doc-ask doc-catalog doc-adr doc-spec doc-investigation; do
   grep -q "install_doc_cmd_directive \"$cmd\"" "$INSTALL_SH" || {
     echo "PARITY FAIL: missing registration for $cmd in install.sh" >&2
     exit 1
@@ -29,8 +29,9 @@ for cmd in doc-ask doc-catalog doc-catalog-query doc-adr doc-adr-query doc-spec 
 done
 
 # Ensure renamed/removed doc commands stay gone (publish folded into create;
-# *-query renamed to doc-*-query; doc-freshness and arch-query dropped).
-for gone in doc-publish adr-publish spec-publish doc-query adr-query spec-query doc-freshness arch-query; do
+# *-query renamed to doc-*-query, later folded into doc-ask; doc-freshness and
+# arch-query dropped).
+for gone in doc-publish adr-publish spec-publish doc-query adr-query spec-query doc-freshness arch-query doc-catalog-query doc-adr-query doc-spec-query doc-investigation-query; do
   if grep -q "install_doc_cmd_directive \"$gone\"" "$INSTALL_SH"; then
     echo "PARITY FAIL: install.sh still registers removed/renamed command $gone" >&2
     exit 1

@@ -206,7 +206,7 @@ Standalone:
   /f-handoff        Package artifacts for another agent
   /f-undo           Discard uncommitted changes (reversible)
 
-Plus companion commands: /doc-catalog, /doc-adr, /doc-spec, /doc-investigation (+ *-query)
+Plus companion commands: /doc-catalog, /doc-adr, /doc-spec, /doc-investigation, /doc-ask
 ```
 
 ---
@@ -1010,7 +1010,7 @@ rules you approve from each finished spec.
 
 **Standalone:** `/f-commit` · `/f-mr` · `/f-code-review` · `/f-mr-review` · `/f-undo`
 
-**Doc commands:** `/doc-catalog` · `/doc-adr` · `/doc-spec` · `/doc-investigation` (+ `*-query`)
+**Doc commands:** `/doc-catalog` · `/doc-adr` · `/doc-spec` · `/doc-investigation` · `/doc-ask`
 
 ---
 

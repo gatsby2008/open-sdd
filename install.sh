@@ -98,26 +98,18 @@ When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-catalog.sh li
 Otherwise run ${OPENSDD_PATH}/commands/doc-catalog.sh . It scans the project, detects the stack and service, and prints instructions to generate the catalog and write it STRAIGHT to the registry — no copy in the repo (no docs/service-info.md), no confirmation prompt. Follow the printed instructions and print the stored registry path. Use --with-docs to also publish docs/architecture/, docs/features/, docs/product/ to the registry alongside the catalog."
 install_doc_cmd_directive "doc-ask" "Ask anything across the doc registries (catalogs, ADRs, specs, investigations)" "\
 Run ${OPENSDD_PATH}/commands/doc-ask.sh \"\$ARGUMENTS\" — pass the arguments verbatim; do not add type: or service: yourself. It prints an INDEX of every registered doc, the best-matching docs (large ones trimmed to their matching sections), other matches by path, and reading hints. Answer from that output, citing every claim as its registry path. If an INDEX entry looks relevant but was not loaded, read it before answering. If a WIKI line is printed, you may follow the wiki's [[backlinks]] for cross-cutting questions, but cite the raw docs; relay a 'wiki is behind' warning in one line. If the registry does not cover the question, say what you read — never invent."
-install_doc_cmd_directive "doc-catalog-query" "Deprecated — use /doc-ask type:catalog" "\
-Run ${OPENSDD_PATH}/commands/doc-catalog-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:catalog: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 install_doc_cmd_directive "doc-adr" "Create an ADR and store it in the registry (list: /doc-adr list)" "\
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-adr.sh list — it prints ADRs for the current repo's service. Stop after the list; do not create a new ADR.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-adr.sh \$ARGUMENTS to find the next ADR number and gather context. Use the output to draft an ADR, then write it STRAIGHT to the registry — no copy in the repo (no docs/adr/), no confirmation prompt. Follow the printed instructions and print the stored registry path."
-install_doc_cmd_directive "doc-adr-query" "Deprecated — use /doc-ask type:adr" "\
-Run ${OPENSDD_PATH}/commands/doc-adr-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:adr: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 install_doc_cmd_directive "doc-spec" "Store a feature spec in the central spec registry (list: /doc-spec list)" "\
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-spec.sh list — it prints specs for the current repo's service. Stop after the list.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-spec.sh \$ARGUMENTS. It resolves the spec file (path argument or auto-detect from pipeline), detects the service, and prints instructions to store it in the registry. Counterpart to /f-mr (which stores automatically) — for hand-written or standalone specs."
-install_doc_cmd_directive "doc-spec-query" "Deprecated — use /doc-ask type:spec" "\
-Run ${OPENSDD_PATH}/commands/doc-spec-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:spec: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 install_doc_cmd_directive "doc-investigation" "Capture current investigation as a structured document (list: /doc-investigation list)" "\
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-investigation.sh list — it prints investigations for the current repo's service. Stop after the list.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh \$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Print the full draft, then write it straight to the registry — no yes/no gate; the user can still interrupt to edit."
-install_doc_cmd_directive "doc-investigation-query" "Deprecated — use /doc-ask type:investigation" "\
-Run ${OPENSDD_PATH}/commands/doc-investigation-query.sh \"\$ARGUMENTS\". It is a deprecated alias that delegates to /doc-ask type:investigation: tell the user once to use /doc-ask, then answer from the output exactly as /doc-ask does, citing every claim as its registry path."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").
@@ -136,8 +128,10 @@ rm -f "${CMD_DIR}/doc-query.md" "${CMD_DIR}/adr-query.md" "${CMD_DIR}/spec-query
 rm -f "${CMD_DIR}/doc-freshness.md"
 # arch-query removed.
 rm -f "${CMD_DIR}/arch-query.md"
+# doc-*-query folded into doc-ask.
+rm -f "${CMD_DIR}/doc-catalog-query.md" "${CMD_DIR}/doc-adr-query.md" "${CMD_DIR}/doc-spec-query.md" "${CMD_DIR}/doc-investigation-query.md"
 
-echo "open-sdd: 29 commands installed to $CMD_DIR"
+echo "open-sdd: 25 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
 # Global SDD instructions file (avoids confusion with project-level AGENTS.md)

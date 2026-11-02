@@ -420,7 +420,7 @@ Questions worth preserving, recommend `/doc-adr open-questions`.
 | `/doc-adr` | `doc-adr.sh` | Create an Architecture Decision Record and store it in the registry (`list` to inspect) |
 | `/doc-spec` | `doc-spec.sh` | Store a feature spec in the central spec registry (`list` to inspect) |
 | `/doc-investigation` | `doc-investigation.sh` | Capture the current investigation as a structured document (`list` to inspect) |
-| `/doc-ask` | `doc-ask.sh` | One query across catalogs, ADRs, specs and investigations: index + best-matching docs within a budget (`OPEN_SDD_ASK_BUDGET`). Optional `type:` / `service:`. The four `doc-*-query` commands are deprecated aliases (`type:<registry>`) |
+| `/doc-ask` | `doc-ask.sh` | One query across catalogs, ADRs, specs and investigations: index + best-matching docs within a budget (`OPEN_SDD_ASK_BUDGET`). Optional `type:` / `service:` |
 
 ## Stack detection
 

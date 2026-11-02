@@ -59,7 +59,7 @@ usa flags (`--type`, `--service`), no texto libre.
 | 2 | `commands/doc-ask.sh`, registro en `install.sh`/`install.ps1`, smoke | hecho |
 | 3 | Los cuatro `*-query` pasan a stubs deprecados que delegan en `doc-ask type:<x>` | hecho |
 | 4 | Docs: `pipeline-reference.md` (4 filas → 1), `REFERENCE.md`, `AGENTS.md`, README, learning | hecho |
-| 5 | Borrar los stubs (requiere OK): parity check exige `doc-ask`, `install.sh` limpia los `.md` viejos | |
+| 5 | Borrar los stubs: parity check exige `doc-ask` y prohíbe los `*-query`, `install.sh` limpia los `.md` viejos | hecho (2026-11-02, a pedido) |
 | 6 | Navegar la capa `wiki/` si existe y avisar si está atrasada (paridad con `/sdd:ask`) | hecho |
 
 ## Medición contra el registro real (2026-11-02, 96 docs, ~980 KB)

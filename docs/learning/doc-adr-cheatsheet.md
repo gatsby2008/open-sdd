@@ -13,8 +13,7 @@ Four registries, one mechanism:
 | `spec-registry/<service>/` — feature specs | `/doc-spec` (and `/f-mr` inside the pipeline) | `type:spec` |
 | `investigation-registry/<service>/` — bug / exploration / improvement notes | `/doc-investigation` | `type:investigation` |
 
-One query command, `/doc-ask`, reads all four; the filter is optional. The old
-`/doc-*-query` commands still work as deprecated aliases of `/doc-ask type:<registry>`.
+One query command, `/doc-ask`, reads all four; the filter is optional.
 
 > **Central registry** (`$OPEN_SDD_DOC_HOME`, default `${OPEN_SDD_ROOT:-~}/.opensdd/registry/`).
 > Set `OPEN_SDD_DOC_HOME` to a team-shared Git repo for cross-service queries.
