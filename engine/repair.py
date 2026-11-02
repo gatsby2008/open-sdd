@@ -23,7 +23,8 @@ State lives in the git dir, one file per branch
 (``open-sdd-repair-<branch>-<hash>.json``), never in ``.specwork/`` and never
 committed: ``base``, ``attempts``, ``untracked_at_open`` (ignored by the guard
 and by ``green``), ``checked_tree`` (re-checking the same red content costs no
-attempt) and ``green_tree``. ``commands/mr.sh``
+attempt) and ``green_tree``. Opening a loop prunes the state of deleted
+branches. ``commands/mr.sh``
 — the only place that pushes — drives it: it runs ``pre`` before ``check.sh``
 (guard + attempt count), ``red`` on a failure and ``green`` on a pass, and
 pushes only after ``green`` closed the loop. While a loop is open it also skips
@@ -164,6 +165,11 @@ def uncommitted(tracked, untracked, preexisting):
     return sorted(set(tracked) | {p for p in untracked if p not in before})
 
 
+def stale_states(states, branches):
+    """State file names (from ``{name: branch}``) whose branch no longer exists. Unknown branch → kept."""
+    return sorted(name for name, branch in states.items() if branch and branch not in branches)
+
+
 def next_step(state, worktree_tree):
     """What ``pre`` decides for an open loop: ``SKIP_CHECK`` (this exact tree already passed),
     ``EXHAUSTED`` (no attempts left) or ``RUN_CHECK``."""
@@ -198,6 +204,23 @@ def current_branch():
 def state_file():
     """One loop per branch: ``<git-dir>/open-sdd-repair-<branch>-<hash>.json``."""
     return Path(_git(["rev-parse", "--git-path", state_name(current_branch())]).strip())
+
+
+def prune_stale_states():
+    """Delete loop state left behind by deleted branches. Best effort."""
+    try:
+        directory = state_file().parent
+        branches = set(_git(["for-each-ref", "--format=%(refname:short)", "refs/heads"]).split())
+        states = {}
+        for f in directory.glob(STATE_PREFIX + "-*.json"):
+            try:
+                states[f.name] = json.loads(f.read_text(encoding="utf-8")).get("branch", "")
+            except (ValueError, OSError):
+                continue
+        for name in stale_states(states, branches):
+            (directory / name).unlink()
+    except (OSError, subprocess.CalledProcessError):
+        pass
 
 
 def load_state():
@@ -295,6 +318,7 @@ def red():
                  "branch": current_branch(), "untracked_at_open": untracked_files(),
                  "checked_tree": worktree_tree(), "opened_at": datetime.now(timezone.utc).isoformat()}
         save_state(state)
+        prune_stale_states()
         print("REPAIR_BASE={}".format(state["base"]))
         print("Repair loop opened — up to {} attempts.".format(MAX_ATTEMPTS))
         return 0

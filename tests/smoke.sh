@@ -719,7 +719,8 @@ echo "== f-mr repair loop: a new test file from the repair still closes the loop
 printf 'def add(a, b):\n    return a * b\n' > calc.py; git commit -qam "break add again"
 assert_out "REPAIR LOOP" "red check reopens the loop" -- bash "$REPO/commands/mr.sh"
 printf 'def add(a, b):\n    return a + b\n' > calc.py
-printf 'from calc import add\n\ndef test_extra():\n    assert add(1, 1) == 2\n' > tests/test_extra.py
+printf 'import unittest\nfrom calc import add\n\nclass Extra(unittest.TestCase):\n    def test_extra(self):\n        self.assertEqual(add(1, 1), 2)\n' > tests/test_extra.py
+assert_out "Ran 2 tests" "the repair's new test file actually runs" -- bash commands/check.sh
 assert_out "tests/test_extra.py" "green lists the new untracked test file" -- bash "$REPO/commands/mr.sh"
 git add -A && git commit -qm "fix: repair with a new test"
 assert_out "already passed on this exact content" "re-run after commit closes the loop" -- bash "$REPO/commands/mr.sh"

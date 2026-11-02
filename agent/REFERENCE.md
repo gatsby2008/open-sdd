@@ -290,7 +290,8 @@ never committed), a guard re-run on every `/f-mr` run while the loop is open and
 attempt counted whenever the content changed since the last red check (re-running
 on the same content is free),
 no rebase while it is open, and no push until it closes green. It raises the bar;
-it is not tamper-proof (a raw `git push` or `repair-reset` gets past it).
+it is not tamper-proof (a raw `git push` or `repair-reset` gets past it). State left
+by deleted branches is pruned whenever a new loop opens.
 
 The guard rejects: any change to the project's `commands/check.sh` or to a
 test-runner config (`pytest.ini`, `conftest.py`, `jest.config.*`, `.mocharc*` …);
@@ -328,7 +329,12 @@ existing tests)". On anything but yes, drop the loop and stop:
      and conformance check apply) and re-run `/f-mr`. The re-run sees the same
      content already passed, skips the re-check, closes the loop and pushes.
      Files that were already untracked when the loop opened (`.DS_Store`, local
-     scratch) are ignored by the guard and never block the close.
+     scratch) are ignored by the guard and never block the close. That includes an
+     untracked test file: a skip marker it already had before the loop opened is
+     not seen — the guard judges only what the repair changes.
+   - Re-running on unchanged content costs no attempt, but it does re-run the whole
+     check (fresh output, and a flaky test gets its chance) — so do not re-run just
+     to read the output again.
 
 **Stopped** (guard rejection or exhausted) → report the reason and the last
 failure. The changes stay in the working tree for the user (`/f-undo` discards

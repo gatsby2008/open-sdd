@@ -106,6 +106,10 @@ class TestStateHelpers(unittest.TestCase):
         self.assertNotEqual(a, b)
         self.assertRegex(repair.state_name("weird branch!"), r"^[A-Za-z0-9._-]+\.json$")
 
+    def test_stale_states(self):
+        states = {"a.json": "feature/gone", "b.json": "main", "c.json": ""}
+        self.assertEqual(repair.stale_states(states, {"main"}), ["a.json"])
+
     def test_counts_attempt_only_on_changed_content(self):
         self.assertFalse(repair.counts_attempt({"checked_tree": "t1"}, "t1"))
         self.assertTrue(repair.counts_attempt({"checked_tree": "t1"}, "t2"))
@@ -299,6 +303,17 @@ class TestLoop(RepoCase):
         self.assertEqual(self._run("status")[1].strip(), "none")
         self.assertEqual(self._run("pre"), (0, "NONE\n"))
         _git(self.tmp, "checkout", "-q", "main")
+        self.assertIsNotNone(self._state())
+
+    def test_opening_a_loop_prunes_state_of_deleted_branches(self):
+        _git(self.tmp, "checkout", "-q", "-b", "gone")
+        self._run("red")
+        gone_state = repair.state_file()
+        self.assertTrue(gone_state.is_file())
+        _git(self.tmp, "checkout", "-q", "main")
+        _git(self.tmp, "branch", "-q", "-D", "gone")
+        self._run("red")
+        self.assertFalse(gone_state.exists())
         self.assertIsNotNone(self._state())
 
     def test_reset(self):
