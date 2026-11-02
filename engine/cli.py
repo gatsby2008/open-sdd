@@ -561,8 +561,25 @@ def cmd_catalog_freshness(args: list[str]) -> int:
     return 0
 
 
+def cmd_impact(args: list[str]) -> int:
+    # Usage: impact <spec.md> [--service <own>] — prints a plan's
+    # "## Cross-Service Impact" section from the service catalogs.
+    if not args:
+        print("Usage: cli.py impact <spec.md> [--service <own-service>]", file=sys.stderr)
+        return 1
+    from engine.registry import render_impact
+    own = ""
+    if "--service" in args:
+        i = args.index("--service")
+        own = args[i + 1] if i + 1 < len(args) else ""
+        args = args[:i] + args[i + 2:]
+    print(render_impact(Path(args[0]).read_text(encoding="utf-8"), own), end="")
+    return 0
+
+
 DISPATCH = {
     "precheck": cmd_precheck,
+    "impact": cmd_impact,
     "catalog-freshness": cmd_catalog_freshness,
     "ask": cmd_ask,
     "triage": cmd_triage,

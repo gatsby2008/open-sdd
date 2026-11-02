@@ -466,6 +466,14 @@ except: pass
     echo ""
   fi
 
+  # Cross-service impact: other services' catalogs that mention what the spec
+  # touches (events, endpoints, queues). Read-only; never blocks the plan.
+  ( . "$SCRIPT_DIR/../lib/service-name.sh"
+    PYTHONPATH="$SCRIPT_DIR/.." python3 -m engine.cli impact "$SPEC_FILE" \
+      --service "$(resolve_service_name)" 2>/dev/null ) \
+    || echo "## Cross-Service Impact"$'\n\n'"_Impact not checked (registry unreadable)._"
+  echo ""
+
   echo "## Risks / Constraints"
   echo ""
   echo "- _(add notes as needed)_"

@@ -357,6 +357,105 @@ def _age_days(iso: str) -> Optional[int]:
         return None
 
 
+# ------------------------------------------------------------------ impact ---
+
+# Identifiers that cross service boundaries: backticked names, CamelCase events
+# and types, /api paths, and kebab queue/topic names.
+_IMPACT_ID = re.compile(
+    r"`([^`\s]{4,})`"
+    r"|\b([A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+)+)\b"
+    r"|(/api/[\w/{}.-]+)"
+    r"|\b([a-z0-9]+(?:-[a-z0-9]+)*-(?:queue|topic|events?|dlq))\b")
+_FILE_EXT = re.compile(r"\.(java|kt|ts|tsx|js|py|md|yml|yaml|json|xml|sql|sh)$")
+IMPACT_MAX_IDS = 25
+IMPACT_MAX_ROWS = 30
+# Catalog sections that describe a contract with other services.
+_CONTRACT_SECTION = re.compile(
+    r"endpoint|publish|consume|calls?\b|feign|webhook|callback|messaging|event|"
+    r"listener|queue|topic|integration|sns|sqs|kafka|client", re.I)
+GENERIC_SHARE = 0.5      # identifiers in >= half the catalogs are not contracts
+
+
+def impact_identifiers(spec_text: str) -> list[str]:
+    """Candidate cross-service identifiers in a spec, in order, de-duplicated.
+    File paths and parenthesised calls are dropped; a path keeps its last segment."""
+    seen: list[str] = []
+    for m in _IMPACT_ID.finditer(spec_text):
+        tok = next(g for g in m.groups() if g).strip(".,;:()")
+        tok = re.sub(r"\(.*$", "", tok)
+        if _FILE_EXT.search(tok):
+            tok = Path(tok).stem
+        if "/" in tok and not tok.startswith("/api/"):
+            continue
+        # a plain lowercase word (`guid`, `status`) is a field, not a contract
+        if not re.search(r"[A-Z_/-]|\d", tok):
+            continue
+        if len(tok) >= 4 and tok not in seen:
+            seen.append(tok)
+    return seen[:IMPACT_MAX_IDS]
+
+
+def _heading_for(lines: list[str], idx: int) -> str:
+    for j in range(idx, -1, -1):
+        if lines[j].startswith("## "):
+            return lines[j][3:].strip()
+    return "(top)"
+
+
+def impact(spec_text: str, own_service: str, root: Optional[Path] = None):
+    """[(identifier, service, catalog rel, section, line)] for every identifier
+    of the spec that another service's catalog mentions."""
+    root = root or registry_root()
+    # main catalogs only (service-catalog/<service>.md), not the extra docs/
+    catalogs = [d for d in load_docs(root, ["catalog"])
+                if d.service != own_service.lower() and "/" not in d.rel.split("/", 1)[1]]
+    rows = []
+    for ident in impact_identifiers(spec_text):
+        hits = [d for d in catalogs if ident in d.text]
+        if not hits or (len(catalogs) >= 4 and len(hits) >= GENERIC_SHARE * len(catalogs)):
+            continue
+        for d in hits:
+            lines = d.text.splitlines()
+            for i, line in enumerate(lines):
+                if ident in line and not line.startswith("#"):
+                    section = _heading_for(lines, i)
+                    if _CONTRACT_SECTION.search(section):
+                        rows.append((ident, d.service, d.rel, section,
+                                     re.sub(r"\s+", " ", line.strip())[:140]))
+                        break
+    return rows, catalogs
+
+
+def render_impact(spec_text: str, own_service: str, root: Optional[Path] = None) -> str:
+    """Markdown `## Cross-Service Impact` section for a plan."""
+    rows, catalogs = impact(spec_text, own_service, root)
+    out = ["## Cross-Service Impact", ""]
+    if not catalogs:
+        out.append("_No other service catalogs in the registry — impact not checked._")
+        return "\n".join(out) + "\n"
+    ids = impact_identifiers(spec_text)
+    if not rows:
+        shown = ", ".join(f"`{i}`" for i in ids[:8]) or "none found"
+        out.append(f"_No other service's catalog mentions what this spec touches "
+                   f"({shown}); checked {len(catalogs)} catalog(s)._")
+        return "\n".join(out) + "\n"
+    max_age = int(os.environ.get("OPEN_SDD_CATALOG_MAX_AGE_DAYS", CATALOG_MAX_AGE_DAYS))
+    out.append(f"Other services whose catalog mentions an identifier this spec touches "
+               f"({len(catalogs)} catalog(s) checked). Confirm each before changing a "
+               f"contract; `/doc-ask <identifier>` gives the details.")
+    out.append("")
+    out.append("| Identifier | Service | Section | Catalog line |")
+    out.append("|---|---|---|---|")
+    ages = {d.rel: _age_days(d.date) for d in catalogs}
+    for ident, svc, rel, section, line in rows[:IMPACT_MAX_ROWS]:
+        age = ages.get(rel)
+        stale = f" (catalog {age} d old)" if age is not None and age > max_age else ""
+        out.append(f"| `{ident}` | {svc}{stale} | {section} | {line.replace('|', '/')} |")
+    if len(rows) > IMPACT_MAX_ROWS:
+        out.append(f"| … | {len(rows) - IMPACT_MAX_ROWS} more | | |")
+    return "\n".join(out) + "\n"
+
+
 # ---------------------------------------------------------------- ranking ---
 
 def _headings(text: str) -> str:

@@ -663,6 +663,16 @@ printf '%s' "$out" | grep -qF "No documents found" && ok "doc-ask graceful on em
 out="$(bash "$REPO/commands/doc-ask.sh" 2>&1 </dev/null)"
 printf '%s' "$out" | grep -qF "Usage: /doc-ask" && ok "doc-ask prints usage without a question" || bad "doc-ask usage"
 
+echo "== impact: cross-service section for plans =="
+IMP_REG="$SCRATCH_ROOT/imp-reg"
+mkdir -p "$IMP_REG/service-catalog"
+printf '# Service: marketing-service\n## Consumes (SQS)\n- `LeadCreated` from marketing-queue\n' > "$IMP_REG/service-catalog/marketing-service.md"
+printf '# Service: leads-service\n## Publishes (SNS)\n- `LeadCreated`\n' > "$IMP_REG/service-catalog/leads-service.md"
+printf '# spec\n## Behavior\n1. Add `score` to the `LeadCreated` payload.\n' > "$SCRATCH_ROOT/imp-spec.md"
+out="$(cd "$REPO" && OPEN_SDD_DOC_HOME="$IMP_REG" PYTHONPATH="$REPO" python3 -m engine.cli impact "$SCRATCH_ROOT/imp-spec.md" --service leads-service 2>&1)"
+printf '%s' "$out" | grep -qF "| \`LeadCreated\` | marketing-service" && ok "impact lists the consuming service" || bad "impact consumer missing :: ${out:0:200}"
+printf '%s' "$out" | grep -qF "| leads-service" && bad "impact listed the own service" || ok "impact excludes the own service"
+
 echo "== status.sh shows clickable OQ path =="
 d=$(new_repo status-oclk); cd "$d"
 mkdir -p .specwork/_state .specwork/_spec

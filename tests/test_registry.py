@@ -356,5 +356,38 @@ class TestCatalogAgeWarning(RegistryCase):
                                            "> Last updated: 2026-06-07 · Verified at: abc1234def56"))
         self.assertIn("verified at abc1234def56", ask(["type:catalog LeadCreated"], budget=100_000))
 
+class TestImpact(RegistryCase):
+    SPEC = ("# spec\n## Behavior\n1. Add `score` to the `LeadCreated` payload published "
+            "to `lead-events`.\n2. Update `LeadService.java` and call `/api/v1/consent`.\n")
+
+    def test_identifiers(self):
+        ids = registry.impact_identifiers(self.SPEC)
+        self.assertIn("LeadCreated", ids)
+        self.assertIn("/api/v1/consent", ids)
+        self.assertIn("LeadService", ids)            # file name -> stem
+        self.assertNotIn("score", ids)               # plain field, not a contract
+
+    def test_other_services_in_contract_sections_only(self):
+        out = registry.render_impact(self.SPEC, "leads-service")
+        self.assertIn("| `LeadCreated` | marketing-service", out)
+        self.assertIn("| `LeadCreated` | consent-service", out)
+        self.assertIn("| `/api/v1/consent` | consent-service", out)
+        self.assertNotIn("| leads-service", out)      # own service excluded
+        self.assertIn("Consumes (SQS)", out)
+
+    def test_extra_docs_are_not_catalogs(self):
+        rows, catalogs = registry.impact(self.SPEC, "nobody")
+        self.assertTrue(all("/docs/" not in d.rel for d in catalogs))
+
+    def test_nothing_found(self):
+        out = registry.render_impact("# spec\nTouch `OrphanEvent` only.\n", "leads-service")
+        self.assertIn("No other service's catalog mentions", out)
+        self.assertIn("`OrphanEvent`", out)
+
+    def test_no_catalogs(self):
+        with tempfile.TemporaryDirectory() as empty:
+            out = registry.render_impact(self.SPEC, "x", Path(empty))
+        self.assertIn("impact not checked", out)
+
 if __name__ == "__main__":
     unittest.main()

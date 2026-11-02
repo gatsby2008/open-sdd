@@ -83,3 +83,15 @@ ajustes, ambos con test de regresión en `tests/test_registry.py`:
   ese registro (×1.5) y no cuentan como término de búsqueda.
 
 El set de preguntas no se versiona (usa el registro privado del equipo).
+
+## Usos del engine más allá de `/doc-ask`
+
+- **Vigencia de catálogos:** el encabezado del catálogo registra `Verified at: <commit>`;
+  `/doc-catalog list` cuenta commits y archivos de código desde ese commit, y `/doc-ask`
+  avisa cuando un catálogo cargado tiene más de 90 días.
+- **Impacto entre servicios en `/f-plan`:** `engine.cli impact <spec>` lista los otros
+  servicios cuyo catálogo menciona, en una sección de contrato (endpoints, publica,
+  consume, llamadas), un evento, endpoint o cola que la spec toca. Descarta los
+  identificadores genéricos (presentes en ≥ la mitad de los catálogos) y los campos
+  sueltos. Con el registro real, la spec MYYES-17721 muestra que `PHONE_UPDATED`
+  sale por `mygapi-event`, que consume collateral-service.

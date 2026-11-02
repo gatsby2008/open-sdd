@@ -113,6 +113,9 @@ spec (`--tier` alone exits after forcing); in draft mode the triage run applies 
 
 Discover target files and write `plan.md` + `plan.json`. Blocks on unresolved Open
 Questions. Discovery heuristics per stack: REF § /f-plan — discovery steps.
+The plan's `## Cross-Service Impact` lists other services whose catalog mentions an
+event, endpoint or queue the spec touches; if the spec changes one of those
+contracts, add a plan Open Question (who must be told/coordinated) — never decide it.
 
 ### /f-implement
 
