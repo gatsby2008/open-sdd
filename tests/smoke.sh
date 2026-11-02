@@ -634,7 +634,7 @@ assert_json ".specwork/_state/tri-test-state.json"  "complexity"  "LOW"      "tr
 skip0=$(python3 -c "import json; print(json.load(open('.specwork/_state/tri-test-path.json'))['skip'][0])" 2>/dev/null || echo "__MISSING__")
 [ "$skip0" = "f-plan" ] && ok "triage path skips plan for focused (skip[0]=$skip0)" || bad "triage path skips plan (skip[0]=$skip0, want f-plan)"
 
-echo "== doc-spec-query: reads the spec registry published by /f-mr =="
+echo "== doc-spec-query (deprecated alias of doc-ask type:spec) =="
 SPEC_REG="$SCRATCH_ROOT/spec-reg"
 mkdir -p "$SPEC_REG/spec-registry/lead-service"
 printf '# demo\n## Behavior\nSkip dedupe when applicationId is null.\n' > "$SPEC_REG/spec-registry/lead-service/dedupe-spec.md"
@@ -642,7 +642,8 @@ out="$(OPEN_SDD_DOC_HOME="$SPEC_REG" bash "$REPO/commands/doc-spec-query.sh" "wh
 printf '%s' "$out" | grep -qF "lead-service/dedupe-spec.md" && ok "doc-spec-query lists the published spec" || bad "doc-spec-query missing spec :: ${out:0:160}"
 printf '%s' "$out" | grep -qF "Skip dedupe when applicationId is null" && ok "doc-spec-query prints the spec body" || bad "doc-spec-query body missing"
 out="$(OPEN_SDD_DOC_HOME="$SCRATCH_ROOT/empty-reg" bash "$REPO/commands/doc-spec-query.sh" "x" 2>&1 </dev/null)"
-printf '%s' "$out" | grep -qF "No specs found" && ok "doc-spec-query graceful on empty registry" || bad "doc-spec-query empty-registry path"
+printf '%s' "$out" | grep -qF "No documents found" && ok "doc-spec-query graceful on empty registry" || bad "doc-spec-query empty-registry path"
+printf '%s' "$out" | grep -qF "deprecated — use /doc-ask type:spec" && ok "doc-spec-query points to doc-ask" || bad "doc-spec-query deprecation notice missing"
 
 echo "== doc-ask: one query across the registries =="
 ASK_REG="$SCRATCH_ROOT/ask-reg"
