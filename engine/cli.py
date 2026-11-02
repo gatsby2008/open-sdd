@@ -561,6 +561,23 @@ def cmd_catalog_freshness(args: list[str]) -> int:
     return 0
 
 
+def cmd_ingest_status(args: list[str]) -> int:
+    # Usage: ingest-status [<raw-root>] [<path under raw/> | session] — the facts
+    # /doc-ingest prints before its compile instructions. Implementation:
+    # engine/ingest.py (commands/doc-ingest.sh wraps this entry point).
+    from engine.ingest import plan, render
+    from engine.registry import registry_root
+
+    root = Path(args[0]) if args else registry_root()
+    target = args[1] if len(args) > 1 else None
+    result = plan(root, target)
+    if result.error:
+        print(result.error, file=sys.stderr)
+        return 1
+    print(render(result))
+    return 0
+
+
 def cmd_impact(args: list[str]) -> int:
     # Usage: impact <spec.md> [--service <own>] — prints a plan's
     # "## Cross-Service Impact" section from the service catalogs.
@@ -581,6 +598,7 @@ DISPATCH = {
     "precheck": cmd_precheck,
     "impact": cmd_impact,
     "catalog-freshness": cmd_catalog_freshness,
+    "ingest-status": cmd_ingest_status,
     "ask": cmd_ask,
     "triage": cmd_triage,
     "status": cmd_status,

@@ -82,7 +82,7 @@ Without these commands, the fallback is often `/f-close`, which wipes `.specwork
 
 ---
 
-**25 commands total** (20 pipeline + 5 doc commands: four create commands and `/doc-ask`).
+**26 commands total** (20 pipeline + 6 doc commands: four create commands, `/doc-ask` to query them, and `/doc-ingest` to compile a two-layer wiki).
 
 **See also:**
 - [open-sdd-architecture.md](open-sdd-architecture.md) — architectural overview

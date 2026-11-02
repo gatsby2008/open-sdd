@@ -113,5 +113,6 @@ Do not create for:
 | `/doc-spec list` | `bash $OPEN_SDD_ROOT/commands/doc-spec.sh list` |
 | `/doc-investigation` | `bash $OPEN_SDD_ROOT/commands/doc-investigation.sh` |
 | `/doc-ask <question>` | `bash $OPEN_SDD_ROOT/commands/doc-ask.sh "<question>"` — one query over catalogs, ADRs, specs and investigations; omit `type:` unless the question is clearly about one registry |
+| `/doc-ingest [path\|session]` | `bash $OPEN_SDD_ROOT/commands/doc-ingest.sh` — compile `raw/` into the `wiki/` layer when the registry root is a two-layer vault (`wiki/` sibling of `raw/`); no argument compiles what changed since the last log entry, `list` inspects |
 
 All commands run from the root of the current project.

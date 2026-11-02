@@ -421,6 +421,7 @@ Questions worth preserving, recommend `/doc-adr open-questions`.
 | `/doc-spec` | `doc-spec.sh` | Store a feature spec in the central spec registry (`list` to inspect) |
 | `/doc-investigation` | `doc-investigation.sh` | Capture the current investigation as a structured document (`list` to inspect) |
 | `/doc-ask` | `doc-ask.sh` | One query across catalogs, ADRs, specs and investigations: index + best-matching docs within a budget (`OPEN_SDD_ASK_BUDGET`). Optional `type:` / `service:` |
+| `/doc-ingest` | `doc-ingest.sh` | Compile `raw/` into the `wiki/` layer (two-layer vault only): typed pages with `[[backlinks]]`, indexes, log entry. `list` to inspect, `session` to distill the conversation |
 
 ## Stack detection
 

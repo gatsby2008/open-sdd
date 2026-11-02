@@ -206,7 +206,7 @@ Standalone:
   /f-handoff        Package artifacts for another agent
   /f-undo           Discard uncommitted changes (reversible)
 
-Plus companion commands: /doc-catalog, /doc-adr, /doc-spec, /doc-investigation, /doc-ask
+Plus companion commands: /doc-catalog, /doc-adr, /doc-spec, /doc-investigation, /doc-ask, /doc-ingest
 ```
 
 ---
@@ -771,6 +771,7 @@ Beyond the pipeline, open-sdd bundles companion commands:
 | **`/doc-spec`** | Store feature specs |
 | **`/doc-investigation`** | Capture investigations |
 | **`/doc-ask`** | One query across catalogs, ADRs, specs and investigations |
+| **`/doc-ingest`** | Compile `raw/` into the `wiki/` layer of a two-layer vault (typed pages + `[[backlinks]]`) |
 
 All loaded automatically by `install.sh`. Registry shared across team via `OPEN_SDD_DOC_HOME`.
 
@@ -1010,7 +1011,7 @@ rules you approve from each finished spec.
 
 **Standalone:** `/f-commit` · `/f-mr` · `/f-code-review` · `/f-mr-review` · `/f-undo`
 
-**Doc commands:** `/doc-catalog` · `/doc-adr` · `/doc-spec` · `/doc-investigation` · `/doc-ask`
+**Doc commands:** `/doc-catalog` · `/doc-adr` · `/doc-spec` · `/doc-investigation` · `/doc-ask` · `/doc-ingest`
 
 ---
 

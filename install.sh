@@ -116,6 +116,10 @@ install_doc_cmd_directive "doc-investigation" "Capture current investigation as 
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-investigation.sh list — it prints investigations for the current repo's service. Stop after the list.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh \$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Print the full draft, then write it straight to the registry — no yes/no gate; the user can still interrupt to edit."
+install_doc_cmd_directive "doc-ingest" "Compile raw/ into the wiki layer (raw → wiki) — the producer behind /doc-ask's [[backlinks]] (list: /doc-ingest list)" "\
+When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-ingest.sh list — it prints the vault layout (raw/, wiki/, schema), the last-ingest watermark and the raw docs not compiled yet. Stop after the list; write nothing.
+
+Otherwise run ${OPENSDD_PATH}/commands/doc-ingest.sh \$ARGUMENTS. It prints the vault layout, the watermark and the sources to compile, then the compile protocol — follow it: read the vault schema first, create or update wiki pages in place (never duplicate one), write in your own words with [[wikilinks]] and a ## Source section, update the indexes, append the wiki/log.md entry, verify 0 broken links, and report pages created vs updated. Write only under wiki/ — raw/ is append-only and never edited. If the script reports there is no wiki layer, relay that in one line and stop."
 # NOTE: triage is intentionally NOT registered as a /f-* command. It is an
 # internal sub-step run by /f-spec (draft mode) via commands/triage.sh — see
 # agent/PIPELINE.md ("Do NOT run triage here").
@@ -141,7 +145,7 @@ rm -f "${CMD_DIR}/arch-query.md"
 # doc-*-query folded into doc-ask.
 rm -f "${CMD_DIR}/doc-catalog-query.md" "${CMD_DIR}/doc-adr-query.md" "${CMD_DIR}/doc-spec-query.md" "${CMD_DIR}/doc-investigation-query.md"
 
-echo "open-sdd: 25 commands installed to $CMD_DIR"
+echo "open-sdd: 26 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
 # Global SDD instructions file (avoids confusion with project-level AGENTS.md)

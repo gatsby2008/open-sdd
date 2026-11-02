@@ -52,6 +52,7 @@ Each command independently checks preconditions:
 | `/doc-spec` | `doc-spec.sh` | Store a feature spec in the central registry |
 | `/doc-investigation` | `doc-investigation.sh` | Capture investigation as structured document |
 | `/doc-ask` | `doc-ask.sh` | One query across all registries (`engine/registry.py`) |
+| `/doc-ingest` | `doc-ingest.sh` | Compile `raw/` into the `wiki/` layer of a two-layer vault (`engine/ingest.py`) |
 
 ### Registries
 
@@ -62,7 +63,9 @@ All doc registries under `$OPEN_SDD_DOC_HOME/${OPEN_SDD_ROOT:-$HOME}/.opensdd/re
 - `spec-registry/` — `/doc-spec` or `/f-mr`
 - `investigation-registry/` — `/doc-investigation`
 
-Query all of them with `/doc-ask` (optional `type:` / `service:` filters).
+Query all of them with `/doc-ask` (optional `type:` / `service:` filters). When the
+registry root is the `raw/` half of a two-layer vault (a `wiki/` sibling), `/doc-ingest`
+compiles it into the `wiki/` layer that `/doc-ask` follows via `[[backlinks]]`.
 
 ### Stack detection
 

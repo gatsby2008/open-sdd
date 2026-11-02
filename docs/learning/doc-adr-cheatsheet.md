@@ -13,7 +13,9 @@ Four registries, one mechanism:
 | `spec-registry/<service>/` — feature specs | `/doc-spec` (and `/f-mr` inside the pipeline) | `type:spec` |
 | `investigation-registry/<service>/` — bug / exploration / improvement notes | `/doc-investigation` | `type:investigation` |
 
-One query command, `/doc-ask`, reads all four; the filter is optional.
+One query command, `/doc-ask`, reads all four; the filter is optional. When the
+registry is the `raw/` half of a two-layer vault, `/doc-ingest` compiles it into the
+`wiki/` layer (see [Ingesting: /doc-ingest](#ingesting-doc-ingest)).
 
 > **Central registry** (`$OPEN_SDD_DOC_HOME`, default `${OPEN_SDD_ROOT:-~}/.opensdd/registry/`).
 > Set `OPEN_SDD_DOC_HOME` to a team-shared Git repo for cross-service queries.
@@ -144,6 +146,43 @@ questions?" lists only the unresolved `- [ ]` items.
 
 ---
 
+## Ingesting: /doc-ingest
+
+`/doc-ingest [<path under raw/> | session]` — the *producer* half of the two-layer
+(Karpathy) model. The `doc-*` commands write `raw/`; `/doc-ingest` compiles that
+material into the interconnected `wiki/` layer that `/doc-ask` follows:
+
+```
+raw/  (source of truth, append-only)     wiki/  (compiled, interconnected)
+  service-catalog/   ── /doc-ingest ──►  entities/  concepts/  sources/
+  adr-registry/                          with [[backlinks]], kept indexes,
+  spec-registry/                         and log.md (the ingest watermark)
+  investigation-registry/
+```
+
+It only runs where the registry root is the `raw/` half of a two-layer vault —
+i.e. there is a `wiki/` sibling of `raw/`. On a plain registry it says so and stops;
+`/doc-ask` keeps working on `raw/` alone.
+
+| Invocation | What it compiles |
+|---|---|
+| `/doc-ingest` | Everything in `raw/` modified after the newest `## [YYYY-MM-DD]` entry of `wiki/log.md` |
+| `/doc-ingest service-catalog/leads-service.md` | That one source (any path under `raw/`) |
+| `/doc-ingest session` | The current conversation — distill what it established into the wiki |
+| `/doc-ingest list` | Facts only: vault layout, schema, last ingest, un-ingested docs. Writes nothing |
+
+The command prints the vault layout (`raw/`, `wiki/`, schema file), the watermark, the
+sources selected, and the compile protocol; the model then reads the vault schema
+(`CLAUDE.md`/`AGENTS.md` at the vault root, authoritative when present), creates or
+updates pages **in place** (grep first — never duplicate), writes in its own words with
+`[[wikilinks]]` and a `## Source` section, updates the indexes, appends the `wiki/log.md`
+entry, and verifies 0 broken links. `raw/` is never edited.
+
+`/doc-ask` prints `WIKI: <path> (last ingest: <date>)` and warns when raw docs changed
+after that date — running `/doc-ingest` clears the warning.
+
+---
+
 ## Environment
 
 | Variable | Effect |
@@ -180,6 +219,10 @@ $OPEN_SDD_DOC_HOME/
         └── <date>-<slug>.md
 ```
 
+On a two-layer vault the registry root above **is** `raw/`, with a `wiki/` sibling
+(`wiki.md`, `log.md`, `entities/`, `concepts/`, `sources/`) that `/doc-ingest` compiles
+into and `/doc-ask` reads.
+
 ---
 
 ## Recommended workflow
@@ -192,6 +235,10 @@ $OPEN_SDD_DOC_HOME/
 # Daily use
 /doc-adr "decision of the day"                # record decisions as they happen
 /doc-investigation "why X breaks" bug         # keep what an investigation found
+
+# Two-layer vault only: compile raw/ into wiki/
+/doc-ingest list                              # what is un-ingested (writes nothing)
+/doc-ingest                                   # compile whatever changed since the last log entry
 
 # Cross-service queries
 /doc-ask "which services use SQS?"

@@ -119,8 +119,10 @@ into `.specwork/_state/<slug>-rules.json`.
 
 open-sdd bundles doc commands (`/doc-catalog`, `/doc-adr`, `/doc-spec`,
 `/doc-investigation`, plus `/doc-ask` to query them all) that store and query a
-central registry of service catalogs, ADRs, specs and investigations. The registry location is
-controlled by:
+central registry of service catalogs, ADRs, specs and investigations. When that
+registry is the `raw/` half of a two-layer vault (a `wiki/` sibling of `raw/`),
+`/doc-ingest` compiles it into the interconnected `wiki/` layer that `/doc-ask`
+reads. The registry location is controlled by:
 
 ```bash
 export OPEN_SDD_DOC_HOME=/path/to/shared/registry
@@ -289,7 +291,7 @@ open-sdd/
 │   ├── non_interactive.sh          # SDD_NON_INTERACTIVE helpers
 │   ├── service-name.sh             # Service-name resolution
 │   └── spec-publish.sh             # Spec-registry publish helper
-├── commands/                        # 33 scripts (31 user-facing commands + internal helpers)
+├── commands/                        # 28 scripts (26 user-facing commands + internal helpers)
 │   ├── auto.sh
 │   ├── check.sh                     # Validation-gate runner (internal helper)
 │   ├── close.sh
@@ -306,21 +308,18 @@ open-sdd/
 │   ├── resume.sh
 │   ├── resync.sh
 │   ├── spec.sh                      # Draft / refine spec
-│   ├── spec-publish.sh
-│   ├── spec-query.sh
 │   ├── start.sh
 │   ├── status.sh
 │   ├── test-design.sh
 │   ├── test-impl.sh
 │   ├── triage.sh                    # Internal — classifies the spec (run by /f-spec)
 │   ├── undo.sh
-│   ├── doc-catalog.sh               # doc/adr commands (9)
-│   ├── doc-publish.sh
-│   ├── doc-query.sh
-│   ├── doc-freshness.sh
+│   ├── doc-catalog.sh               # doc commands (6)
 │   ├── doc-adr.sh
-│   ├── adr-publish.sh
-│   └── adr-query.sh
+│   ├── doc-spec.sh
+│   ├── doc-investigation.sh
+│   ├── doc-ask.sh
+│   └── doc-ingest.sh
 ├── templates/
 │   ├── rules.md                     # Global pipeline rules (compiled at /f-start)
 │   ├── service-rules.md             # Per-project invariants (copy to .opensdd/)

@@ -30,6 +30,8 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
+from engine.ingest import log_watermark
+
 # type -> registry directory, in output order.
 REGISTRIES = {
     "catalog": "service-catalog",
@@ -226,12 +228,9 @@ def wiki_status(root: Path, docs: list["Doc"]) -> Optional[tuple[Path, str, list
     wiki = root.parent / "wiki"
     if not wiki.is_dir():
         return None
-    log = wiki / "log.md"
-    stamps = re.findall(r"^## \[(\d{4}-\d{2}-\d{2})\]", log.read_text(errors="replace"),
-                        re.M) if log.is_file() else []
-    if not stamps:
-        return wiki, "never", list(docs)
-    mark = max(stamps)
+    mark = log_watermark(wiki)
+    if mark == "never":
+        return wiki, mark, list(docs)
     newer = [d for d in docs
              if date.fromtimestamp(d.path.stat().st_mtime).isoformat() > mark]
     return wiki, mark, newer

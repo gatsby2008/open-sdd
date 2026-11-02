@@ -337,6 +337,7 @@ documentation and architecture decisions (registered via install.sh):
 | **`/doc-spec`** | Store a hand-written or standalone spec in the registry (`spec-registry/<service>/`) — `/f-mr` does it inside the pipeline |
 | **`/doc-investigation`** | Capture the current investigation as a structured document (`investigation-registry/<service>/`) |
 | **`/doc-ask`** | Ask anything across the four registries — prints an index plus the best-matching docs within a budget; optional `type:` / `service:` filters |
+| **`/doc-ingest`** | Compile `raw/` into a compiled `wiki/` layer (two-layer vault): typed pages with `[[backlinks]]`, kept indexes, log entry; `list` inspects, `session` distills the conversation |
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.

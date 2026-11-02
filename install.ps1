@@ -123,6 +123,9 @@ Otherwise run ${OPENSDD_PATH}/commands/doc-spec.sh `$ARGUMENTS. It resolves the 
 Install-DocCmdDirective -Name "doc-investigation" -Description "Capture current investigation as a structured document (list: /doc-investigation list)" -Directive "When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-investigation.sh list — it prints investigations for the current repo's service. Stop after the list.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-investigation.sh `$ARGUMENTS. It detects the service name, prints the matching investigation template (bug or exploration), and outputs instructions for the LLM to synthesize the session into a structured document. Print the full draft, then write it straight to the registry — no yes/no gate; the user can still interrupt to edit."
+Install-DocCmdDirective -Name "doc-ingest" -Description "Compile raw/ into the wiki layer (raw → wiki) — the producer behind /doc-ask's [[backlinks]] (list: /doc-ingest list)" -Directive "When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-ingest.sh list — it prints the vault layout (raw/, wiki/, schema), the last-ingest watermark and the raw docs not compiled yet. Stop after the list; write nothing.
+
+Otherwise run ${OPENSDD_PATH}/commands/doc-ingest.sh `$ARGUMENTS. It prints the vault layout, the watermark and the sources to compile, then the compile protocol — follow it: read the vault schema first, create or update wiki pages in place (never duplicate one), write in your own words with [[wikilinks]] and a ## Source section, update the indexes, append the wiki/log.md entry, verify 0 broken links, and report pages created vs updated. Write only under wiki/ — raw/ is append-only and never edited. If the script reports there is no wiki layer, relay that in one line and stop."
 
 # Remove stale commands from previous versions
 Remove-Item -Path (Join-Path $CMD_DIR "f-triage.md") -ErrorAction SilentlyContinue | Out-Null
@@ -151,7 +154,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "arch-query.md") -ErrorAction SilentlyCont
   Remove-Item -Path (Join-Path $CMD_DIR "$_.md") -ErrorAction SilentlyContinue | Out-Null
 }
 
-Write-Host "open-sdd: 25 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 26 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------

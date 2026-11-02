@@ -20,8 +20,8 @@ grep -q 'f-refine.md' "$INSTALL_SH" || {
   exit 1
 }
 
-# Ensure the doc command surface (4 create commands + doc-ask) is registered.
-for cmd in doc-ask doc-catalog doc-adr doc-spec doc-investigation; do
+# Ensure the doc command surface (4 create commands + doc-ask + doc-ingest) is registered.
+for cmd in doc-ask doc-catalog doc-adr doc-spec doc-investigation doc-ingest; do
   grep -q "install_doc_cmd_directive \"$cmd\"" "$INSTALL_SH" || {
     echo "PARITY FAIL: missing registration for $cmd in install.sh" >&2
     exit 1
