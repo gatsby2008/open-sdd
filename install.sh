@@ -96,6 +96,8 @@ install_doc_cmd_directive "doc-catalog" "Scan codebase and store the service cat
 When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-catalog.sh list — it prints the catalog for the current repo's service. Stop after the list; do not scan the project.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-catalog.sh . It scans the project, detects the stack and service, and prints instructions to generate the catalog and write it STRAIGHT to the registry — no copy in the repo (no docs/service-info.md), no confirmation prompt. Follow the printed instructions and print the stored registry path. Use --with-docs to also publish docs/architecture/, docs/features/, docs/product/ to the registry alongside the catalog."
+install_doc_cmd_directive "doc-ask" "Ask anything across the doc registries (catalogs, ADRs, specs, investigations)" "\
+Run ${OPENSDD_PATH}/commands/doc-ask.sh \"\$ARGUMENTS\" — pass the arguments verbatim; do not add type: or service: yourself. It prints an INDEX of every registered doc, the best-matching docs (large ones trimmed to their matching sections), other matches by path, and reading hints. Answer from that output, citing every claim as its registry path. If an INDEX entry looks relevant but was not loaded, read it before answering. If the registry does not cover the question, say what you read — never invent."
 install_doc_cmd_directive "doc-catalog-query" "Ask cross-service architecture questions" "\
 Run ${OPENSDD_PATH}/commands/doc-catalog-query.sh \"\$ARGUMENTS\". It prints all registered documents (catalogs + any extra docs published with --with-docs). Use that output to answer the user's architecture question, citing the source file for every claim."
 install_doc_cmd_directive "doc-adr" "Create an ADR and store it in the registry (list: /doc-adr list)" "\
@@ -135,7 +137,7 @@ rm -f "${CMD_DIR}/doc-freshness.md"
 # arch-query removed.
 rm -f "${CMD_DIR}/arch-query.md"
 
-echo "open-sdd: 28 commands installed to $CMD_DIR"
+echo "open-sdd: 29 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
 # Global SDD instructions file (avoids confusion with project-level AGENTS.md)

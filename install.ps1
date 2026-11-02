@@ -107,6 +107,7 @@ Install-Cmd -Name "test-impl"     -Description "Implement test files for changed
 Install-DocCmdDirective -Name "doc-catalog" -Description "Scan codebase and store the service catalog in the registry (list: /doc-catalog list)" -Directive "When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-catalog.sh list — it prints the catalog for the current repo's service. Stop after the list; do not scan the project.
 
 Otherwise run ${OPENSDD_PATH}/commands/doc-catalog.sh `$ARGUMENTS. It scans the project, detects the stack and service, and prints instructions to generate the catalog and write it STRAIGHT to the registry — no copy in the repo (no docs/service-info.md), no confirmation prompt. Follow the printed instructions and print the stored registry path. Use --with-docs to also publish docs/architecture/, docs/features/, docs/product/ to the registry alongside the catalog."
+Install-DocCmdDirective -Name "doc-ask" -Description "Ask anything across the doc registries (catalogs, ADRs, specs, investigations)" -Directive "Run ${OPENSDD_PATH}/commands/doc-ask.sh \"`$ARGUMENTS\" — pass the arguments verbatim; do not add type: or service: yourself. It prints an INDEX of every registered doc, the best-matching docs (large ones trimmed to their matching sections), other matches by path, and reading hints. Answer from that output, citing every claim as its registry path. If an INDEX entry looks relevant but was not loaded, read it before answering. If the registry does not cover the question, say what you read — never invent."
 Install-DocCmdDirective -Name "doc-catalog-query" -Description "Ask cross-service architecture questions" -Directive "Run ${OPENSDD_PATH}/commands/doc-catalog-query.sh \"`$ARGUMENTS\". It prints all registered documents (catalogs + any extra docs published with --with-docs). Use that output to answer the user's architecture question, citing the source file for every claim."
 Install-DocCmdDirective -Name "doc-adr" -Description "Create an ADR and store it in the registry (list: /doc-adr list)" -Directive "When ARGUMENTS is exactly 'list', run ${OPENSDD_PATH}/commands/doc-adr.sh list — it prints ADRs for the current repo's service. Stop after the list; do not create a new ADR.
 
@@ -140,7 +141,7 @@ Remove-Item -Path (Join-Path $CMD_DIR "doc-freshness.md") -ErrorAction SilentlyC
 # arch-query removed.
 Remove-Item -Path (Join-Path $CMD_DIR "arch-query.md") -ErrorAction SilentlyContinue | Out-Null
 
-Write-Host "open-sdd: 28 commands installed to $CMD_DIR"
+Write-Host "open-sdd: 29 commands installed to $CMD_DIR"
 Write-Host ""
 
 # ---- set environment variables (with dedup) ------------------------------------

@@ -55,7 +55,7 @@ usa flags (`--type`, `--service`), no texto libre.
 |---|---|---|
 | 0 | Test de paridad del resolver de servicio con sdd-plugin (`tests/test_service_name.py`) | hecho |
 | 1 | `engine/registry.py` + `engine.cli ask` + `tests/test_registry.py` | hecho |
-| 2 | `commands/doc-ask.sh`, registro en `install.sh`/`install.ps1`, smoke | |
+| 2 | `commands/doc-ask.sh`, registro en `install.sh`/`install.ps1`, smoke | hecho |
 | 3 | Los cuatro `*-query` pasan a stubs deprecados que delegan en `doc-ask type:<x>` | |
 | 4 | Docs: `pipeline-reference.md` (4 filas → 1), `REFERENCE.md`, `AGENTS.md`, README, learning | |
 | 5 | Borrar los stubs (requiere OK): parity check exige `doc-ask`, `install.sh` limpia los `.md` viejos | |
