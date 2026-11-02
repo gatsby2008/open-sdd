@@ -1,7 +1,8 @@
 # Plan — `/doc-ask`: una consulta para los cuatro registros
 
 Reemplaza `doc-catalog-query`, `doc-adr-query`, `doc-spec-query` y
-`doc-investigation-query`. Par en sdd-plugin: `/sdd:ask`. `arch-query` ya se
+`doc-investigation-query`. Par en sdd-plugin: `/sdd:ask`, con el mismo engine en
+`lib/registry.py` (paridad completa, wiki incluida, desde 2026-11-02). `arch-query` ya se
 eliminó (no forma parte de esto).
 
 ## Por qué
@@ -59,7 +60,7 @@ usa flags (`--type`, `--service`), no texto libre.
 | 3 | Los cuatro `*-query` pasan a stubs deprecados que delegan en `doc-ask type:<x>` | hecho |
 | 4 | Docs: `pipeline-reference.md` (4 filas → 1), `REFERENCE.md`, `AGENTS.md`, README, learning | hecho |
 | 5 | Borrar los stubs (requiere OK): parity check exige `doc-ask`, `install.sh` limpia los `.md` viejos | |
-| 6 | Más adelante: navegar la capa `wiki/` si existe y avisar si está atrasada | |
+| 6 | Navegar la capa `wiki/` si existe y avisar si está atrasada (paridad con `/sdd:ask`) | hecho |
 
 ## Medición contra el registro real (2026-11-02, 96 docs, ~980 KB)
 

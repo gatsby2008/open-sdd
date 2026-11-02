@@ -52,7 +52,7 @@ FIXTURE = {
 class RegistryCase(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self._tmp.name)
+        self.root = Path(self._tmp.name) / "raw"
         for rel, content in FIXTURE.items():
             p = self.root / rel
             p.parent.mkdir(parents=True, exist_ok=True)
@@ -225,6 +225,31 @@ class TestRender(RegistryCase):
             out = ask(["anything"])
         self.assertIn("No documents found", out)
         self.assertIn("/doc-catalog", out)
+
+
+class TestWiki(RegistryCase):
+    def write_log(self, *stamps):
+        wiki = self.root.parent / "wiki"
+        wiki.mkdir()
+        (wiki / "log.md").write_text(
+            "# Activity Log\n\n" + "".join(f"## [{s}] ingest | x\n\n" for s in stamps))
+
+    def test_no_wiki_no_wiki_line(self):
+        self.assertNotIn("WIKI:", ask(["LeadCreated"], budget=4_000))
+
+    def test_fresh_wiki_reported_without_warning(self):
+        self.write_log("2020-01-01", "2999-01-01")      # newest entry wins
+        out = ask(["LeadCreated"], budget=4_000)
+        self.assertIn("last ingest: 2999-01-01", out)
+        self.assertNotIn("wiki is behind", out)
+
+    def test_stale_wiki_warns(self):
+        self.write_log("2000-01-01")
+        self.assertIn("The wiki is behind: 10 raw doc(s)", ask(["LeadCreated"], budget=4_000))
+
+    def test_wiki_without_log_is_never_ingested(self):
+        (self.root.parent / "wiki").mkdir()
+        self.assertIn("last ingest: never", ask(["LeadCreated"], budget=4_000))
 
 
 if __name__ == "__main__":

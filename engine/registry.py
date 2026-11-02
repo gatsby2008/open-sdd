@@ -8,7 +8,10 @@ One query reads the four registries written by /doc-catalog, /doc-adr, /doc-spec
   2. the best-ranked documents in full, or trimmed to their matching `##`
      sections when large, up to a character budget;
   3. the other matches by path, so the model can read them on demand;
-  4. per-registry reading hints.
+  4. per-registry reading hints;
+  5. when a compiled `wiki/` layer sits next to the registry root (a two-layer
+     vault: OPEN_SDD_DOC_HOME = <vault>/raw), its location and whether it lags
+     the raw docs (changed after the last `wiki/log.md` entry).
 
 `type:` and `service:` narrow the scope but are never required: a question with
 no filters must still land on the right documents. A service named in the
@@ -179,6 +182,24 @@ def registry_root() -> Path:
         return Path(home)
     base = os.environ.get("OPEN_SDD_ROOT") or os.environ.get("HOME", "~")
     return Path(base) / ".opensdd" / "registry"
+
+
+def wiki_status(root: Path, docs: list["Doc"]) -> Optional[tuple[Path, str, list["Doc"]]]:
+    """(wiki dir, last ingest date, raw docs modified after it) when a compiled
+    `wiki/` layer is a sibling of the registry root; None otherwise. The
+    watermark is the newest `## [YYYY-MM-DD]` entry of wiki/log.md."""
+    wiki = root.parent / "wiki"
+    if not wiki.is_dir():
+        return None
+    log = wiki / "log.md"
+    stamps = re.findall(r"^## \[(\d{4}-\d{2}-\d{2})\]", log.read_text(errors="replace"),
+                        re.M) if log.is_file() else []
+    if not stamps:
+        return wiki, "never", list(docs)
+    mark = max(stamps)
+    newer = [d for d in docs
+             if date.fromtimestamp(d.path.stat().st_mtime).isoformat() > mark]
+    return wiki, mark, newer
 
 
 def _frontmatter(text: str) -> dict[str, str]:
@@ -405,6 +426,19 @@ def render(res: Result) -> str:
         out.append("Write them with /doc-catalog, /doc-adr, /doc-spec (or /f-mr) "
                    "and /doc-investigation, then ask again.")
         return "\n".join(out) + "\n"
+
+    wiki = wiki_status(res.root, res.scope)
+    if wiki:
+        wdir, mark, newer = wiki
+        out.append(f"WIKI: {wdir} (last ingest: {mark}) — its [[backlinks]] help with "
+                   "cross-cutting questions, but ground every claim in the raw docs.")
+        if newer:
+            out.append(f"⚠ The wiki is behind: {len(newer)} raw doc(s) in scope changed "
+                       "after the last ingest, e.g. "
+                       + ", ".join(d.rel for d in newer[:3])
+                       + ". Answers below come from the raw docs and are current; "
+                       "the wiki's cross-links may miss them until it is re-ingested.")
+        out.append("")
 
     out.append("INDEX")
     for d in sorted(res.scope, key=lambda d: (list(REGISTRIES).index(d.kind), d.rel)):
