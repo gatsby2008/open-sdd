@@ -302,9 +302,8 @@ if [ ! -d ".opensdd" ]; then
 fi
 # Service rules: prefer the neutral, committed rules/ dir. Fall back to the
 # legacy .claude/rules/ (a Claude-era convention) only for repositories not yet
-# migrated. Anything else under .claude/ (CLAUDE.md, settings, skills) is
-# ignored by open-sdd — the single agent entry point is the root AGENTS.md.
-# When present, sync them into the personal (gitignored) .opensdd/service-rules.md
+# migrated. When present, sync them into the personal (gitignored)
+# .opensdd/service-rules.md
 # inside a managed block; content outside the block is preserved for personal,
 # local-only rules. Fall back to the template only when neither exists.
 RULES_SRC=""
@@ -386,10 +385,7 @@ if ! grep -qE '^\.opensdd(/|$)' "$GITIGNORE" 2>/dev/null; then
   printf '\n# open-sdd pipeline config (local to each developer)\n.opensdd/\n' >> "$GITIGNORE"
   echo "Appended '.opensdd/' to .gitignore"
 fi
-# Agent-memory files that are NOT the shared entry point are local to each
-# developer and must not be committed. The root AGENTS.md is the single shared
-# entry (see the Rules notes) and must stay committed — it is never gitignored.
-for AGENT_FILE in CLAUDE.md GEMINI.md; do
+for AGENT_FILE in AGENTS.md CLAUDE.md GEMINI.md; do
   if [ -f "$AGENT_FILE" ] && ! grep -qxF "$AGENT_FILE" "$GITIGNORE" 2>/dev/null; then
     printf '%s\n' "$AGENT_FILE" >> "$GITIGNORE"
     echo "Appended '$AGENT_FILE' to .gitignore"
@@ -418,13 +414,12 @@ if [ -n "$TRACKED_OPENSDD" ]; then
   echo "     git commit -m 'chore: untrack .opensdd/ (local pipeline config)'"
   echo ""
 fi
-for AGENT_FILE in CLAUDE.md GEMINI.md; do
+for AGENT_FILE in AGENTS.md CLAUDE.md GEMINI.md; do
   TRACKED_FILE=$(git ls-files "$AGENT_FILE" 2>/dev/null | head -1)
   if [ -n "$TRACKED_FILE" ]; then
     echo ""
     echo "⚠  Warning: $AGENT_FILE is already tracked in git. Agent-memory files"
-    echo "   (other than AGENTS.md, which is the shared entry) are local to each"
-    echo "   developer. .gitignore alone will not untrack it."
+    echo "   are local to each developer. .gitignore alone will not untrack it."
     echo "   To untrack while keeping the local file:"
     echo ""
     echo "     git rm --cached $AGENT_FILE"

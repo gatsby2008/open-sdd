@@ -148,23 +148,17 @@ rm -f "${CMD_DIR}/doc-catalog-query.md" "${CMD_DIR}/doc-adr-query.md" "${CMD_DIR
 echo "open-sdd: 26 commands installed to $CMD_DIR"
 
 # ---------------------------------------------------------------------------
-# Project root AGENTS.md — the single agent entry point.
-# If the project already has an AGENTS.md, leave it untouched. If it has none,
-# copy the open-sdd template so a fresh project gets the SDD protocol + command
-# mappings without relying on any global (opencode-specific) instruction file.
-# This keeps open-sdd agent-agnostic: the whole agent setup flows through the
-# one AGENTS.md at the project root.
+# Global AGENTS.md — loaded by OpenCode in every project automatically.
+# opencode natively loads ~/.config/opencode/AGENTS.md for every workspace, so
+# this single file makes the SDD protocol + command mappings available in ANY
+# project — no per-project install needed. Re-running regenerates it from
+# templates/AGENTS.md (the canonical source) with $OPEN_SDD_ROOT substituted.
 # ---------------------------------------------------------------------------
-PROJECT_AGENTS="${PWD}/AGENTS.md"
-if [ -f "$PROJECT_AGENTS" ]; then
-  echo "  AGENTS.md: exists at project root — left untouched (open-sdd runs from it)"
-else
-  # Pre-process: replace $OPEN_SDD_ROOT with the absolute path
-  sed "s|\$OPEN_SDD_ROOT|${OPENSDD_PATH}|g" \
-    "${OPENSDD_PATH}/templates/AGENTS.md" \
-    > "$PROJECT_AGENTS"
-  echo "  AGENTS.md: created at project root (from templates/AGENTS.md)"
-fi
+sed "s|\$OPEN_SDD_ROOT|${OPENSDD_PATH}|g" \
+  "${OPENSDD_PATH}/templates/AGENTS.md" \
+  > "${OPENCODE_DIR}/AGENTS.md"
+
+echo "  Global AGENTS.md: ${OPENCODE_DIR}/AGENTS.md (loaded in every OpenCode project)"
 
 echo ""
 echo "============================================"
