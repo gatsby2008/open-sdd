@@ -59,10 +59,11 @@ fi
 
 # ---- promote durable rules (interactive only) -------------------------------
 # The spec is about to be deleted. Before it goes, offer to promote what the
-# feature taught about the service into the team's rules (.claude/rules/*.md),
-# so the next pipeline starts with it. Two passes: the first prints the
-# candidates' source and stops (nothing deleted); the agent asks the user and
-# re-runs with --promote '<json>' (approved rules) or --no-promote.
+# feature taught about the service into the team's rules (rules/ — neutral home,
+# with .claude/rules/ as legacy fallback), so the next pipeline starts with it.
+# Two passes: the first prints the candidates' source and stops (nothing
+# deleted); the agent asks the user and re-runs with --promote '<json>'
+# (approved rules) or --no-promote.
 
 SPEC_FILE=".specwork/_spec/${RECORDED_SLUG}-spec.md"
 PROMOTE_JSON=""
@@ -96,12 +97,18 @@ print("\n".join(resolved) if resolved else "(none)")
 PY
   echo ""
   echo "## Existing rules files"
-  if ls .claude/rules/*.md >/dev/null 2>&1; then
-    for f in .claude/rules/*.md; do
+  RULES_HOME=""
+  if ls rules/*.md >/dev/null 2>&1; then
+    RULES_HOME="rules"
+  elif ls .claude/rules/*.md >/dev/null 2>&1; then
+    RULES_HOME=".claude/rules"
+  fi
+  if [ -n "$RULES_HOME" ]; then
+    for f in ${RULES_HOME}/*.md; do
       echo "  $f: $(grep -E '^#{1,6} ' "$f" | sed -E 's/^#+ //' | paste -sd '|' - | sed 's/|/ | /g')"
     done
   else
-    echo "  (none — approved rules go to .claude/rules/service-rules.md)"
+    echo "  (none — approved rules go to rules/service-rules.md)"
   fi
   cat <<INSTRUCTIONS
 
@@ -112,16 +119,17 @@ diff, not the code — and:
    ownership/identity rules, idempotency or fallback contracts, the *why*
    behind a design choice. Drop ticket-only decisions, dates, rollout notes,
    and anything the rules files already state. Zero is a normal outcome.
-2. Choose a target per candidate: the .claude/rules/<topic>.md whose subject
-   matches, and a section heading in it. With no rules files, target
-   .claude/rules/service-rules.md and one of: Business Invariants,
-   Fallback and Idempotency, Architecture Constraints, Historical Constraints.
+2. Choose a target per candidate: the rules/<topic>.md (or legacy
+   .claude/rules/<topic>.md) whose subject matches, and a section heading in
+   it. With no rules files, target rules/service-rules.md and one of: Business
+   Invariants, Fallback and Idempotency, Architecture Constraints, Historical
+   Constraints.
 3. A candidate that contradicts an existing rule is NOT a write — ask the user
    which one holds. Existing rules are never edited, reworded, or removed.
 4. Ask the user once to approve each candidate (none pre-approved).
 5. Re-run /f-close with the approved ones (or --no-promote when none):
 
-     /f-close --promote '[{"file": ".claude/rules/<topic>.md", "section": "<section>", "rule": "<rule>"}]'
+     /f-close --promote '[{"file": "rules/<topic>.md", "section": "<section>", "rule": "<rule>"}]'
 
    The rules are appended with a provenance marker
    (\`- <rule> _(from spec ${RECORDED_SLUG}, <date>)_\`); the write is refused if

@@ -293,14 +293,14 @@ class TestClosePromotion(TmpGitRepo):
     def test_approved_rules_are_written_and_pipeline_closed(self):
         r = self._run_close(["--promote", '[{"section": "Business Invariants", "rule": "Leads are idempotent per applicationId."}]'])
         self.assertEqual(r.returncode, 0, r.stderr)
-        rules = Path(".claude/rules/service-rules.md").read_text()
+        rules = Path("rules/service-rules.md").read_text()
         self.assertIn("- Leads are idempotent per applicationId. _(from spec x, ", rules)
         self.assertFalse(Path(".specwork").exists())
 
     def test_no_promote_closes_without_writing_rules(self):
         r = self._run_close(["--no-promote"])
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertFalse(Path(".claude/rules").exists())
+        self.assertFalse(Path("rules").exists())
         self.assertFalse(Path(".specwork").exists())
 
 

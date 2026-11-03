@@ -447,8 +447,9 @@ def cmd_conformance_check(args: list[str]) -> int:
 
 
 def cmd_promote_apply(args: list[str]) -> int:
-    # Append the rules the user approved in /f-close into .claude/rules/*.md,
-    # append-only with provenance. All targets are validated before any write.
+    # Append the rules the user approved in /f-close into the shared rules
+    # (rules/ preferred, legacy .claude/rules/ fallback), append-only with
+    # provenance. All targets are validated before any write.
     # rc 0 = written (or would be, with --dry-run), 1 = rejected, 2 = usage.
     from engine.promote import apply_all
     dry_run = "--dry-run" in args

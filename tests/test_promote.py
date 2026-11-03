@@ -122,6 +122,19 @@ class TestApplyAll(unittest.TestCase):
         self.assertEqual(written, {".claude/rules/service-rules.md": 1})
         self.assertFalse(os.path.exists(".claude/rules/service-rules.md"))
 
+    def test_prefers_neutral_rules_home_over_legacy(self):
+        os.makedirs("rules")
+        written = promote.apply_all("s", [
+            {"file": ".claude/rules/leads.md", "section": "Business Invariants", "rule": "a"},
+            {"section": "Business Invariants", "rule": "b"},
+        ], date=DATE)
+        # rules/ exists → the default target resolves there, not .claude/rules.
+        self.assertIn("rules/service-rules.md", written)
+        self.assertTrue(os.path.exists("rules/service-rules.md"))
+        self.assertFalse(os.path.exists(".claude/rules/service-rules.md"))
+        for target in (".claude/rules/leads.md",):
+            self.assertIn(target, written)
+
     def test_targets_outside_claude_rules_are_refused_before_any_write(self):
         for target in (".opensdd/service-rules.md", "docs/rules.md", ".claude/rules/x.txt"):
             with self.assertRaises(ValueError):

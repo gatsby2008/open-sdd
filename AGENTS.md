@@ -19,14 +19,14 @@
 
 1. **Bash commands** (`commands/*.sh`) — each script prints context + instructions; the LLM reads the output and takes action (write files, ask user, run git commands)
 2. **Python engine** (`engine/`) — validated logic (gates, state, worktree, triage, branch detection). Called by bash scripts via `python3 -m engine.cli`
-3. **Agent instructions** (`agent/PIPELINE.md`) — the protocol every `/f-*` command reads first (on-demand detail in `agent/REFERENCE.md`). The short global rules (`templates/pipeline-reference.md`) are what `install.sh` wires into `opencode.json` `instructions`
+3. **Agent instructions** (`agent/PIPELINE.md`) — the protocol every `/f-*` command reads first (on-demand detail in `agent/REFERENCE.md`). `install.sh` copies `templates/AGENTS.md` to the project-root `AGENTS.md` (only if the project has none) so the whole setup flows through one agent-neutral file.
 
 ### State vs config
 
 | Path | Gitignored? | Contents |
 |------|-------------|----------|
 | `.specwork/` | **Yes** (enforced by `/f-start`) | Transient pipeline state: spec, plan, source, cache, escalations |
-| `.opensdd/` | **Yes** (appended by `/f-start`; deleted by `/f-close`) | Per-dev config: `service-rules.md`, synced from the team's committed `.claude/rules/*.md` |
+| `.opensdd/` | **Yes** (appended by `/f-start`; deleted by `/f-close`) | Per-dev config: `service-rules.md`, synced from the committed shared rules (`rules/`, legacy `.claude/rules/`). `CLAUDE.md`/`.claude` are otherwise ignored — the single agent entry is the root `AGENTS.md` |
 
 ### Pipeline is artifact-driven (no state machine)
 

@@ -6,9 +6,10 @@ prose: rules files mix hand-written business rules and design rationale, so
 every pre-existing line must survive byte-for-byte and in order. ``apply``
 only ever *inserts* lines and refuses to write if the result is anything else.
 
-Targets are the shared, committed rules under ``.claude/rules/*.md`` (which
-``/f-start`` syncs into the personal ``.opensdd/service-rules.md``) — never
-``.opensdd/`` itself: it is gitignored and ``/f-close`` deletes it.
+Targets are the shared, committed rules under ``rules/*.md`` (the neutral home,
+preferred) or, as a legacy fallback, ``.claude/rules/*.md`` — which ``/f-start``
+syncs into the personal ``.opensdd/service-rules.md`` — never ``.opensdd/``
+itself: it is gitignored and ``/f-close`` deletes it.
 
 Each inserted bullet carries a provenance marker so promoted rules stay
 distinguishable from hand-written ones::
@@ -16,7 +17,8 @@ distinguishable from hand-written ones::
     - <rule> _(from spec <slug>, <YYYY-MM-DD>)_
 
 Wired as ``python3 -m engine.cli promote-apply <slug> '<json>' [--dry-run]``
-where ``<json>`` = ``[{"file": ".claude/rules/x.md", "section": "...", "rule": "..."}, ...]``.
+where ``<json>`` = ``[{"file": "rules/x.md", "section": "...", "rule": "..."}, ...]``.
+``.claude/rules/x.md`` is also accepted while a repository is on the legacy home.
 """
 from __future__ import annotations
 
@@ -25,8 +27,20 @@ import difflib
 import re
 from pathlib import Path
 
-RULES_DIR = Path(".claude") / "rules"
-DEFAULT_RULES_FILE = RULES_DIR / "service-rules.md"
+
+def rules_home() -> Path:
+    """Resolve the repo's shared-rules home: neutral ``rules/`` preferred,
+    legacy ``.claude/rules/`` as fallback for not-yet-migrated repos, else
+    ``rules/`` for a fresh repo. Read and write must agree per repository."""
+    for p in (Path("rules"), Path(".claude") / "rules"):
+        if p.exists():
+            return p
+    return Path("rules")
+
+
+def _allowed_homes() -> list[Path]:
+    """All directories promoted rules may live in (neutral + legacy)."""
+    return [Path("rules"), Path(".claude") / "rules"]
 
 _HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 _BULLET = re.compile(r"^[-*]\s")
@@ -100,10 +114,14 @@ def _valid(entries: list[dict]) -> list[dict]:
 
 
 def check_target(path) -> None:
-    """Raise ValueError unless ``path`` is a markdown file under ``.claude/rules/``."""
+    """Raise ValueError unless ``path`` is a markdown file under ``rules/`` or,
+    as legacy fallback, under ``.claude/rules/``."""
     p = Path(path)
-    if p.suffix != ".md" or p.parent != RULES_DIR:
-        raise ValueError(f"refusing to write {path}: promoted rules go to {RULES_DIR}/<topic>.md")
+    if p.suffix != ".md" or p.parent not in _allowed_homes():
+        raise ValueError(
+            f"refusing to write {path}: promoted rules go to rules/<topic>.md "
+            f"(or the legacy .claude/rules/ home)"
+        )
 
 
 def plan(path, slug: str, entries: list[dict], date: str | None = None):
@@ -136,7 +154,7 @@ def apply_all(slug: str, entries: list[dict], dry_run: bool = False, date: str |
     """
     groups: dict[str, list[dict]] = {}
     for e in _valid(entries):
-        target = str(e.get("file") or DEFAULT_RULES_FILE)
+        target = str(e.get("file") or rules_home() / "service-rules.md")
         check_target(target)
         groups.setdefault(target, []).append(e)
     for target, group in groups.items():

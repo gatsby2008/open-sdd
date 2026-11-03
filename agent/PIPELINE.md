@@ -179,8 +179,8 @@ Implement the next focused change from the spec.
 2. When a spec exists (interactive only), the first pass prints its Safe
    Constraints and resolved OQs and stops without deleting anything: propose at
    most 4 durable rules, ask the user, then re-run `/f-close --promote '<json>'`
-   (or `--no-promote`). Approved rules are appended to `.claude/rules/*.md` with a
-   provenance marker, never editing existing lines.
+   (or `--no-promote`). Approved rules are appended to the shared rules (`rules/`,
+   legacy `.claude/rules/`) with a provenance marker, never editing existing lines.
 3. (Script) Reverts uncommitted changes, writes the approved rules, deletes
    `.specwork/` and `.opensdd/`, then offers branch cleanup: delete + switch,
    keep + switch, or stay.
