@@ -427,7 +427,7 @@ if [ -f "$SPEC_FILE" ]; then
     echo ""
     echo "Tip: this spec had Open Questions resolved during planning."
     echo "Consider running: /doc-adr open-questions"
-    echo "to capture those decisions as ADRs in docs/adr/ before the MR is merged."
+    echo "to capture those decisions as ADRs in the central registry before the MR is merged."
   fi
 fi
 

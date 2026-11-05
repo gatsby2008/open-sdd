@@ -19,7 +19,7 @@ open-sdd is **fully self-contained**. Registers all 26 commands (20 pipeline + 6
 doc/adr/spec/investigation/ingest) as custom commands with tab-completion:
 
 ```bash
-git clone <repo-url> ~/team/Yield/open-sdd
+git clone <repo-url> ~/code/open-sdd
 ./open-sdd/install.sh
 ```
 
@@ -46,7 +46,6 @@ You don't need the full pipeline to get the quality helpers. Three commands are
 
 The vibe loop: code freely → `/f-code-review` (optional) → `/f-commit` → `/f-mr`
 (and `/f-undo` to roll back uncommitted changes at any point).
-See [docs/learning/vibe-coding.md](docs/learning/vibe-coding.md).
 
 ### Full pipeline
 

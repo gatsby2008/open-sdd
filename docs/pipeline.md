@@ -68,7 +68,6 @@ INDEPENDENT — vibe coding (any branch, any time, no pipeline needed):
   /f-code-review       — stack-aware quality + security review (your own branch)
   /f-mr-review         — stack-aware peer review of someone else's branch or MR
   /f-undo              — discard uncommitted changes, reversibly (--restore to recover, --hard --force to discard)
-                         → see docs/learning/vibe-coding.md
 
   /f-handoff           — package artifacts for another agent (needs an active pipeline)
 
@@ -341,8 +340,6 @@ documentation and architecture decisions (registered via install.sh):
 
 The `/f-mr` command will suggest running `/doc-adr open-questions` when the
 spec has resolved Open Questions worth preserving as ADRs.
-
-**See also:** [docs/learning/doc-adr-cheatsheet.md](learning/doc-adr-cheatsheet.md) — full onboarding & examples
 
 ---
 

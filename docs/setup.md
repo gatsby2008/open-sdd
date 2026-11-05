@@ -190,10 +190,10 @@ wsl --install
 sudo apt update && sudo apt upgrade -y
 
 # 4. Clone open-sdd
-git clone <repo-url> ~/team/Yield/open-sdd
+git clone <repo-url> ~/code/open-sdd
 
 # 5. Run installer
-cd ~/team/Yield/open-sdd && bash install.sh
+cd ~/code/open-sdd && bash install.sh
 ```
 
 After install, always work from inside the Ubuntu terminal (open via Start menu
@@ -231,10 +231,10 @@ adjustments.
 
 # 4. Clone open-sdd
 #    Open Git Bash (Start menu → Git Bash)
-git clone <repo-url> ~/team/Yield/open-sdd
+git clone <repo-url> ~/code/open-sdd
 
 # 5. Run installer from Git Bash (not CMD, not PowerShell)
-cd ~/team/Yield/open-sdd
+cd ~/code/open-sdd
 bash install.sh
 ```
 
